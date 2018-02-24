@@ -125,7 +125,10 @@ class Decoder : public llvm::ModulePass
 				llvm::BasicBlock* insertAfter = nullptr);
 		llvm::BasicBlock* getBasicBlockBeforeAddress(retdec::utils::Address a);
 		retdec::utils::Address getBasicBlockAddress(llvm::BasicBlock* b);
+		retdec::utils::Address getBasicBlockEndAddress(llvm::BasicBlock* b);
 		llvm::BasicBlock* getBasicBlock(retdec::utils::Address a);
+
+		void dumpControFlowToJson();
 
 	private:
 		llvm::Module* _module = nullptr;

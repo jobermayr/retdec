@@ -8,6 +8,9 @@
 #include <map>
 
 #include <llvm/IR/InstIterator.h>
+#include <llvm/IR/CFG.h>
+
+#include <json/json.h> // TODO
 
 #include "retdec/utils/conversion.h"
 #include "retdec/utils/string.h"
@@ -106,6 +109,7 @@ bool Decoder::run()
 
 	// TODO:
 	dumpModuleToFile(_module);
+	dumpControFlowToJson();
 	exit(1);
 	return false;
 }
@@ -1057,6 +1061,20 @@ retdec::utils::Address Decoder::getBasicBlockAddress(llvm::BasicBlock* b)
 	auto fIt = _bb2addr.find(b);
 	return fIt != _bb2addr.end() ? fIt->second : Address();
 }
+retdec::utils::Address Decoder::getBasicBlockEndAddress(llvm::BasicBlock* b)
+{
+	if (b == nullptr)
+	{
+		Address();
+	}
+
+	if (b->empty())
+	{
+		return getBasicBlockAddress(b);
+	}
+
+	return AsmInstruction::getInstructionAddress(&b->back());
+}
 llvm::BasicBlock* Decoder::getBasicBlock(retdec::utils::Address a)
 {
 	auto fIt = _addr2bb.find(a);
@@ -1171,6 +1189,53 @@ void PseudoCallWorklist::setTargetBbFalse(llvm::CallInst* c, llvm::BasicBlock* b
 		pc.pseudoCall->eraseFromParent();
 		_worklist.erase(pc.pseudoCall);
 	}
+}
+
+void Decoder::dumpControFlowToJson()
+{
+	Json::Value jsonFncs(Json::arrayValue);
+	auto& fncs = _module->getFunctionList();
+	for (llvm::Function& f : fncs)
+	{
+		Json::Value jsonFnc;
+
+		jsonFnc["address"] = getFunctionAddress(&f).toHexPrefixString();
+		jsonFnc["address_end"] = getFunctionEndAddress(&f).toHexPrefixString();
+
+		Json::Value jsonBbs(Json::arrayValue);
+		for (llvm::BasicBlock& bb : f)
+		{
+			Json::Value bbs;
+
+			bbs["address"] = getBasicBlockAddress(&bb).toHexPrefixString();
+			bbs["address_end"] = getBasicBlockEndAddress(&bb).toHexPrefixString();
+
+			Json::Value jsonSuccs(Json::arrayValue);
+			for (auto sit = succ_begin(&bb), e = succ_end(&bb); sit != e; ++sit)
+			{
+				auto* succ = *sit;
+				jsonSuccs.append(getBasicBlockAddress(succ).toHexPrefixString());
+			}
+			bbs["succs"] = jsonSuccs;
+
+			jsonBbs.append(bbs);
+		}
+		jsonFnc["bbs"] = jsonBbs;
+
+		jsonFnc["code_refs"] = Json::arrayValue;
+
+		jsonFncs.append(jsonFnc);
+	}
+
+	Json::StreamWriterBuilder builder;
+	builder["commentStyle"] = "All";
+	builder["indentation"] = "    ";
+	builder["enableYAMLCompatibility"] = true; // " : " -> ": "
+	builder["dropNullPlaceholders"] = false;
+	std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
+
+	std::ofstream myfile("control-flow.json");
+	writer->write(jsonFncs, &myfile);
 }
 
 } // namespace bin2llvmir
