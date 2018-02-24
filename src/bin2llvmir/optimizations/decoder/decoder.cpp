@@ -136,21 +136,13 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 	auto* range = _allowedRanges.getRange(addr);
 	if (range == nullptr)
 	{
-		if (jt.type == JumpTarget::eType::CONTROL_FLOW_CALL_AFTER)
-		{
-			assert(false);
-		}
-		else if (jt.type == JumpTarget::eType::CONTROL_FLOW_BR_FALSE)
+		if (jt.type == JumpTarget::eType::CONTROL_FLOW_BR_FALSE)
 		{
 			auto* fromInst = jt.fromInst;
 			auto* fromFnc = fromInst->getFunction();
 			auto* targetBb = getBasicBlock(jt.address);
 
-			if (targetBb == nullptr)
-			{
-				assert(false);
-			}
-			else if (targetBb->getParent() == fromFnc)
+			if (targetBb && targetBb->getParent() == fromFnc)
 			{
 				_pseudoWorklist.setTargetBbFalse(
 						llvm::cast<llvm::CallInst>(jt.fromInst),
@@ -183,8 +175,10 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 							newBb);
 					return;
 				}
-
-				assert(false);
+				else
+				{
+					assert(false);
+				}
 			}
 			else if (targetBb->getParent() == fromFnc)
 			{
@@ -218,6 +212,10 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 
 				_addr2bb[jt.address] = newBb;
 				_bb2addr[newBb] = jt.address;
+
+				_pseudoWorklist.setTargetFunction(
+						llvm::cast<llvm::CallInst>(jt.fromInst),
+						newFnc);
 			}
 			else
 			{
@@ -280,16 +278,10 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 
 llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
 {
-	if (_addr2fnc.empty() && jt.type == JumpTarget::eType::ENTRY_POINT)
+	if (_addr2fnc.empty())
 	{
 		auto* f = createFunction(jt.address, jt.getName());
 		return llvm::IRBuilder<>(&f->front().front());
-	}
-	else if (jt.type == JumpTarget::eType::CONTROL_FLOW_CALL_AFTER)
-	{
-		auto* next = jt.fromInst->getNextNode();
-		assert(next); // There should be at least a terminator instr.
-		return llvm::IRBuilder<>(next);
 	}
 	else if (jt.type == JumpTarget::eType::CONTROL_FLOW_BR_FALSE)
 	{
@@ -421,16 +413,9 @@ bool Decoder::getJumpTargetsFromInstruction(
 			LOG << "\t\t" << "call @ " << addr << " -> " << t << std::endl;
 		}
 
-		_jumpTargets.push(
-				nextAddr,
-				JumpTarget::eType::CONTROL_FLOW_CALL_AFTER,
-				m,
-				tr.branchCall);
-		LOG << "\t\t" << "call @ " << addr << " next " << nextAddr << std::endl;
-
 		_pseudoWorklist.addPseudoCall(tr.branchCall);
 
-		return true;
+		return false;
 	}
 	// Return -> insert target (if computed).
 	// Next is not inserted, flow does not continue after unconditional
@@ -679,7 +664,8 @@ retdec::utils::Address Decoder::getBasicBlockAddress(llvm::BasicBlock* b)
 }
 
 /**
- * \return End address for basic block \p b.
+ * \return End address for basic block \p b - the end address of the last
+ *         instruction in the basic block.
  */
 retdec::utils::Address Decoder::getBasicBlockEndAddress(llvm::BasicBlock* b)
 {
@@ -693,7 +679,8 @@ retdec::utils::Address Decoder::getBasicBlockEndAddress(llvm::BasicBlock* b)
 		return getBasicBlockAddress(b);
 	}
 
-	return AsmInstruction::getInstructionAddress(&b->back());
+	AsmInstruction ai(&b->back());
+	return ai.getEndAddress();
 }
 
 /**
@@ -826,7 +813,7 @@ void Decoder::dumpControFlowToJson()
 			jsonBb["address"] = start.toHexPrefixString();
 			jsonBb["address_end"] = end.toHexPrefixString();
 
-			Json::Value jsonSuccs(Json::arrayValue);
+			std::set<Address> succsAddrs; // sort addresses
 			for (auto sit = succ_begin(&bb), e = succ_end(&bb); sit != e; ++sit)
 			{
 				// Find BB with address - there should always be some.
@@ -840,7 +827,12 @@ void Decoder::dumpControFlowToJson()
 					assert(succ);
 					start = getBasicBlockAddress(succ);
 				}
-				jsonSuccs.append(start.toHexPrefixString());
+				succsAddrs.insert(start);
+			}
+			Json::Value jsonSuccs(Json::arrayValue);
+			for (auto a : succsAddrs)
+			{
+				jsonSuccs.append(a.toHexPrefixString());
 			}
 			jsonBb["succs"] = jsonSuccs;
 

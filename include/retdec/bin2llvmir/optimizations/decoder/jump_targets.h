@@ -26,8 +26,7 @@ class JumpTarget
 		enum class eType
 		{
 			//
-			CONTROL_FLOW_CALL_AFTER = 0,
-			CONTROL_FLOW_BR_FALSE,
+			CONTROL_FLOW_BR_FALSE = 0,
 			CONTROL_FLOW_BR_TRUE,
 			CONTROL_FLOW_CALL_TARGET,
 			CONTROL_FLOW_RETURN_TARGET,
@@ -53,8 +52,6 @@ class JumpTarget
 				const std::string& n = "");
 
 		bool operator<(const JumpTarget& o) const;
-		bool createFunction() const;
-		bool doDryRun() const;
 
 		bool hasName() const;
 		std::string getName() const;

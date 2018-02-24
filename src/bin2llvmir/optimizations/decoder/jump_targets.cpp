@@ -64,19 +64,6 @@ bool JumpTarget::operator<(const JumpTarget& o) const
 	}
 }
 
-bool JumpTarget::createFunction() const
-{
-	return type == eType::ENTRY_POINT
-			|| type == eType::CONTROL_FLOW_CALL_TARGET
-			;
-}
-
-bool JumpTarget::doDryRun() const
-{
-	return type == eType::CONTROL_FLOW_CALL_AFTER
-			;
-}
-
 bool JumpTarget::hasName() const
 {
 	return !_name.empty();
@@ -110,9 +97,6 @@ std::ostream& operator<<(std::ostream &out, const JumpTarget& jt)
 			break;
 		case JumpTarget::eType::CONTROL_FLOW_BR_TRUE:
 			t = "CONTROL_FLOW_BR_TRUE";
-			break;
-		case JumpTarget::eType::CONTROL_FLOW_CALL_AFTER:
-			t = "CONTROL_FLOW_CALL_AFTER";
 			break;
 		case JumpTarget::eType::CONTROL_FLOW_CALL_TARGET:
 			t = "CONTROL_FLOW_CALL_TARGET";
