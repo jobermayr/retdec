@@ -622,7 +622,7 @@ llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
 	else if (jt.type == JumpTarget::eType::CONTROL_FLOW_CALL_AFTER)
 	{
 		auto* next = jt.fromInst->getNextNode();
-		assert(next); // There shoudl be at least a terminator instr.
+		assert(next); // There should be at least a terminator instr.
 		return llvm::IRBuilder<>(next);
 	}
 	else if (jt.type == JumpTarget::eType::CONTROL_FLOW_COND_BR_FALSE)
@@ -1128,7 +1128,7 @@ void PseudoCallWorklist::setTargetFunction(llvm::CallInst* c, llvm::Function* f)
 
 	assert(pc.type == eType::CALL || pc.type == eType::BR);
 
-	llvm::CallInst::Create(f, "shit", pc.pseudoCall);
+	llvm::CallInst::Create(f, "", pc.pseudoCall);
 	pc.pseudoCall->eraseFromParent();
 	_worklist.erase(pc.pseudoCall);
 }

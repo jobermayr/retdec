@@ -136,7 +136,7 @@ class Decoder : public llvm::ModulePass
 		FileImage* _image = nullptr;
 		DebugFormat* _debug = nullptr;
 
-		cs_mode _currentMode;
+		cs_mode _currentMode = CS_MODE_LITTLE_ENDIAN;
 		std::unique_ptr<capstone2llvmir::Capstone2LlvmIrTranslator> _c2l;
 
 		retdec::utils::AddressRangeContainer _allowedRanges;
