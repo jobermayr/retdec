@@ -49,6 +49,7 @@ bool Decoder::runOnModule(Module& m)
 	_config = ConfigProvider::getConfig(_module);
 	_image = FileImageProvider::getFileImage(_module);
 	_debug = DebugFormatProvider::getDebugFormat(_module);
+	_llvm2capstone = &AsmInstruction::getLlvmToCapstoneInsnMap(_module);
 	return runCatcher();
 }
 
@@ -62,6 +63,7 @@ bool Decoder::runOnModuleCustom(
 	_config = c;
 	_image = o;
 	_debug = d;
+	_llvm2capstone = &AsmInstruction::getLlvmToCapstoneInsnMap(_module);
 	return runCatcher();
 }
 
@@ -593,7 +595,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 	{
 		LOG << "\t\t\t translating = " << addr << std::endl;
 		auto res = _c2l->translateOne(bytes.first, bytes.second, addr, irb);
-		_llvm2capstone[res.llvmInsn] = res.capstoneInsn;
+		_llvm2capstone->emplace(res.llvmInsn, res.capstoneInsn);
 		AsmInstruction ai(res.llvmInsn);
 		if (res.failed() || res.llvmInsn == nullptr || ai.isInvalid())
 		{

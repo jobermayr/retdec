@@ -19,7 +19,8 @@ using namespace llvm;
 namespace retdec {
 namespace bin2llvmir {
 
-std::vector<std::pair<const llvm::Module*, const llvm::GlobalVariable*>> AsmInstruction::_cache;
+std::vector<AsmInstruction::ModuleGlobalPair> AsmInstruction::_module2global;
+std::vector<AsmInstruction::ModuleInstructionMap> AsmInstruction::_module2instMap;
 
 AsmInstruction::AsmInstruction()
 {
@@ -188,7 +189,7 @@ const llvm::GlobalVariable* AsmInstruction::getLlvmToAsmGlobalVariable(
 	{
 		return nullptr;
 	}
-	for (auto& p : _cache)
+	for (auto& p : _module2global)
 	{
 		if (p.first == m)
 		{
@@ -209,7 +210,7 @@ const llvm::GlobalVariable* AsmInstruction::getLlvmToAsmGlobalVariable(
 	}
 	auto* ms = cast<MDString>(md->getOperand(0));
 	auto* gv = m->getNamedGlobal(ms->getString());
-	_cache.push_back(std::make_pair(m, gv));
+	_module2global.push_back(std::make_pair(m, gv));
 	return gv;
 }
 
@@ -249,7 +250,8 @@ bool AsmInstruction::isLlvmToAsmInstruction(const llvm::Value* inst)
 
 void AsmInstruction::clear()
 {
-	_cache.clear();
+	_module2global.clear();
+	_module2instMap.clear();
 }
 
 bool AsmInstruction::isValid() const
@@ -264,7 +266,15 @@ bool AsmInstruction::isInvalid() const
 
 cs_insn* AsmInstruction::getCapstoneInsn() const
 {
-	assert(false && "not implemented");
+	for (auto& p : _module2instMap)
+	{
+		if (p.first == _llvmToAsmInstr->getModule())
+		{
+			auto it =  p.second.find(_llvmToAsmInstr);
+			return it != p.second.end() ? it->second : nullptr;
+		}
+	}
+
 	return nullptr;
 }
 
@@ -300,9 +310,8 @@ bool AsmInstruction::isConditional(Config* conf) const
 
 std::string AsmInstruction::getDsm() const
 {
-//	auto* i = getCapstoneInsn();
-//	return std::string(i->mnemonic) + " " + std::string(i->op_str);
-	return "";
+	auto* i = getCapstoneInsn();
+	return std::string(i->mnemonic) + " " + std::string(i->op_str);
 }
 
 std::size_t AsmInstruction::getByteSize() const
@@ -739,10 +748,8 @@ std::string AsmInstruction::dump() const
 	std::stringstream out;
 	if (isValid())
 	{
-//		out << "[ASM: " << getDsm() << " @ " << getAddress()
-//				<< " -- " << getEndAddress() << "]" << std::endl;
 		out << "[ASM: " << getDsm() << " @ " << getAddress()
-				<< " -- " << "]" << std::endl;
+				<< " -- " << getEndAddress() << "]" << std::endl;
 
 		out << llvmObjToString(_llvmToAsmInstr) << std::endl;
 		const BasicBlock* bb = _llvmToAsmInstr->getParent();
@@ -767,6 +774,23 @@ std::string AsmInstruction::dump() const
 std::ostream& operator<<(std::ostream& out, const AsmInstruction& a)
 {
 	return out << a.dump();
+}
+
+std::map<llvm::StoreInst*, cs_insn*>& AsmInstruction::getLlvmToCapstoneInsnMap(
+		const llvm::Module* m)
+{
+	for (auto& p : _module2instMap)
+	{
+		if (p.first == m)
+		{
+			return p.second;
+		}
+	}
+
+	auto it = _module2instMap.emplace(_module2instMap.end(), std::make_pair(
+			m,
+			std::map<llvm::StoreInst*, cs_insn*>()));
+	return it->second;
 }
 
 } // namespace bin2llvmir

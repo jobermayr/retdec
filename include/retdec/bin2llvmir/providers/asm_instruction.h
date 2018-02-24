@@ -337,6 +337,8 @@ class AsmInstruction
 		}
 
 	public:
+		static std::map<llvm::StoreInst*, cs_insn*>& getLlvmToCapstoneInsnMap(
+				const llvm::Module* m);
 		static const llvm::GlobalVariable* getLlvmToAsmGlobalVariable(
 				const llvm::Module* m);
 		static retdec::utils::Address getInstructionAddress(
@@ -350,11 +352,17 @@ class AsmInstruction
 		bool isLlvmToAsmInstructionPrivate(llvm::Value* inst) const;
 
 	private:
-		using ModuleGlobalPair = std::pair<const llvm::Module*, const llvm::GlobalVariable*>;
+		using ModuleGlobalPair = std::pair<
+				const llvm::Module*,
+				const llvm::GlobalVariable*>;
+		using ModuleInstructionMap = std::pair<
+				const llvm::Module*,
+				std::map<llvm::StoreInst*, cs_insn*>>;
 
 	private:
 		llvm::StoreInst* _llvmToAsmInstr = nullptr;
-		static std::vector<ModuleGlobalPair> _cache;
+		static std::vector<ModuleGlobalPair> _module2global;
+		static std::vector<ModuleInstructionMap> _module2instMap;
 };
 
 } // namespace bin2llvmir

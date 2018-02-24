@@ -150,7 +150,7 @@ class Decoder : public llvm::ModulePass
 		std::map<retdec::utils::Address, llvm::BasicBlock*> _addr2bb;
 		std::map<llvm::BasicBlock*, retdec::utils::Address> _bb2addr;
 
-		std::map<llvm::StoreInst*, cs_insn*> _llvm2capstone;
+		std::map<llvm::StoreInst*, cs_insn*>* _llvm2capstone = nullptr;
 
 		PseudoCallWorklist _pseudoWorklist;
 
