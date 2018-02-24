@@ -533,6 +533,11 @@ bool Config::isMipsOrPic32() const
 	return  _configDB.architecture.isMips() || isPic32();
 }
 
+bool Config::isArmOrThumb() const
+{
+	return _configDB.architecture.isArmOrThumb();
+}
+
 bool Config::isLlvmToAsmGlobalVariable(const llvm::Value* gv) const
 {
 	return gv == getLlvmToAsmGlobalVariable();

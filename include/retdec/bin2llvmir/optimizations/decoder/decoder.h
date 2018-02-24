@@ -7,6 +7,7 @@
 #ifndef RETDEC_BIN2LLVMIR_OPTIMIZATIONS_DECODER_DECODER_H
 #define RETDEC_BIN2LLVMIR_OPTIMIZATIONS_DECODER_DECODER_H
 
+#include <map>
 #include <queue>
 #include <sstream>
 
@@ -20,52 +21,16 @@
 #include "retdec/bin2llvmir/providers/debugformat.h"
 #include "retdec/bin2llvmir/providers/fileimage.h"
 #include "retdec/bin2llvmir/optimizations/decoder/jump_targets.h"
+#include "retdec/bin2llvmir/optimizations/decoder/pseudo_call_worklist.h"
 #include "retdec/bin2llvmir/utils/ir_modifier.h"
 #include "retdec/capstone2llvmir/capstone2llvmir.h"
 
+// Debug logs enabled/disabled.
+#include "retdec/bin2llvmir/utils/defs.h"
+#define debug_enabled true
+
 namespace retdec {
 namespace bin2llvmir {
-
-class PseudoCallWorklist
-{
-	public:
-		void addPseudoCall(llvm::CallInst* c);
-		void addPseudoBr(llvm::CallInst* c);
-		void addPseudoCondBr(llvm::CallInst* c);
-		void addPseudoReturn(llvm::CallInst* c);
-
-		void setTargetFunction(llvm::CallInst* c, llvm::Function* f);
-		void setTargetBbTrue(llvm::CallInst* c, llvm::BasicBlock* b);
-		void setTargetBbFalse(llvm::CallInst* c, llvm::BasicBlock* b);
-
-	private:
-		enum class eType
-		{
-			CALL,
-			BR,
-			COND_BR,
-			RETURN,
-		};
-
-	private:
-		struct PseudoCall
-		{
-			PseudoCall(eType t, llvm::CallInst* c) :
-				type(t),
-				pseudoCall(c)
-			{}
-
-			eType type;
-			llvm::CallInst* pseudoCall = nullptr;
-
-			llvm::Function* targetFunction = nullptr;
-			llvm::BasicBlock* targetBbTrue = nullptr;
-			llvm::BasicBlock* targetBbFalse = nullptr;
-		};
-
-	private:
-		std::map<llvm::CallInst*, PseudoCall> _worklist;
-};
 
 class Decoder : public llvm::ModulePass
 {
@@ -83,16 +48,15 @@ class Decoder : public llvm::ModulePass
 		bool runCatcher();
 		bool run();
 
-		bool initTranslator();
+		void initTranslator();
 		void initEnvironment();
 		void initEnvironmentAsm2LlvmMapping();
 		void initEnvironmentPseudoFunctions();
 		void initEnvironmentRegisters();
-
 		void initRanges();
 		void initAllowedRangesWithSegments();
-
 		void initJumpTargets();
+		void initJumpTargetsEntryPoint();
 
 		void decode();
 		void decodeJumpTarget(const JumpTarget& jt);
@@ -106,27 +70,25 @@ class Decoder : public llvm::ModulePass
 		llvm::IRBuilder<> getIrBuilder(const JumpTarget& jt);
 		retdec::utils::Address getJumpTarget(llvm::Value* val);
 
-		llvm::Type* getDefaultFunctionReturnType();
-		bool isArmOrThumb() const;
-
-		llvm::Function* createFunction(
-				retdec::utils::Address a,
-				const std::string& name);
-		llvm::Function* getFunctionBeforeAddress(retdec::utils::Address a);
-		llvm::Function* getFunctionContainingAddress(retdec::utils::Address a);
 		retdec::utils::Address getFunctionAddress(llvm::Function* f);
 		retdec::utils::Address getFunctionEndAddress(llvm::Function* f);
 		llvm::Function* getFunction(retdec::utils::Address a);
+		llvm::Function* getFunctionBeforeAddress(retdec::utils::Address a);
+		llvm::Function* getFunctionContainingAddress(retdec::utils::Address a);
+		llvm::Function* createFunction(
+				retdec::utils::Address a,
+				const std::string& name);
 
+		retdec::utils::Address getBasicBlockAddress(llvm::BasicBlock* b);
+		retdec::utils::Address getBasicBlockEndAddress(llvm::BasicBlock* b);
+		llvm::BasicBlock* getBasicBlock(retdec::utils::Address a);
+		llvm::BasicBlock* getBasicBlockBeforeAddress(retdec::utils::Address a);
+		llvm::BasicBlock* getBasicBlockContainingAddress(retdec::utils::Address a);
 		llvm::BasicBlock* createBasicBlock(
 				retdec::utils::Address a,
 				const std::string& name,
 				llvm::Function* f,
 				llvm::BasicBlock* insertAfter = nullptr);
-		llvm::BasicBlock* getBasicBlockBeforeAddress(retdec::utils::Address a);
-		retdec::utils::Address getBasicBlockAddress(llvm::BasicBlock* b);
-		retdec::utils::Address getBasicBlockEndAddress(llvm::BasicBlock* b);
-		llvm::BasicBlock* getBasicBlock(retdec::utils::Address a);
 
 		void dumpControFlowToJson();
 
@@ -142,18 +104,18 @@ class Decoder : public llvm::ModulePass
 		retdec::utils::AddressRangeContainer _allowedRanges;
 		retdec::utils::AddressRangeContainer _alternativeRanges;
 		retdec::utils::AddressRangeContainer _processedRanges;
+
 		JumpTargets _jumpTargets;
+		PseudoCallWorklist _pseudoWorklist;
 
 		std::map<retdec::utils::Address, llvm::Function*> _addr2fnc;
 		std::map<llvm::Function*, retdec::utils::Address> _fnc2addr;
-
 		std::map<retdec::utils::Address, llvm::BasicBlock*> _addr2bb;
 		std::map<llvm::BasicBlock*, retdec::utils::Address> _bb2addr;
 
 		std::map<llvm::StoreInst*, cs_insn*>* _llvm2capstone = nullptr;
 
-		PseudoCallWorklist _pseudoWorklist;
-
+	private:
 		const std::string _asm2llvmGv = "_asm_program_counter";
 		const std::string _asm2llvmMd = "llvmToAsmGlobalVariableName";
 		const std::string _callFunction = "__pseudo_call";

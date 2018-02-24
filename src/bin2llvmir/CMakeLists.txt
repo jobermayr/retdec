@@ -23,8 +23,10 @@ set(BIN2LLVMIR_SOURCES
 	optimizations/control_flow/x86.cpp
 	optimizations/ctor_dtor/ctor_dtor.cpp
 	optimizations/data_references/data_references.cpp
+	optimizations/decoder/decoder_init.cpp
 	optimizations/decoder/decoder.cpp
 	optimizations/decoder/jump_targets.cpp
+	optimizations/decoder/pseudo_call_worklist.cpp
 	optimizations/dsm_generator/dsm_generator.cpp
 	optimizations/dump_module/dump_module.cpp
 	optimizations/globals/dead_global_assign.cpp

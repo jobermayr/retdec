@@ -105,14 +105,11 @@ std::ostream& operator<<(std::ostream &out, const JumpTarget& jt)
 		case JumpTarget::eType::ENTRY_POINT:
 			t = "ENTRY_POINT";
 			break;
-		case JumpTarget::eType::CONTROL_FLOW_COND_BR_FALSE:
-			t = "CONTROL_FLOW_COND_BR_FALSE";
+		case JumpTarget::eType::CONTROL_FLOW_BR_FALSE:
+			t = "CONTROL_FLOW_BR_FALSE";
 			break;
-		case JumpTarget::eType::CONTROL_FLOW_COND_BR_TRUE:
-			t = "CONTROL_FLOW_COND_BR_TRUE";
-			break;
-		case JumpTarget::eType::CONTROL_FLOW_BR_TARGET:
-			t = "CONTROL_FLOW_BR_TARGET";
+		case JumpTarget::eType::CONTROL_FLOW_BR_TRUE:
+			t = "CONTROL_FLOW_BR_TRUE";
 			break;
 		case JumpTarget::eType::CONTROL_FLOW_CALL_AFTER:
 			t = "CONTROL_FLOW_CALL_AFTER";

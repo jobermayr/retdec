@@ -155,6 +155,7 @@ class Config
 		//
 		bool isPic32() const;
 		bool isMipsOrPic32() const;
+		bool isArmOrThumb() const;
 		llvm::GlobalVariable* getGlobalDummy();
 
 	private:
