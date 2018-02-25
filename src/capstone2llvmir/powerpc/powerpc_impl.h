@@ -41,6 +41,7 @@ class Capstone2LlvmIrTranslatorPowerpc_impl :
 		virtual void initializeArchSpecific() override;
 		virtual void initializeRegNameMap() override;
 		virtual void initializeRegTypeMap() override;
+		virtual void initializePseudoCallInstructionIDs() override;
 		virtual void generateEnvironmentArchSpecific() override;
 		virtual void generateDataLayout() override;
 		virtual void generateRegisters() override;

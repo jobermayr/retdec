@@ -86,6 +86,15 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 		virtual uint32_t getRegisterBitSize(uint32_t r) const override;
 		virtual uint32_t getRegisterByteSize(uint32_t r) const override;
 		virtual llvm::Type* getRegisterType(uint32_t r) const override;
+
+		virtual bool isCallInstruction(cs_insn& i) const override;
+		virtual bool isCallInstruction(unsigned int id) const override;
+		virtual bool isReturnInstruction(cs_insn& i) const override;
+		virtual bool isReturnInstruction(unsigned int id) const override;
+		virtual bool isBranchInstruction(cs_insn& i) const override;
+		virtual bool isBranchInstruction(unsigned int id) const override;
+		virtual bool isCondBranchInstruction(cs_insn& i) const override;
+		virtual bool isCondBranchInstruction(unsigned int id) const override;
 //
 //==============================================================================
 // LLVM related getters and query methods - from Capstone2LlvmIrTranslator.
@@ -178,6 +187,21 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 		 * must be initialized, and what may or may not be initialized.
 		 */
 		virtual void initializeRegTypeMap() = 0;
+
+		/**
+		 * If possible, initialize @c _callInsnIds, @c _returnInsnIds,
+		 * @c _branchInsnIds, @c _condBranchInsnIds, @c _condBranchInsnIds sets.
+		 *
+		 * For some architectures, it is not possible to initialize all the
+		 * instructions that may generate control flow change. E.g. Any kind
+		 * of ARM instruction that writes to PC is changing control flow.
+		 *
+		 * This is not ideal, because each time some instruction that generates
+		 * one of these is added, or removed, its ID must also be manualy added,
+		 * or removed, here. This could be easily forgotten. Right now, I do not
+		 * know how to solve this better (i.e. automatic update).
+		 */
+		virtual void initializePseudoCallInstructionIDs() = 0;
 
 		/**
 		 * Generate architecture specific environment on top of common
@@ -463,6 +487,25 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 
 		/// Capstone instruction being currently translated.
 		cs_insn* _insn = nullptr;
+
+		/// Set of Capstone instruction IDs translation of which would produce
+		/// call pseudo call.
+		std::set<unsigned int> _callInsnIds;
+		/// Set of Capstone instruction IDs translation of which would produce
+		/// return pseudo call.
+		std::set<unsigned int> _returnInsnIds;
+		/// Set of Capstone instruction IDs translation of which would produce
+		/// branch pseudo call.
+		std::set<unsigned int> _branchInsnIds;
+		/// Set of Capstone instruction IDs translation of which would produce
+		/// conditional branch pseudo call.
+		std::set<unsigned int> _condBranchInsnIds;
+		/// Sometimes it is not possible to categorize an instruction ID to one
+		/// of the sets above without its full analysis. Such instructions
+		/// can be inserted here.
+		/// Set of Capstone instruction IDs translation of which may produce
+		/// any kind of control flow changing pseudo call.
+		std::set<unsigned int> _condBranchInsnIds;
 };
 
 } // namespace capstone2llvmir

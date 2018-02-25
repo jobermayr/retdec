@@ -300,6 +300,62 @@ void Capstone2LlvmIrTranslatorX86_impl::initializeRegTypeMap()
 	_reg2type = std::move(r2t);
 }
 
+void Capstone2LlvmIrTranslatorX86_impl::initializePseudoCallInstructionIDs()
+{
+	_callInsnIds =
+	{
+			X86_INS_CALL,
+			X86_INS_LCALL,
+	};
+
+	_returnInsnIds =
+	{
+			X86_INS_RET,
+			X86_INS_RETF,
+			X86_INS_RETFQ
+	};
+
+	_branchInsnIds =
+	{
+			X86_INS_JMP,
+			X86_INS_LJMP,
+	};
+
+	_condBranchInsnIds =
+	{
+			X86_INS_JCXZ,
+			X86_INS_JECXZ,
+			X86_INS_JRCXZ,
+			//
+			X86_INS_LOOP,
+			X86_INS_LOOPE,
+			X86_INS_LOOPNE,
+			//
+			X86_INS_JAE,
+			X86_INS_JA,
+			X86_INS_JBE,
+			X86_INS_JB,
+			X86_INS_JE,
+			X86_INS_JGE,
+			X86_INS_JG,
+			X86_INS_JLE,
+			X86_INS_JL,
+			X86_INS_JNE,
+			X86_INS_JNO,
+			X86_INS_JNP,
+			X86_INS_JNS,
+			X86_INS_JO,
+			X86_INS_JP,
+			X86_INS_JS,
+	};
+
+	_condBranchInsnIds =
+	{
+			// Currently, all instructions can be categorized based on their
+			// IDs alone.
+	};
+}
+
 //
 //==============================================================================
 // x86-specific methods.

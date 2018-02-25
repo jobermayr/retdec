@@ -371,7 +371,6 @@ class Capstone2LlvmIrTranslator
 			/// e.g. unconditional branch in if-then.
 			bool inCondition = false;
 		};
-
 		/**
 		 * Translate one assembly instruction from the given bytes.
 		 * @param bytes Bytes to translate.
@@ -472,6 +471,39 @@ class Capstone2LlvmIrTranslator
 		 * found.
 		 */
 		virtual llvm::Type* getRegisterType(uint32_t r) const = 0;
+
+		/**
+		 * Check if the translation of this instruction will/may produce any
+		 * kind of control flow changing pseudo call (i.e. call/return/br/condbr
+		 * pseudo function call).
+		 *
+		 * For ARM, parameter @p i must include @c detail member - instruction
+		 * cannot be disassembled with CS_OP_DETAIL = CS_OPT_OFF, or with
+		 * CS_OP_SKIPDATA = CS_OPT_OFF.
+		 *
+		 * For x86, MIPS, PowerPC, parameter @p i may not include @c detail
+		 * member - instruction can be disassembled with
+		 * CS_OP_DETAIL = CS_OPT_ON, or with CS_OP_SKIPDATA = CS_OPT_ON.
+		 *
+		 * It is sometimes tricky to find this information without actually
+		 * translating the instruction. On the other hand, for some
+		 * architectures, it would be possible to give more detailed information
+		 * (e.g. the kind of pseudo function call), sometimes even from
+		 * instruction ID alone (i.e. @c cs_insn::id):
+		 * - x86: All kinds of pseudo function calls can be recognized from
+		 *        the instruction ID alone.
+		 * - mips: All kinds of pseudo function calls can be recognized from
+		 *         the instruction ID alone.
+		 * - powerpc: Can determine if the instruction is control flow changing
+		 *            from the instruction ID alone. Hard/impossible to
+		 *            determine the type without @c detail and replicating
+		 *            the full analysis used in translation.
+		 * - arm: Impossible to determine if the instruction is control flow
+		 *        changing from the instruction ID alone. Instructions may
+		 *        directly write the program counter - instruction details are
+		 *        needed. Instructions may be conditional.
+		 */
+		virtual bool isControlFlowInstruction(cs_insn& i) const = 0;
 //
 //==============================================================================
 // LLVM related getters and query methods.

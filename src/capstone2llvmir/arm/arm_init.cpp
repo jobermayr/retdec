@@ -73,6 +73,31 @@ void Capstone2LlvmIrTranslatorArm_impl::initializeRegTypeMap()
 	_reg2type = std::move(r2t);
 }
 
+void Capstone2LlvmIrTranslatorArm_impl::initializePseudoCallInstructionIDs()
+{
+	_callInsnIds =
+	{
+			ARM_INS_BL,
+			ARM_INS_BLX,
+	};
+
+	_returnInsnIds =
+	{
+			// Nothing - ARM returns via write to program counter register.
+	};
+
+	_branchInsnIds =
+	{
+			ARM_INS_B,
+			ARM_INS_BX,
+	};
+
+	_condBranchInsnIds =
+	{
+
+	};
+}
+
 //
 //==============================================================================
 // Instruction translation map initialization.

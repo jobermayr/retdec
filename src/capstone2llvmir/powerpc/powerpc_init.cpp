@@ -376,6 +376,119 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::initializeRegTypeMap()
 	_reg2type = std::move(r2t);
 }
 
+void Capstone2LlvmIrTranslatorPowerpc_impl::initializePseudoCallInstructionIDs()
+{
+	_callInsnIds =
+	{
+			// On PowerPC, it is hard to tell what the branch instruction
+			// actually do without very complex analysis. See:
+			// Capstone2LlvmIrTranslatorPowerpc_impl::translateB
+	};
+
+	_returnInsnIds =
+	{
+			// On PowerPC, it is hard to tell what the branch instruction
+			// actually do without very complex analysis. See:
+			// Capstone2LlvmIrTranslatorPowerpc_impl::translateB
+	};
+
+	_branchInsnIds =
+	{
+			// On PowerPC, it is hard to tell what the branch instruction
+			// actually do without very complex analysis. See:
+			// Capstone2LlvmIrTranslatorPowerpc_impl::translateB
+	};
+
+	_condBranchInsnIds =
+	{
+			// On PowerPC, it is hard to tell what the branch instruction
+			// actually do without very complex analysis. See:
+			// Capstone2LlvmIrTranslatorPowerpc_impl::translateB
+	};
+
+	_condBranchInsnIds =
+	{
+			 PPC_INS_B,
+			 PPC_INS_BA,
+			 PPC_INS_BL,
+			 PPC_INS_BLA,
+
+			 PPC_INS_BC,
+			 PPC_INS_BCA.
+			 PPC_INS_BCLR,
+			 PPC_INS_BCCTR,
+			 PPC_INS_BCL,
+			 PPC_INS_BCLA,
+			 PPC_INS_BCLRL,
+			 PPC_INS_BCCTRL,
+
+			 PPC_INS_BLR,
+			 PPC_INS_BCTR,
+			 PPC_INS_BLRL,
+			 PPC_INS_BCTRL,
+
+			 PPC_INS_BT,
+			 PPC_INS_BTA,
+			 PPC_INS_BTLR,
+			 PPC_INS_BTCTR,
+			 PPC_INS_BTL,
+			 PPC_INS_BTLA,
+			 PPC_INS_BTLRL,
+			 PPC_INS_BTCTRL,
+
+			 PPC_INS_BF,
+			 PPC_INS_BFA,
+			 PPC_INS_BFLR,
+			 PPC_INS_BFCTR,
+			 PPC_INS_BFL,
+			 PPC_INS_BFLA,
+			 PPC_INS_BFLRL,
+			 PPC_INS_BFCTRL,
+
+			 PPC_INS_BDNZ,
+			 PPC_INS_BDNZA,
+			 PPC_INS_BDNZLR,
+			 PPC_INS_BDNZL,
+			 PPC_INS_BDNZLA,
+			 PPC_INS_BDNZLRL,
+
+			 PPC_INS_BDNZT,
+			 PPC_INS_BDNZTA,
+			 PPC_INS_BDNZTLR,
+			 PPC_INS_BDNZTL,
+			 PPC_INS_BDNZTLA,
+			 PPC_INS_BDNZTLRL,
+
+			 PPC_INS_BDNZF,
+			 PPC_INS_BDNZFA,
+			 PPC_INS_BDNZFLR,
+			 PPC_INS_BDNZFL,
+			 PPC_INS_BDNZFLA,
+			 PPC_INS_BDNZFLRL,
+
+			 PPC_INS_BDZ,
+			 PPC_INS_BDZA,
+			 PPC_INS_BDZLR,
+			 PPC_INS_BDZL,
+			 PPC_INS_BDZLA,
+			 PPC_INS_BDZLRL,
+
+			 PPC_INS_BDZT,
+			 PPC_INS_BDZTA,
+			 PPC_INS_BDZTLR,
+			 PPC_INS_BDZTL,
+			 PPC_INS_BDZTLA,
+			 PPC_INS_BDZTLRL,
+
+			 PPC_INS_BDZF,
+			 PPC_INS_BDZFA,
+			 PPC_INS_BDZFLR,
+			 PPC_INS_BDZFL,
+			 PPC_INS_BDZFLA,
+			 PPC_INS_BDZFLRL,
+	};
+}
+
 //
 //==============================================================================
 // Instruction translation map initialization.

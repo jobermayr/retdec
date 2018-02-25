@@ -353,13 +353,15 @@ uint32_t Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::getRegisterBitSize(uint
 }
 
 template <typename CInsn, typename CInsnOp>
-uint32_t Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::getRegisterByteSize(uint32_t r) const
+uint32_t Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::getRegisterByteSize(
+		uint32_t r) const
 {
 	return getRegisterBitSize(r) / 8;
 }
 
 template <typename CInsn, typename CInsnOp>
-llvm::Type* Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::getRegisterType(uint32_t r) const
+llvm::Type* Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::getRegisterType(
+		uint32_t r) const
 {
 	auto fIt = _reg2type.find(r);
 	if (fIt == _reg2type.end())
@@ -369,6 +371,62 @@ llvm::Type* Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::getRegisterType(uint
 				"Missing type for register number: " + std::to_string(r));
 	}
 	return fIt->second;
+}
+
+template <typename CInsn, typename CInsnOp>
+bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isCallInstruction(
+		cs_insn& i) const
+{
+	return isCallInstruction(i.id);
+}
+
+template <typename CInsn, typename CInsnOp>
+bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isCallInstruction(
+		unsigned int id) const
+{
+	return _callInsnIds.count(id);
+}
+
+template <typename CInsn, typename CInsnOp>
+bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isReturnInstruction(
+		cs_insn& i) const
+{
+	return isReturnInstruction(i.id);
+}
+
+template <typename CInsn, typename CInsnOp>
+bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isReturnInstruction(
+		unsigned int id) const
+{
+	return _returnInsnIds.count(id);
+}
+
+template <typename CInsn, typename CInsnOp>
+bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isBranchInstruction(
+		cs_insn& i) const
+{
+	return isBranchInstruction(i.id);
+}
+
+template <typename CInsn, typename CInsnOp>
+bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isBranchInstruction(
+		unsigned int id) const
+{
+	return _branchInsnIds.count(id);
+}
+
+template <typename CInsn, typename CInsnOp>
+bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isCondBranchInstruction(
+		cs_insn& i) const
+{
+	return isCondBranchInstruction(i.id);
+}
+
+template <typename CInsn, typename CInsnOp>
+bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isCondBranchInstruction(
+		unsigned int id) const
+{
+	return _condBranchInsnIds.count(id);
 }
 
 //

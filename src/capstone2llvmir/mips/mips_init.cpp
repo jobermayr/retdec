@@ -247,6 +247,63 @@ void Capstone2LlvmIrTranslatorMips_impl::initializeRegTypeMap()
 	_reg2type = std::move(r2t);
 }
 
+void Capstone2LlvmIrTranslatorMips_impl::initializePseudoCallInstructionIDs()
+{
+	_callInsnIds =
+	{
+			MIPS_INS_JAL,
+			MIPS_INS_JALR,
+			//
+			MIPS_INS_BGEZAL,
+			MIPS_INS_BGEZALL,
+			MIPS_INS_BLTZAL,
+			MIPS_INS_BLTZALL,
+	};
+
+	_returnInsnIds =
+	{
+			// Nothing - MIPS returns via jump to return address register.
+	};
+
+	_branchInsnIds =
+	{
+			MIPS_INS_J,
+			MIPS_INS_JR,
+	};
+
+	_condBranchInsnIds =
+	{
+			//
+			MIPS_INS_BC1F,
+			MIPS_INS_BC1FL,
+			//
+			MIPS_INS_BC1T,
+			MIPS_INS_BC1TL,
+			//
+			MIPS_INS_BEQ,
+			MIPS_INS_BEQL,
+			MIPS_INS_BNE,
+			MIPS_INS_BNEL,
+			//
+			MIPS_INS_BLEZ,
+			MIPS_INS_BLEZL,
+			MIPS_INS_BGTZ,
+			MIPS_INS_BGTZL,
+			MIPS_INS_BLTZ,
+			MIPS_INS_BLTZL,
+			MIPS_INS_BGEZ,
+			MIPS_INS_BGEZL,
+			MIPS_INS_BEQZ,
+			MIPS_INS_BNEZ,
+	};
+
+	_condBranchInsnIds =
+	{
+			// Currently, all instructions can be categorized based on their
+			// IDs alone.
+	};
+}
+
 //
 //==============================================================================
 // Instruction translation map initialization.
