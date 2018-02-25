@@ -11,7 +11,9 @@
 #include <queue>
 #include <sstream>
 
+#include <llvm/IR/CFG.h>
 #include <llvm/IR/Function.h>
+#include <llvm/IR/InstIterator.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Pass.h>
 
@@ -90,7 +92,14 @@ class Decoder : public llvm::ModulePass
 				llvm::Function* f,
 				llvm::BasicBlock* insertAfter = nullptr);
 
-		void dumpControFlowToJson();
+		void dumpControFlowToJson_jsoncpp();
+		void dumpControFlowToJsonModule_manual();
+		void dumpControFlowToJsonFunction_manual(
+				llvm::Function& f,
+				std::ostream &out);
+		void dumpControFlowToJsonBasicBlock_manual(
+				llvm::BasicBlock& bb,
+				std::ostream &out);
 
 	private:
 		llvm::Module* _module = nullptr;

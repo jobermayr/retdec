@@ -4,9 +4,6 @@
 * @copyright (c) 2017 Avast Software, licensed under the MIT license
 */
 
-#include <llvm/IR/InstIterator.h>
-#include <llvm/IR/CFG.h>
-
 #include <json/json.h>
 
 #include "retdec/utils/conversion.h"
@@ -103,7 +100,8 @@ bool Decoder::run()
 	decode();
 
 dumpModuleToFile(_module);
-dumpControFlowToJson();
+//dumpControFlowToJson_jsoncpp();
+dumpControFlowToJsonModule_manual();
 exit(1);
 	return false;
 }
@@ -764,95 +762,6 @@ llvm::BasicBlock* Decoder::createBasicBlock(
 	_bb2addr[b] = a;
 
 	return b;
-}
-
-//
-//==============================================================================
-// Utility methods.
-//==============================================================================
-//
-
-/**
- * Dump the decoded LLVM module's control flow to file in JSON format that
- * can be diffed with control flow dump from other tools (e.g. IDA, avast
- * disassembler).
- */
-void Decoder::dumpControFlowToJson()
-{
-	Json::Value jsonFncs(Json::arrayValue);
-	for (llvm::Function& f : _module->functions())
-	{
-		Json::Value jsonFnc;
-
-		// There are some temp and utility fncs that do not have addresses.
-		auto start = getFunctionAddress(&f);
-		auto end = getFunctionEndAddress(&f);
-		if (start.isUndefined() || end.isUndefined())
-		{
-			continue;
-		}
-
-		jsonFnc["address"] = start.toHexPrefixString();
-		jsonFnc["address_end"] = end.toHexPrefixString();
-
-		Json::Value jsonBbs(Json::arrayValue);
-		for (llvm::BasicBlock& bb : f)
-		{
-			// There are more BBs in LLVM IR than we created in control-flow
-			// decoding - e.g. BBs inside instructions that behave like
-			// if-then-else created by capstone2llvmir.
-			auto start = getBasicBlockAddress(&bb);
-			auto end = getBasicBlockEndAddress(&bb);
-			if (start.isUndefined() || end.isUndefined())
-			{
-				continue;
-			}
-
-			Json::Value jsonBb;
-
-			jsonBb["address"] = start.toHexPrefixString();
-			jsonBb["address_end"] = end.toHexPrefixString();
-
-			std::set<Address> succsAddrs; // sort addresses
-			for (auto sit = succ_begin(&bb), e = succ_end(&bb); sit != e; ++sit)
-			{
-				// Find BB with address - there should always be some.
-				// Some BBs may not have addresses - e.g. those inside
-				// if-then-else instruction models.
-				auto* succ = *sit;
-				auto start = getBasicBlockAddress(succ);
-				while (start.isUndefined())
-				{
-					succ = succ->getPrevNode();
-					assert(succ);
-					start = getBasicBlockAddress(succ);
-				}
-				succsAddrs.insert(start);
-			}
-			Json::Value jsonSuccs(Json::arrayValue);
-			for (auto a : succsAddrs)
-			{
-				jsonSuccs.append(a.toHexPrefixString());
-			}
-			jsonBb["succs"] = jsonSuccs;
-
-			jsonBbs.append(jsonBb);
-		}
-		jsonFnc["bbs"] = jsonBbs;
-
-		jsonFnc["code_refs"] = Json::arrayValue;
-
-		jsonFncs.append(jsonFnc);
-	}
-
-	Json::StreamWriterBuilder builder;
-	builder["commentStyle"] = "All";
-	builder["indentation"] = "    ";
-	builder["enableYAMLCompatibility"] = true; // " : " -> ": "
-	std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
-
-	std::ofstream myfile("control-flow.json");
-	writer->write(jsonFncs, &myfile);
 }
 
 } // namespace bin2llvmir
