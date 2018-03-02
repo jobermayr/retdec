@@ -138,7 +138,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		{
 			auto* fromInst = jt.fromInst;
 			auto* fromFnc = fromInst->getFunction();
-			auto* targetBb = getBasicBlock(jt.address);
+			auto* targetBb = getBasicBlockAtAddress(jt.address);
 
 			if (targetBb && targetBb->getParent() == fromFnc)
 			{
@@ -156,7 +156,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		{
 			auto* fromInst = jt.fromInst;
 			auto* fromFnc = fromInst->getFunction();
-			auto* targetBb = getBasicBlock(jt.address);
+			auto* targetBb = getBasicBlockAtAddress(jt.address);
 
 			if (targetBb == nullptr)
 			{
@@ -192,7 +192,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		}
 		else if (jt.type == JumpTarget::eType::CONTROL_FLOW_CALL_TARGET)
 		{
-			if (auto* f = getFunction(jt.address))
+			if (auto* f = getFunctionAtAddress(jt.address))
 			{
 				_pseudoWorklist.setTargetFunction(
 						llvm::cast<llvm::CallInst>(jt.fromInst),
@@ -235,18 +235,17 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		LOG << "\t\tfound no data -> skipped" << std::endl;
 		return;
 	}
-	bytes.second = range->getSize() < bytes.second
-			? range->getSize().getValue()
-			: bytes.second;
 
-//if (jt.doDryRun())
-//{
-//	// TODO: try dry run, based on jump target type:
-//	// 1. ok   - ???
-//	// 2. fail - ???
-//	std::cout << "\n do dry run\n" << std::endl;
-//	exit(1);
-//}
+	auto toRangeEnd = range->getEnd() + 1 - addr;
+	bytes.second = toRangeEnd < bytes.second ? toRangeEnd : bytes.second;
+
+	if (auto skipSz = decodeJumpTargetDryRun(jt, bytes))
+	{
+		AddressRange skipRange(start, start+skipSz-1);
+		LOG << "\t\tdry run failed -> skip range = " << skipRange << std::endl;
+		_allowedRanges.remove(skipRange);
+		return;
+	}
 
 	auto irb = getIrBuilder(jt);
 
@@ -272,6 +271,53 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 	LOG << "\t\tdecoded range = " << decRange << std::endl;
 
 	_allowedRanges.remove(decRange);
+}
+
+/**
+ * Check if the given jump targets and bytes can/should be decoded.
+ * \return The number of bytes to skip from decoding. If zero, then dry run was
+ *         ok and decoding of this chunk can proceed. If non-zero, remove the
+ *         number of bytes from ranges to decode.
+ */
+std::size_t Decoder::decodeJumpTargetDryRun(
+		const JumpTarget& jt,
+		std::pair<const std::uint8_t*, std::uint64_t> bytes)
+{
+	// Architecture-specific dry runs.
+	//
+	if (_config->getConfig().architecture.isX86())
+	{
+		return decodeJumpTargetDryRun_x86(jt, bytes);
+	}
+
+	// Common dry run.
+	//
+	return false;
+}
+
+std::size_t Decoder::decodeJumpTargetDryRun_x86(
+		const JumpTarget& jt,
+		std::pair<const std::uint8_t*, std::uint64_t> bytes)
+{
+	static csh ce = _c2l->getCapstoneEngine();
+	static cs_insn* insn = cs_malloc(ce);
+
+	uint64_t addr = jt.address;
+	while (cs_disasm_iter(ce, &bytes.first, &bytes.second, &addr, insn))
+	{
+		if (_c2l->isReturnInstruction(*insn)
+				|| _c2l->isBranchInstruction(*insn))
+		{
+			return false;
+		}
+	}
+
+	if (getBasicBlockAtAddress(addr))
+	{
+		return false;
+	}
+
+	return true;
 }
 
 llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
@@ -359,7 +405,7 @@ llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
 	}
 	else if (jt.type == JumpTarget::eType::CONTROL_FLOW_CALL_TARGET)
 	{
-		if (getFunction(jt.address))
+		if (getFunctionAtAddress(jt.address))
 		{
 			// There is such function, but that means its entry BB was already
 			// decoded, something is wrong here.
@@ -544,7 +590,7 @@ retdec::utils::Address Decoder::getFunctionEndAddress(llvm::Function* f)
 /**
  * \return Function exactly at address \p a.
  */
-llvm::Function* Decoder::getFunction(retdec::utils::Address a)
+llvm::Function* Decoder::getFunctionAtAddress(retdec::utils::Address a)
 {
 	auto fIt = _addr2fnc.find(a);
 	return fIt != _addr2fnc.end() ? fIt->second : nullptr;
@@ -684,7 +730,7 @@ retdec::utils::Address Decoder::getBasicBlockEndAddress(llvm::BasicBlock* b)
 /**
  * \return basic block exactly at address \p a.
  */
-llvm::BasicBlock* Decoder::getBasicBlock(retdec::utils::Address a)
+llvm::BasicBlock* Decoder::getBasicBlockAtAddress(retdec::utils::Address a)
 {
 	auto fIt = _addr2bb.find(a);
 	return fIt != _addr2bb.end() ? fIt->second : nullptr;

@@ -573,6 +573,7 @@ void Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::initialize()
 
 	initializeRegNameMap();
 	initializeRegTypeMap();
+	initializePseudoCallInstructionIDs();
 	initializeArchSpecific();
 
 	generateEnvironment();

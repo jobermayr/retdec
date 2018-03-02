@@ -62,6 +62,11 @@ class Decoder : public llvm::ModulePass
 
 		void decode();
 		void decodeJumpTarget(const JumpTarget& jt);
+		std::size_t decodeJumpTargetDryRun(
+				const JumpTarget& jt,
+				std::pair<const std::uint8_t*, std::uint64_t> bytes);
+		std::size_t decodeJumpTargetDryRun_x86(const JumpTarget& jt,
+				std::pair<const std::uint8_t*, std::uint64_t> bytes);
 
 		bool getJumpTargetsFromInstruction(
 				AsmInstruction& ai,
@@ -74,7 +79,7 @@ class Decoder : public llvm::ModulePass
 
 		retdec::utils::Address getFunctionAddress(llvm::Function* f);
 		retdec::utils::Address getFunctionEndAddress(llvm::Function* f);
-		llvm::Function* getFunction(retdec::utils::Address a);
+		llvm::Function* getFunctionAtAddress(retdec::utils::Address a);
 		llvm::Function* getFunctionBeforeAddress(retdec::utils::Address a);
 		llvm::Function* getFunctionContainingAddress(retdec::utils::Address a);
 		llvm::Function* createFunction(
@@ -83,7 +88,7 @@ class Decoder : public llvm::ModulePass
 
 		retdec::utils::Address getBasicBlockAddress(llvm::BasicBlock* b);
 		retdec::utils::Address getBasicBlockEndAddress(llvm::BasicBlock* b);
-		llvm::BasicBlock* getBasicBlock(retdec::utils::Address a);
+		llvm::BasicBlock* getBasicBlockAtAddress(retdec::utils::Address a);
 		llvm::BasicBlock* getBasicBlockBeforeAddress(retdec::utils::Address a);
 		llvm::BasicBlock* getBasicBlockContainingAddress(retdec::utils::Address a);
 		llvm::BasicBlock* createBasicBlock(
