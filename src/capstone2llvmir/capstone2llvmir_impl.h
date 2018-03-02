@@ -87,14 +87,11 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 		virtual uint32_t getRegisterByteSize(uint32_t r) const override;
 		virtual llvm::Type* getRegisterType(uint32_t r) const override;
 
+		virtual bool isControlFlowInstruction(cs_insn& i) const override;
 		virtual bool isCallInstruction(cs_insn& i) const override;
-		virtual bool isCallInstruction(unsigned int id) const override;
 		virtual bool isReturnInstruction(cs_insn& i) const override;
-		virtual bool isReturnInstruction(unsigned int id) const override;
 		virtual bool isBranchInstruction(cs_insn& i) const override;
-		virtual bool isBranchInstruction(unsigned int id) const override;
 		virtual bool isCondBranchInstruction(cs_insn& i) const override;
-		virtual bool isCondBranchInstruction(unsigned int id) const override;
 //
 //==============================================================================
 // LLVM related getters and query methods - from Capstone2LlvmIrTranslator.
@@ -505,7 +502,7 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 		/// can be inserted here.
 		/// Set of Capstone instruction IDs translation of which may produce
 		/// any kind of control flow changing pseudo call.
-		std::set<unsigned int> _condBranchInsnIds;
+		std::set<unsigned int> _controlFlowInsnIds;
 };
 
 } // namespace capstone2llvmir

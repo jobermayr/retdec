@@ -406,7 +406,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::initializePseudoCallInstructionIDs()
 			// Capstone2LlvmIrTranslatorPowerpc_impl::translateB
 	};
 
-	_condBranchInsnIds =
+	_controlFlowInsnIds =
 	{
 			 PPC_INS_B,
 			 PPC_INS_BA,
@@ -414,7 +414,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::initializePseudoCallInstructionIDs()
 			 PPC_INS_BLA,
 
 			 PPC_INS_BC,
-			 PPC_INS_BCA.
+			 PPC_INS_BCA,
 			 PPC_INS_BCLR,
 			 PPC_INS_BCCTR,
 			 PPC_INS_BCL,
@@ -461,7 +461,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::initializePseudoCallInstructionIDs()
 
 			 PPC_INS_BDNZF,
 			 PPC_INS_BDNZFA,
-			 PPC_INS_BDNZFLR,
+//			 PPC_INS_BDNZFLR,
 			 PPC_INS_BDNZFL,
 			 PPC_INS_BDNZFLA,
 			 PPC_INS_BDNZFLRL,

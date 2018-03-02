@@ -297,7 +297,7 @@ void Capstone2LlvmIrTranslatorMips_impl::initializePseudoCallInstructionIDs()
 			MIPS_INS_BNEZ,
 	};
 
-	_condBranchInsnIds =
+	_controlFlowInsnIds =
 	{
 			// Currently, all instructions can be categorized based on their
 			// IDs alone.

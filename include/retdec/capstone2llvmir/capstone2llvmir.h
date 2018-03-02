@@ -504,6 +504,42 @@ class Capstone2LlvmIrTranslator
 		 *        needed. Instructions may be conditional.
 		 */
 		virtual bool isControlFlowInstruction(cs_insn& i) const = 0;
+		/**
+		 * @return @c True if the Capstone instruction @p i is any kind of call
+		 * instruction, translation of which would produce call pseudo call.
+		 * @c False otherwise.
+		 * @note This may not be always known for all architectures. Right now,
+		 * it only works for x86 and MIPS. See @c isControlFlowInstruction()
+		 * for more details.
+		 */
+		virtual bool isCallInstruction(cs_insn& i) const = 0;
+		/**
+		 * @return @c True if the Capstone instruction @p i is any kind of
+		 * return instruction, translation of which would produce return
+		 * pseudo call. @c False otherwise.
+		 * @note This may not be always known for all architectures. Right now,
+		 * it only works for x86 and MIPS. See @c isControlFlowInstruction()
+		 * for more details.
+		 */
+		virtual bool isReturnInstruction(cs_insn& i) const = 0;
+		/**
+		 * @return @c True if the Capstone instruction @p i is any kind of
+		 * branch instruction, translation of which would produce branch
+		 * pseudo call. @c False otherwise.
+		 * @note This may not be always known for all architectures. Right now,
+		 * it only works for x86 and MIPS. See @c isControlFlowInstruction()
+		 * for more details.
+		 */
+		virtual bool isBranchInstruction(cs_insn& i) const = 0;
+		/**
+		 * @return @c True if the Capstone instruction @p i is any kind of
+		 * conditional branch instruction, translation of which would produce
+		 * conditional branch pseudo call. @c False otherwise.
+		 * @note This may not be always known for all architectures. Right now,
+		 * it only works for x86 and MIPS. See @c isControlFlowInstruction()
+		 * for more details.
+		 */
+		virtual bool isCondBranchInstruction(cs_insn& i) const = 0;
 //
 //==============================================================================
 // LLVM related getters and query methods.

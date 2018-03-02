@@ -374,59 +374,43 @@ llvm::Type* Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::getRegisterType(
 }
 
 template <typename CInsn, typename CInsnOp>
-bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isCallInstruction(
+bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isControlFlowInstruction(
 		cs_insn& i) const
 {
-	return isCallInstruction(i.id);
+	return _controlFlowInsnIds.count(i.id)
+			|| isCallInstruction(i)
+			|| isReturnInstruction(i)
+			|| isBranchInstruction(i)
+			|| isCondBranchInstruction(i);
 }
+
 
 template <typename CInsn, typename CInsnOp>
 bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isCallInstruction(
-		unsigned int id) const
+		cs_insn& i) const
 {
-	return _callInsnIds.count(id);
+	return _callInsnIds.count(i.id);
 }
 
 template <typename CInsn, typename CInsnOp>
 bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isReturnInstruction(
 		cs_insn& i) const
 {
-	return isReturnInstruction(i.id);
-}
-
-template <typename CInsn, typename CInsnOp>
-bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isReturnInstruction(
-		unsigned int id) const
-{
-	return _returnInsnIds.count(id);
+	return _returnInsnIds.count(i.id);
 }
 
 template <typename CInsn, typename CInsnOp>
 bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isBranchInstruction(
 		cs_insn& i) const
 {
-	return isBranchInstruction(i.id);
-}
-
-template <typename CInsn, typename CInsnOp>
-bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isBranchInstruction(
-		unsigned int id) const
-{
-	return _branchInsnIds.count(id);
+	return _branchInsnIds.count(i.id);
 }
 
 template <typename CInsn, typename CInsnOp>
 bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isCondBranchInstruction(
 		cs_insn& i) const
 {
-	return isCondBranchInstruction(i.id);
-}
-
-template <typename CInsn, typename CInsnOp>
-bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isCondBranchInstruction(
-		unsigned int id) const
-{
-	return _condBranchInsnIds.count(id);
+	return _condBranchInsnIds.count(i.id);
 }
 
 //

@@ -77,8 +77,7 @@ void Capstone2LlvmIrTranslatorArm_impl::initializePseudoCallInstructionIDs()
 {
 	_callInsnIds =
 	{
-			ARM_INS_BL,
-			ARM_INS_BLX,
+
 	};
 
 	_returnInsnIds =
@@ -88,13 +87,22 @@ void Capstone2LlvmIrTranslatorArm_impl::initializePseudoCallInstructionIDs()
 
 	_branchInsnIds =
 	{
-			ARM_INS_B,
-			ARM_INS_BX,
+
 	};
 
 	_condBranchInsnIds =
 	{
 
+	};
+
+	_controlFlowInsnIds =
+	{
+			ARM_INS_BL,
+			ARM_INS_BLX,
+			ARM_INS_B,
+			ARM_INS_BX,
+			ARM_INS_CBNZ,
+			ARM_INS_CBZ,
 	};
 }
 

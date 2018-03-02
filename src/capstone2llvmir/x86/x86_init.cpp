@@ -349,7 +349,7 @@ void Capstone2LlvmIrTranslatorX86_impl::initializePseudoCallInstructionIDs()
 			X86_INS_JS,
 	};
 
-	_condBranchInsnIds =
+	_controlFlowInsnIds =
 	{
 			// Currently, all instructions can be categorized based on their
 			// IDs alone.
