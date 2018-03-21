@@ -59,17 +59,21 @@ class JumpTarget
 		bool isKnownMode() const;
 		bool isUnknownMode() const;
 
+		llvm::Instruction* getFromInstruction() const;
+		retdec::utils::Address getFromAddress() const;
+
 	friend std::ostream& operator<<(std::ostream &out, const JumpTarget& jt);
 
 	public:
 		retdec::utils::Address address;
-		/// If jump target is code pointer, this is an address where
-		/// it was found;
-		retdec::utils::Address fromAddress;
-		llvm::Instruction* fromInst = nullptr;
 		eType type = eType::UNKNOWN;
 
 	private:
+		/// Address from which this jump target was created.
+		retdec::utils::Address _fromAddress;
+		/// Instruction from which this jump target was created.
+		/// This can be used to get from address.
+		llvm::Instruction* _fromInst = nullptr;
 		cs_mode _mode = CS_MODE_BIG_ENDIAN;
 		std::string _name;
 };
@@ -87,7 +91,6 @@ class JumpTargets
 		void pop();
 		bool wasAlreadyPoped(JumpTarget& ct) const;
 
-		void push(const JumpTarget& jt);
 		void push(
 				retdec::utils::Address a,
 				JumpTarget::eType t,

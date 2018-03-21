@@ -7,6 +7,7 @@
 #ifndef RETDEC_BIN2LLVMIR_UTILS_DEFS_H
 #define RETDEC_BIN2LLVMIR_UTILS_DEFS_H
 
+#include <iostream>
 #include <map>
 #include <set>
 #include <string>
@@ -94,7 +95,7 @@ class RegisterCouple
 
 #define LOG \
 	if (!debug_enabled) {} \
-	else std::cout
+	else std::cout << std::showbase
 
 } // namespace bin2llvmir
 } // namespace retdec

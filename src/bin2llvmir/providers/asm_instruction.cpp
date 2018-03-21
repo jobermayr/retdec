@@ -316,14 +316,6 @@ std::string AsmInstruction::getDsm() const
 
 std::size_t AsmInstruction::getByteSize() const
 {
-//	assert(isValid());
-//	auto* m = _llvmToAsmInstr->getMetadata("asm");
-//	auto* mi = mdconst::dyn_extract<ConstantInt>(m->getOperand(2));
-//	return mi->getZExtValue();
-
-//	assert(false && "AsmInstruction::getByteSize() not implemented.");
-//	return 0;
-
 	return getCapstoneInsn()->size;
 }
 

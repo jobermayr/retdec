@@ -131,19 +131,21 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		return;
 	}
 
+//if (jt.address == 0x401268 && jt.getFromAddress() == 0x40147B) { std::cout << "shit #1" << std::endl; exit(1); }
+
 	auto* range = _allowedRanges.getRange(addr);
 	if (range == nullptr)
 	{
 		if (jt.type == JumpTarget::eType::CONTROL_FLOW_BR_FALSE)
 		{
-			auto* fromInst = jt.fromInst;
+			auto* fromInst = jt.getFromInstruction();
 			auto* fromFnc = fromInst->getFunction();
 			auto* targetBb = getBasicBlockAtAddress(jt.address);
 
 			if (targetBb && targetBb->getParent() == fromFnc)
 			{
 				_pseudoWorklist.setTargetBbFalse(
-						llvm::cast<llvm::CallInst>(jt.fromInst),
+						llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
 						targetBb);
 				return;
 			}
@@ -154,9 +156,11 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		}
 		else if (jt.type == JumpTarget::eType::CONTROL_FLOW_BR_TRUE)
 		{
-			auto* fromInst = jt.fromInst;
+			auto* fromInst = jt.getFromInstruction();
 			auto* fromFnc = fromInst->getFunction();
 			auto* targetBb = getBasicBlockAtAddress(jt.address);
+
+//if (jt.address == 0x401268 && jt.getFromAddress() == 0x40147B) { std::cout << "shit #2" << std::endl; exit(1); }
 
 			if (targetBb == nullptr)
 			{
@@ -169,7 +173,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 					_bb2addr[newBb] = jt.address;
 
 					_pseudoWorklist.setTargetBbTrue(
-							llvm::cast<llvm::CallInst>(jt.fromInst),
+							llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
 							newBb);
 					return;
 				}
@@ -181,7 +185,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 			else if (targetBb->getParent() == fromFnc)
 			{
 				_pseudoWorklist.setTargetBbTrue(
-						llvm::cast<llvm::CallInst>(jt.fromInst),
+						llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
 						targetBb);
 				return;
 			}
@@ -195,7 +199,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 			if (auto* f = getFunctionAtAddress(jt.address))
 			{
 				_pseudoWorklist.setTargetFunction(
-						llvm::cast<llvm::CallInst>(jt.fromInst),
+						llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
 						f);
 				return;
 			}
@@ -212,7 +216,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 				_bb2addr[newBb] = jt.address;
 
 				_pseudoWorklist.setTargetFunction(
-						llvm::cast<llvm::CallInst>(jt.fromInst),
+						llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
 						newFnc);
 			}
 			else
@@ -258,8 +262,21 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		AsmInstruction ai(res.llvmInsn);
 		if (res.failed() || res.llvmInsn == nullptr || ai.isInvalid())
 		{
-			LOG << "\t\ttranslation failed" << std::endl;
-			// TODO: we need to somehow close the BB.
+			if (auto* bb = getBasicBlockAtAddress(addr))
+			{
+				auto* br = irb.CreateBr(bb);
+				// Potential return.
+				if (br->getParent()->getTerminator() != br)
+				{
+					br->getParent()->getTerminator()->eraseFromParent();
+				}
+				LOG << "\t\ttranslation ended -> reached BB @ " << addr
+						<< std::endl;
+			}
+			else
+			{
+				LOG << "\t\ttranslation failed" << std::endl;
+			}
 			break;
 		}
 		bbEnd = getJumpTargetsFromInstruction(ai, res);
@@ -332,16 +349,16 @@ llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
 		auto* bb = createBasicBlock(
 				jt.address,
 				jt.getName(),
-				jt.fromInst->getFunction(),
-				jt.fromInst->getParent());
+				jt.getFromInstruction()->getFunction(),
+				jt.getFromInstruction()->getParent());
 		_pseudoWorklist.setTargetBbFalse(
-				llvm::cast<llvm::CallInst>(jt.fromInst),
+				llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
 				bb);
 		return llvm::IRBuilder<>(bb->getTerminator());
 	}
 	else if (jt.type == JumpTarget::eType::CONTROL_FLOW_BR_TRUE)
 	{
-		auto* fromInst = jt.fromInst;
+		auto* fromInst = jt.getFromInstruction();
 		auto* fromFnc = fromInst->getFunction();
 		auto* targetFnc = getFunctionBeforeAddress(jt.address);
 
@@ -350,7 +367,7 @@ llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
 			auto* f = createFunction(jt.address, jt.getName());
 
 			_pseudoWorklist.setTargetFunction(
-					llvm::cast<llvm::CallInst>(jt.fromInst),
+					llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
 					f);
 
 			return llvm::IRBuilder<>(&f->front().front());
@@ -371,7 +388,7 @@ llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
 					targetBb);
 
 			_pseudoWorklist.setTargetBbTrue(
-					llvm::cast<llvm::CallInst>(jt.fromInst),
+					llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
 					newBb);
 
 			return llvm::IRBuilder<>(newBb->getTerminator());
@@ -396,7 +413,7 @@ llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
 				auto* f = createFunction(jt.address, jt.getName());
 
 				_pseudoWorklist.setTargetFunction(
-						llvm::cast<llvm::CallInst>(jt.fromInst),
+						llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
 						f);
 
 				return llvm::IRBuilder<>(&f->front().front());
@@ -419,7 +436,7 @@ llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
 		else if (auto* f = createFunction(jt.address, jt.getName()))
 		{
 			_pseudoWorklist.setTargetFunction(
-					llvm::cast<llvm::CallInst>(jt.fromInst),
+					llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
 					f);
 
 			return llvm::IRBuilder<>(&f->front().front());
@@ -571,6 +588,7 @@ retdec::utils::Address Decoder::getFunctionAddress(llvm::Function* f)
 
 /**
  * \return End address for function \p f.
+ * \note End address is one byte beyond the function, i.e. <start, end).
  */
 retdec::utils::Address Decoder::getFunctionEndAddress(llvm::Function* f)
 {
@@ -584,7 +602,8 @@ retdec::utils::Address Decoder::getFunctionEndAddress(llvm::Function* f)
 		return getFunctionAddress(f);
 	}
 
-	return AsmInstruction::getInstructionAddress(&f->back().back());
+	AsmInstruction ai(&f->back().back());
+	return ai.isValid() ? ai.getEndAddress() : Address();
 }
 
 /**

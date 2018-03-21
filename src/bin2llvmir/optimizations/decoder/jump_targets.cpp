@@ -5,6 +5,7 @@
 */
 
 #include "retdec/bin2llvmir/optimizations/decoder/jump_targets.h"
+#include "retdec/bin2llvmir/providers/asm_instruction.h"
 
 namespace retdec {
 namespace bin2llvmir {
@@ -28,8 +29,8 @@ JumpTarget::JumpTarget(
 		const std::string& n)
 		:
 		address(a),
-		fromAddress(f),
 		type(t),
+		_fromAddress(f),
 		_mode(m),
 		_name(n)
 {
@@ -44,8 +45,8 @@ JumpTarget::JumpTarget(
 		const std::string& n)
 		:
 		address(a),
-		fromInst(f),
 		type(t),
+		_fromInst(f),
 		_mode(m),
 		_name(n)
 {
@@ -56,7 +57,14 @@ bool JumpTarget::operator<(const JumpTarget& o) const
 {
 	if (type == o.type)
 	{
-		return address < o.address;
+		if (address == o.address)
+		{
+			return getFromAddress() < o.getFromAddress();
+		}
+		else
+		{
+			return address < o.address;
+		}
 	}
 	else
 	{
@@ -82,6 +90,27 @@ bool JumpTarget::isKnownMode() const
 bool JumpTarget::isUnknownMode() const
 {
 	return _mode == CS_MODE_BIG_ENDIAN;
+}
+
+llvm::Instruction* JumpTarget::getFromInstruction() const
+{
+	return _fromInst;
+}
+
+retdec::utils::Address JumpTarget::getFromAddress() const
+{
+	if (_fromAddress.isDefined())
+	{
+		return _fromAddress;
+	}
+	else if (getFromInstruction())
+	{
+		return AsmInstruction::getInstructionAddress(getFromInstruction());
+	}
+	else
+	{
+		return retdec::utils::Address();
+	}
 }
 
 std::ostream& operator<<(std::ostream &out, const JumpTarget& jt)
@@ -115,6 +144,10 @@ std::ostream& operator<<(std::ostream &out, const JumpTarget& jt)
 	{
 		out << ", name = " << jt.getName();
 	}
+	if (jt.getFromAddress().isDefined())
+	{
+		out << ", from = " << jt.getFromAddress();
+	}
 	return out;
 }
 
@@ -123,14 +156,6 @@ std::ostream& operator<<(std::ostream &out, const JumpTarget& jt)
 // JumpTargets
 //==============================================================================
 //
-
-void JumpTargets::push(const JumpTarget& jt)
-{
-	if (jt.address.isDefined())
-	{
-		_data.insert(jt);
-	}
-}
 
 void JumpTargets::push(
 		retdec::utils::Address a,

@@ -99,6 +99,29 @@ void Decoder::dumpControFlowToJson_jsoncpp()
 			jsonBb["address"] = start.toHexPrefixString();
 			jsonBb["address_end"] = end.toHexPrefixString();
 
+			std::set<Address> predsAddrs; // sort addresses
+			for (auto pit = pred_begin(&bb), e = pred_end(&bb); pit != e; ++pit)
+			{
+				// Find BB with address - there should always be some.
+				// Some BBs may not have addresses - e.g. those inside
+				// if-then-else instruction models.
+				auto* pred = *pit;
+				auto start = getBasicBlockAddress(pred);
+				while (start.isUndefined())
+				{
+					pred = pred->getPrevNode();
+					assert(pred);
+					start = getBasicBlockAddress(pred);
+				}
+				predsAddrs.insert(start);
+			}
+			Json::Value jsonPreds(Json::arrayValue);
+			for (auto a : predsAddrs)
+			{
+				jsonPreds.append(a.toHexPrefixString());
+			}
+			jsonBb["preds"] = jsonPreds;
+
 			std::set<Address> succsAddrs; // sort addresses
 			for (auto sit = succ_begin(&bb), e = succ_end(&bb); sit != e; ++sit)
 			{
@@ -277,6 +300,47 @@ void Decoder::dumpControFlowToJsonBasicBlock_manual(
 	out << genIndent(3) << "{" << "\n";
 	out << genIndent(4) << genJsonLine("address", start.toHexPrefixString()) << "\n";
 	out << genIndent(4) << genJsonLine("address_end", end.toHexPrefixString()) << "\n";
+
+	std::set<Address> predsAddrs; // sort addresses
+	for (auto pit = pred_begin(&bb), e = pred_end(&bb); pit != e; ++pit)
+	{
+		// Find BB with address - there should always be some.
+		// Some BBs may not have addresses - e.g. those inside
+		// if-then-else instruction models.
+		auto* pred = *pit;
+		auto start = getBasicBlockAddress(pred);
+		while (start.isUndefined())
+		{
+			pred = pred->getPrevNode();
+			assert(pred);
+			start = getBasicBlockAddress(pred);
+		}
+		predsAddrs.insert(start);
+	}
+
+	if (predsAddrs.empty())
+	{
+		out << genIndent(4) << "\"preds\": []," << "\n";
+	}
+	else
+	{
+		bool first = true;
+		out << genIndent(4) << "\"preds\": [" << "\n";
+		for (auto pred : predsAddrs)
+		{
+			if (first)
+			{
+				first = false;
+			}
+			else
+			{
+				out << ",\n";
+			}
+			out << genIndent(5) << "\"" << pred.toHexPrefixString() << "\"";
+		}
+		out << "\n";
+		out << genIndent(4) << "]," << "\n";
+	}
 
 	std::set<Address> succsAddrs; // sort addresses
 	for (auto sit = succ_begin(&bb), e = succ_end(&bb); sit != e; ++sit)
