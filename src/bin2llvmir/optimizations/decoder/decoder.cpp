@@ -205,8 +205,16 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 
 					_pseudoWorklist.setTargetBbTrue(
 							llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
-							newBb);
+							newFnc);
 
+				}
+				// Functions without BBs (e.g. import declarations).
+				//
+				else if (auto* targetFnc = getFunctionAtAddress(jt.address))
+				{
+					_pseudoWorklist.setTargetBbTrue(
+							llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
+							targetFnc);
 				}
 				else
 				{
@@ -650,6 +658,20 @@ retdec::utils::Address Decoder::getJumpTarget(llvm::Value* val)
 	if (auto* ci = dyn_cast<ConstantInt>(val))
 	{
 		return ci->getZExtValue();
+	}
+	else if (isa<LoadInst>(val)
+			&& isa<ConstantInt>(skipCasts(llvm::cast<LoadInst>(val)->getOperand(0))))
+	{
+		auto* ci = cast<ConstantInt>(skipCasts(llvm::cast<LoadInst>(val)->getOperand(0)));
+		Address addr = ci->getZExtValue();
+		if (_imports.count(addr))
+		{
+			return addr;
+		}
+		else if (auto* ci = _image->getConstantDefault(addr))
+		{
+			return ci->getZExtValue();
+		}
 	}
 	return Address::getUndef;
 }

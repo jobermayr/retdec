@@ -48,6 +48,7 @@ class PseudoCallWorklist
 
 		void setTargetFunction(llvm::CallInst* c, llvm::Function* f);
 		void setTargetBbTrue(llvm::CallInst* c, llvm::BasicBlock* b);
+		void setTargetBbTrue(llvm::CallInst* c, llvm::Function* f);
 		void setTargetBbFalse(llvm::CallInst* c, llvm::BasicBlock* b);
 
 	private:

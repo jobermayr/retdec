@@ -137,6 +137,34 @@ void PseudoCallWorklist::setTargetBbTrue(llvm::CallInst* c, llvm::BasicBlock* b)
 	}
 }
 
+void PseudoCallWorklist::setTargetBbTrue(llvm::CallInst* c, llvm::Function* f)
+{
+	auto fIt = _worklist.find(c);
+	if (fIt == _worklist.end())
+	{
+		assert(false);
+		return;
+	}
+	PseudoCall& pc = fIt->second;
+
+	assert(pc.type == PseudoCall::eType::BR);
+
+	if (pc.type == PseudoCall::eType::BR)
+	{
+		auto* call = llvm::CallInst::Create(f, "", pc.pseudoCall);
+		pc.pseudoCall->eraseFromParent();
+		_worklist.erase(pc.pseudoCall);
+
+		auto* ret = call->getNextNode();
+		assert(llvm::isa<llvm::ReturnInst>(ret));
+		ret->eraseFromParent();
+	}
+	else
+	{
+		assert(false);
+	}
+}
+
 void PseudoCallWorklist::setTargetBbFalse(llvm::CallInst* c, llvm::BasicBlock* b)
 {
 	auto fIt = _worklist.find(c);

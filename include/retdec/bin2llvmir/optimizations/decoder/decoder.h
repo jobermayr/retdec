@@ -132,7 +132,8 @@ class Decoder : public llvm::ModulePass
 		std::map<llvm::Function*, retdec::utils::Address> _fnc2addr;
 		std::map<retdec::utils::Address, llvm::BasicBlock*> _addr2bb;
 		std::map<llvm::BasicBlock*, retdec::utils::Address> _bb2addr;
-		std::set<llvm::Function*> _imports;
+//		std::set<llvm::Function*> _imports;
+		std::set<retdec::utils::Address> _imports;
 		std::set<llvm::Function*> _importsTerminating;
 
 		std::map<llvm::StoreInst*, cs_insn*>* _llvm2capstone = nullptr;
