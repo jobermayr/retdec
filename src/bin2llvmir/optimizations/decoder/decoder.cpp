@@ -360,13 +360,34 @@ std::size_t Decoder::decodeJumpTargetDryRun_x86(
 	static cs_insn* insn = cs_malloc(ce);
 
 	uint64_t addr = jt.address;
+	std::size_t nops = 0;
+	bool first = true;
 	while (cs_disasm_iter(ce, &bytes.first, &bytes.second, &addr, insn))
 	{
+		if (jt.type == JumpTarget::eType::LEFTOVER
+				&& (first || nops > 0)
+				&& isNopInstruction(insn))
+		{
+			nops += insn->size;
+		}
+		else if (jt.type == JumpTarget::eType::LEFTOVER
+				&& nops > 0)
+		{
+			return nops;
+		}
+
 		if (_c2l->isReturnInstruction(*insn)
 				|| _c2l->isBranchInstruction(*insn))
 		{
 			return false;
 		}
+
+		first = false;
+	}
+
+	if (nops > 0)
+	{
+		return nops;
 	}
 
 	if (getBasicBlockAtAddress(addr))
