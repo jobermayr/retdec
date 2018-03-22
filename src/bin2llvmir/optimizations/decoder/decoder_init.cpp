@@ -5,6 +5,7 @@
 */
 
 #include "retdec/bin2llvmir/optimizations/decoder/decoder.h"
+#include "retdec/utils/string.h"
 
 using namespace retdec::llvm_support;
 using namespace retdec::utils;
@@ -293,6 +294,7 @@ void Decoder::initAllowedRangesWithSegments()
 void Decoder::initJumpTargets()
 {
 	initJumpTargetsEntryPoint();
+	initJumpTargetsImports();
 }
 
 /**
@@ -323,6 +325,54 @@ void Decoder::initJumpTargetsEntryPoint()
 	else
 	{
 		LOG << "\tentry point @ UNDEFINED" << std::endl;
+	}
+}
+
+void Decoder::initJumpTargetsImports()
+{
+	LOG << "\n initJumpTargetsImports():" << std::endl;
+
+	auto* impTbl = _image->getFileFormat()->getImportTable();
+	if (impTbl == nullptr)
+	{
+		LOG << "\tno import table -> skip" << std::endl;
+		return;
+	}
+
+	for (const auto &imp : *impTbl)
+	{
+		retdec::utils::Address addr = imp.getAddress();
+		if (addr.isUndefined())
+		{
+			continue;
+		}
+
+		std::string name = imp.getName();
+		auto libN = impTbl->getLibrary(imp.getLibraryIndex());
+		std::transform(libN.begin(), libN.end(), libN.begin(), ::tolower);
+
+		if (name.empty())
+		{
+			unsigned long long ord = 0;
+			if (!imp.getOrdinalNumber(ord))
+			{
+				continue;
+			}
+
+			name = "import_" + retdec::utils::removeSuffixRet(libN, ".dll")
+					+ "_" + std::to_string(ord);
+		}
+
+		LOG << "\t\timport: " << imp.getName() << " @ " << addr << std::endl;
+
+		auto* f = createFunction(addr, name, true);
+		_imports.insert(f);
+
+		if ((libN == "msvcrt.dll" && name == "exit")
+				|| (libN == "msvcrt.dll" && name == "abort"))
+		{
+			_importsTerminating.insert(f);
+		}
 	}
 }
 

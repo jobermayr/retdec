@@ -183,6 +183,11 @@ void Decoder::dumpControFlowToJsonModule_manual()
 	bool first = true;
 	for (llvm::Function& f : _module->functions())
 	{
+		if (f.isDeclaration())
+		{
+			continue;
+		}
+
 		// There are some temp and utility fncs that do not have addresses.
 		if (_fnc2addr.count(&f) == 0)
 		{

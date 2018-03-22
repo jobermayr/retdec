@@ -400,7 +400,8 @@ std::size_t Decoder::decodeJumpTargetDryRun_x86(
 
 llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
 {
-	if (_addr2fnc.empty())
+//	if (_addr2fnc.empty())
+	if (jt.type == JumpTarget::eType::ENTRY_POINT)
 	{
 		auto* f = createFunction(jt.address, jt.getName());
 		return llvm::IRBuilder<>(&f->front().front());
@@ -748,7 +749,8 @@ llvm::Function* Decoder::getFunctionContainingAddress(retdec::utils::Address a)
  */
 llvm::Function* Decoder::createFunction(
 		retdec::utils::Address a,
-		const std::string& name)
+		const std::string& name,
+		bool declaration)
 {
 	std::string n = name.empty() ? "function_" + a.toHexString() : name;
 
@@ -785,7 +787,10 @@ llvm::Function* Decoder::createFunction(
 		fl.insert(fl.begin(), f);
 	}
 
-	createBasicBlock(a, "", f);
+	if (!declaration)
+	{
+		createBasicBlock(a, "", f);
+	}
 
 	assert(a.isDefined());
 	assert(_addr2fnc.count(a) == 0);
