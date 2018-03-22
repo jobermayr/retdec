@@ -118,9 +118,6 @@ std::ostream& operator<<(std::ostream &out, const JumpTarget& jt)
 	std::string t;
 	switch (jt.type)
 	{
-		case JumpTarget::eType::ENTRY_POINT:
-			t = "ENTRY_POINT";
-			break;
 		case JumpTarget::eType::CONTROL_FLOW_BR_FALSE:
 			t = "CONTROL_FLOW_BR_FALSE";
 			break;
@@ -132,6 +129,12 @@ std::ostream& operator<<(std::ostream &out, const JumpTarget& jt)
 			break;
 		case JumpTarget::eType::CONTROL_FLOW_RETURN_TARGET:
 			t = "CONTROL_FLOW_RETURN_TARGET";
+			break;
+		case JumpTarget::eType::ENTRY_POINT:
+			t = "ENTRY_POINT";
+			break;
+		case JumpTarget::eType::LEFTOVER:
+			t = "LEFTOVER";
 			break;
 		default:
 			assert(false && "unknown type");

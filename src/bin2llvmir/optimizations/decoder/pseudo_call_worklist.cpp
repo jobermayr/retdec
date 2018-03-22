@@ -94,7 +94,8 @@ void PseudoCallWorklist::setTargetBbTrue(llvm::CallInst* c, llvm::BasicBlock* b)
 
 	pc.targetBbTrue = b;
 
-	if (pc.type == PseudoCall::eType::BR)
+	if (pc.type == PseudoCall::eType::BR
+			&& pc.pseudoCall->getFunction() == pc.targetBbTrue->getParent())
 	{
 		auto* br = llvm::BranchInst::Create(pc.targetBbTrue, pc.pseudoCall);
 		pc.pseudoCall->eraseFromParent();
@@ -104,7 +105,19 @@ void PseudoCallWorklist::setTargetBbTrue(llvm::CallInst* c, llvm::BasicBlock* b)
 		assert(llvm::isa<llvm::ReturnInst>(ret));
 		ret->eraseFromParent();
 	}
-	else if (pc.type == PseudoCall::eType::COND_BR && pc.targetBbFalse)
+	else if (pc.type == PseudoCall::eType::BR)
+	{
+		auto* call = llvm::CallInst::Create(b->getParent(), "", pc.pseudoCall);
+		pc.pseudoCall->eraseFromParent();
+		_worklist.erase(pc.pseudoCall);
+
+		auto* ret = call->getNextNode();
+		assert(llvm::isa<llvm::ReturnInst>(ret));
+		ret->eraseFromParent();
+	}
+	else if (pc.type == PseudoCall::eType::COND_BR && pc.targetBbFalse
+			&& pc.pseudoCall->getFunction() == pc.targetBbTrue->getParent()
+			&& pc.pseudoCall->getFunction() == pc.targetBbFalse->getParent())
 	{
 		auto* br = llvm::BranchInst::Create(
 				pc.targetBbTrue,
@@ -117,6 +130,10 @@ void PseudoCallWorklist::setTargetBbTrue(llvm::CallInst* c, llvm::BasicBlock* b)
 		auto* ret = br->getNextNode();
 		assert(llvm::isa<llvm::ReturnInst>(ret));
 		ret->eraseFromParent();
+	}
+	else if (pc.type == PseudoCall::eType::COND_BR && pc.targetBbFalse)
+	{
+		assert(false && "cond br to a different fnc");
 	}
 }
 
@@ -134,7 +151,9 @@ void PseudoCallWorklist::setTargetBbFalse(llvm::CallInst* c, llvm::BasicBlock* b
 
 	pc.targetBbFalse = b;
 
-	if (pc.targetBbTrue)
+	if (pc.targetBbTrue
+			&& pc.pseudoCall->getFunction() == pc.targetBbTrue->getParent()
+			&& pc.pseudoCall->getFunction() == pc.targetBbFalse->getParent())
 	{
 		auto* br = llvm::BranchInst::Create(
 				pc.targetBbTrue,
@@ -147,6 +166,10 @@ void PseudoCallWorklist::setTargetBbFalse(llvm::CallInst* c, llvm::BasicBlock* b
 		auto* ret = br->getNextNode();
 		assert(llvm::isa<llvm::ReturnInst>(ret));
 		ret->eraseFromParent();
+	}
+	else if (pc.targetBbTrue)
+	{
+		assert(false && "cond br to a different fnc");
 	}
 }
 

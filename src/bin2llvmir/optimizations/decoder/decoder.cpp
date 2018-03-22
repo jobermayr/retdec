@@ -110,14 +110,32 @@ void Decoder::decode()
 {
 	LOG << "\n doDecoding()" << std::endl;
 
-	while (!_jumpTargets.empty())
+	JumpTarget jt;
+	while (getJumpTarget(jt))
 	{
-		JumpTarget jt = _jumpTargets.top();
-		_jumpTargets.pop();
 		LOG << "\tprocessing : " << jt << std::endl;
-
 		decodeJumpTarget(jt);
 	}
+}
+
+bool Decoder::getJumpTarget(JumpTarget& jt)
+{
+	if (!_jumpTargets.empty())
+	{
+		jt = _jumpTargets.top();
+		_jumpTargets.pop();
+		return true;
+	}
+	else if (!_allowedRanges.empty())
+	{
+		jt = JumpTarget(
+				_allowedRanges.begin()->getStart(),
+				JumpTarget::eType::LEFTOVER,
+				CS_MODE_BIG_ENDIAN,
+				Address());
+		return true;
+	}
+	return false;
 }
 
 void Decoder::decodeJumpTarget(const JumpTarget& jt)
@@ -130,8 +148,6 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		LOG << "\t\tunknown target address -> skipped" << std::endl;
 		return;
 	}
-
-//if (jt.address == 0x401268 && jt.getFromAddress() == 0x40147B) { std::cout << "shit #1" << std::endl; exit(1); }
 
 	auto* range = _allowedRanges.getRange(addr);
 	if (range == nullptr)
@@ -160,8 +176,6 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 			auto* fromFnc = fromInst->getFunction();
 			auto* targetBb = getBasicBlockAtAddress(jt.address);
 
-//if (jt.address == 0x401268 && jt.getFromAddress() == 0x40147B) { std::cout << "shit #2" << std::endl; exit(1); }
-
 			if (targetBb == nullptr)
 			{
 				auto ai = AsmInstruction(_module, jt.address);
@@ -177,6 +191,23 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 							newBb);
 					return;
 				}
+				else if (ai.isValid())
+				{
+					std::string n = "function_" + jt.address.toHexString();
+					auto* newFnc = splitFunctionOn(ai.getLlvmToAsmInstruction(), n);
+					auto* newBb = &newFnc->front();
+
+					_addr2fnc[jt.address] = newFnc;
+					_fnc2addr[newFnc] = jt.address;
+
+					_addr2bb[jt.address] = newBb;
+					_bb2addr[newBb] = jt.address;
+
+					_pseudoWorklist.setTargetBbTrue(
+							llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
+							newBb);
+
+				}
 				else
 				{
 					assert(false);
@@ -188,6 +219,15 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 						llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
 						targetBb);
 				return;
+			}
+			// Target is different function (target BB = fnc start) -> change
+			// jmp for call.
+			//
+			else if (&targetBb->getParent()->front() == targetBb)
+			{
+				_pseudoWorklist.setTargetBbTrue(
+						llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
+						targetBb);
 			}
 			else
 			{
@@ -442,6 +482,27 @@ llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
 			return llvm::IRBuilder<>(&f->front().front());
 		}
 	}
+	else if (jt.type == JumpTarget::eType::LEFTOVER)
+	{
+		if (auto* targetFnc = getFunctionContainingAddress(jt.address))
+		{
+			auto* targetBb = getBasicBlockBeforeAddress(jt.address);
+			assert(targetBb);
+
+			auto* newBb = createBasicBlock(
+					jt.address,
+					jt.getName(),
+					targetFnc,
+					targetBb);
+
+			return llvm::IRBuilder<>(newBb->getTerminator());
+		}
+		else
+		{
+			auto* f = createFunction(jt.address, jt.getName());
+			return llvm::IRBuilder<>(&f->front().front());
+		}
+	}
 
 	assert(false);
 }
@@ -652,9 +713,12 @@ llvm::Function* Decoder::getFunctionBeforeAddress(retdec::utils::Address a)
  */
 llvm::Function* Decoder::getFunctionContainingAddress(retdec::utils::Address a)
 {
-	auto* f = getFunctionBeforeAddress(a);
-	Address end = getFunctionEndAddress(f);
-	return a.isDefined() && end.isDefined() && a < end ? f : nullptr;
+	if (auto* f = getFunctionBeforeAddress(a))
+	{
+		Address end = getFunctionEndAddress(f);
+		return a.isDefined() && end.isDefined() && a < end ? f : nullptr;
+	}
+	return nullptr;
 }
 
 /**
@@ -827,6 +891,47 @@ llvm::BasicBlock* Decoder::createBasicBlock(
 	_bb2addr[b] = a;
 
 	return b;
+}
+
+bool Decoder::isNopInstruction(cs_insn* insn)
+{
+	if (_config->getConfig().architecture.isX86())
+	{
+		return isNopInstruction_x86(insn);
+	}
+
+	return false;
+}
+
+bool Decoder::isNopInstruction_x86(cs_insn* insn)
+{
+	cs_x86& insn86 = insn->detail->x86;
+
+	if (insn->id == X86_INS_NOP
+			|| insn->id == X86_INS_FNOP
+			|| insn->id == X86_INS_FDISI8087_NOP
+			|| insn->id == X86_INS_FENI8087_NOP
+			|| insn->id == X86_INS_INT3)
+	{
+		return true;
+	}
+	// e.g. lea esi, [esi]
+	//
+	else if (insn->id == X86_INS_LEA
+			&& insn86.disp == 0
+			&& insn86.op_count == 2
+			&& insn86.operands[0].type == X86_OP_REG
+			&& insn86.operands[1].type == X86_OP_MEM
+			&& insn86.operands[1].mem.segment == X86_REG_INVALID
+			&& insn86.operands[1].mem.index == X86_REG_INVALID
+			&& insn86.operands[1].mem.scale == 1
+			&& insn86.operands[1].mem.disp == 0
+			&& insn86.operands[1].mem.base == insn86.operands[0].reg)
+	{
+		return true;
+	}
+
+	return false;
 }
 
 } // namespace bin2llvmir

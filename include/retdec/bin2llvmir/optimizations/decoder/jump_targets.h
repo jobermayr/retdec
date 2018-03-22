@@ -32,6 +32,7 @@ class JumpTarget
 			CONTROL_FLOW_RETURN_TARGET,
 			//
 			ENTRY_POINT,
+			LEFTOVER,
 			//
 			UNKNOWN,
 		};

@@ -61,6 +61,7 @@ class Decoder : public llvm::ModulePass
 		void initJumpTargetsEntryPoint();
 
 		void decode();
+		bool getJumpTarget(JumpTarget& jt);
 		void decodeJumpTarget(const JumpTarget& jt);
 		std::size_t decodeJumpTargetDryRun(
 				const JumpTarget& jt,
@@ -105,6 +106,9 @@ class Decoder : public llvm::ModulePass
 		void dumpControFlowToJsonBasicBlock_manual(
 				llvm::BasicBlock& bb,
 				std::ostream &out);
+
+		bool isNopInstruction(cs_insn* insn);
+		bool isNopInstruction_x86(cs_insn* insn);
 
 	private:
 		llvm::Module* _module = nullptr;
