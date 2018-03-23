@@ -6,6 +6,9 @@
 
 #include <json/json.h>
 
+#include <llvm/IR/Dominators.h>
+#include <llvm/Analysis/PostDominators.h>
+
 #include "retdec/utils/conversion.h"
 #include "retdec/utils/string.h"
 #include "retdec/bin2llvmir/optimizations/decoder/decoder.h"
@@ -98,6 +101,7 @@ bool Decoder::run()
 	LOG << std::endl;
 
 	decode();
+	splitOnTerminatingCalls();
 
 dumpModuleToFile(_module);
 //dumpControFlowToJson_jsoncpp();
@@ -955,6 +959,8 @@ bool Decoder::isNopInstruction_x86(cs_insn* insn)
 {
 	cs_x86& insn86 = insn->detail->x86;
 
+	// True NOP variants.
+	//
 	if (insn->id == X86_INS_NOP
 			|| insn->id == X86_INS_FNOP
 			|| insn->id == X86_INS_FDISI8087_NOP
@@ -978,8 +984,262 @@ bool Decoder::isNopInstruction_x86(cs_insn* insn)
 	{
 		return true;
 	}
+	// e.g. mov esi. esi
+	//
+	else if (insn->id == X86_INS_MOV
+			&& insn86.disp == 0
+			&& insn86.op_count == 2
+			&& insn86.operands[0].type == X86_OP_REG
+			&& insn86.operands[1].type == X86_OP_REG
+			&& insn86.operands[0].reg == insn86.operands[1].reg)
+	{
+		return true;
+	}
 
 	return false;
+}
+
+void Decoder::splitOnTerminatingCalls()
+{
+	LOG << "\n splitOnTerminatingCalls():" << std::endl;
+
+	// Find out all terminating functions.
+	//
+	LOG << "\tfind all terminating functions:" << std::endl;
+	std::set<Instruction*> termCalls;
+	std::set<Function*> nonTermFncs;
+	auto oldSz = _terminatingFncs.size();
+	do
+	{
+		oldSz = _terminatingFncs.size();
+
+		std::set<Function*> potentialTermFncs;
+		for (auto* f : _terminatingFncs)
+		{
+			for (auto* u : f->users())
+			{
+				if (auto* call = dyn_cast<CallInst>(u))
+				{
+					termCalls.insert(call);
+					if (_terminatingFncs.count(call->getFunction()) == 0
+							&& nonTermFncs.count(call->getFunction()) == 0)
+					{
+						potentialTermFncs.insert(call->getFunction());
+					}
+				}
+			}
+		}
+
+		for (auto* f : potentialTermFncs)
+		{
+			LOG << "\t\tpotential term @ " << f->getName().str() << std::endl;
+
+			std::queue<BasicBlock*> bbWorklist;
+			std::set<BasicBlock*> bbSeen;
+			bbWorklist.push(&f->front());
+			bbSeen.insert(&f->front());
+
+			bool terminating = true;
+			while (!bbWorklist.empty())
+			{
+				auto* workBb = bbWorklist.front();
+				bbWorklist.pop();
+
+				bool reachEnd = true;
+				for (Instruction& i : *workBb)
+				{
+					if (termCalls.count(&i))
+					{
+						reachEnd = false;
+						break;
+					}
+					else if (isa<ReturnInst>(&i))
+					{
+						terminating = false;
+						break;
+					}
+				}
+
+				if (!terminating)
+				{
+					break;
+				}
+				if (reachEnd)
+				{
+					for (succ_iterator s = succ_begin(workBb), e = succ_end(workBb); s != e; ++s)
+					{
+						if (bbSeen.count(*s) == 0)
+						{
+							bbWorklist.push(*s);
+							bbSeen.insert(*s);
+						}
+					}
+				}
+			}
+
+			if (terminating)
+			{
+				LOG << "\t\t\t-> IS terminating" << std::endl;
+				_terminatingFncs.insert(f);
+			}
+			else
+			{
+				LOG << "\t\t\t-> IS NOT terminating" << std::endl;
+				nonTermFncs.insert(f);
+			}
+		}
+	} while (oldSz != _terminatingFncs.size());
+
+	// Split Bbs after terminating calls.
+	//
+	LOG << "\tsplit BBs after terminating calls:" << std::endl;
+	for (auto* call : termCalls)
+	{
+		auto* f = call->getFunction();
+		auto* bb = call->getParent();
+		AsmInstruction callAi(call);
+		AsmInstruction nextAi = callAi.getNext();
+
+		if (callAi.isInvalid()
+				|| nextAi.isInvalid())
+		{
+			continue;
+		}
+
+		if (callAi.getBasicBlock() != nextAi.getBasicBlock())
+		{
+			auto* term = bb->getTerminator();
+			auto* r = llvm::ReturnInst::Create(
+					call->getModule()->getContext(),
+					llvm::UndefValue::get(f->getReturnType()),
+					term);
+			term->eraseFromParent();
+			LOG << "\t\tbreak flow @ " << nextAi.getAddress() << std::endl;
+			continue;
+		}
+
+		auto* newBb = bb->splitBasicBlock(nextAi.getLlvmToAsmInstruction());
+		auto* term = bb->getTerminator();
+		auto* r = llvm::ReturnInst::Create(
+				call->getModule()->getContext(),
+				llvm::UndefValue::get(f->getReturnType()),
+				term);
+		term->eraseFromParent();
+
+		LOG << "\t\tsplit @ " << nextAi.getAddress() << std::endl;
+
+		AsmInstruction lastNop;
+		AsmInstruction ai(newBb);
+		while (ai.isValid() && ai.getBasicBlock() == newBb)
+		{
+			if (isNopInstruction(ai.getCapstoneInsn()))
+			{
+				lastNop = ai;
+				ai = ai.getNext();
+			}
+			else
+			{
+				break;
+			}
+		}
+
+		if (lastNop.isValid())
+		{
+			AsmInstruction lastInNewBb(newBb->getTerminator());
+			if (lastNop == lastInNewBb)
+			{
+				LOG << "\t\t\tremove entire BB of NOPs @ "
+						<< nextAi.getAddress() << std::endl;
+
+				newBb->eraseFromParent();
+				newBb = nullptr;
+			}
+			else
+			{
+				LOG << "\t\t\tsplit @ " << lastNop.getNext().getAddress()
+						<< std::endl;
+				LOG << "\t\t\tremove NOPs @ " << nextAi.getAddress()
+						<< std::endl;
+
+				auto* tmpBb = newBb;
+				newBb = tmpBb->splitBasicBlock(lastNop.getNext().getLlvmToAsmInstruction());
+				tmpBb->eraseFromParent();
+			}
+		}
+
+		if (newBb)
+		{
+			Address addr = AsmInstruction::getInstructionAddress(&newBb->front());
+			_addr2bb[addr] = newBb;
+			_bb2addr[newBb] = addr;
+		}
+	}
+
+	// Split functions after terminating calls.
+	//
+	LOG << "\tsplit functions after terminating calls:" << std::endl;
+	for (auto* call : termCalls)
+	{
+		auto* f = call->getFunction();
+		auto* b = call->getParent();
+		auto* nextBb = b->getNextNode();
+		if (nextBb == nullptr)
+		{
+			continue;
+		}
+
+		std::set<BasicBlock*> before;
+
+		bool split = true;
+		bool after = false;
+		for (BasicBlock& bb : *f)
+		{
+			if (after)
+			{
+				for (auto* p : predecessors(&bb))
+				{
+					if (before.count(p))
+					{
+						split = false;
+						break;
+					}
+				}
+
+				if (!split)
+				{
+					break;
+				}
+			}
+			else if (&bb == call->getParent())
+			{
+				after = true;
+			}
+			else
+			{
+				before.insert(&bb);
+			}
+		}
+
+		if (split)
+		{
+			Address addr = getBasicBlockAddress(nextBb);
+			assert(addr.isDefined());
+			std::string name = "function_" + addr.toHexString();
+
+			auto* newFnc = splitFunctionOn(&nextBb->front(), name);
+			auto* newBb = &newFnc->front();
+
+			nextBb->eraseFromParent();
+
+			_addr2fnc[addr] = newFnc;
+			_fnc2addr[newFnc] = addr;
+
+			_addr2bb[addr] = newBb;
+			_bb2addr[newBb] = addr;
+
+			LOG << "\t\tsplit fnc @ " << addr << std::endl;
+		}
+	}
 }
 
 } // namespace bin2llvmir

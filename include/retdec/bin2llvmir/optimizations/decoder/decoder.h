@@ -112,6 +112,8 @@ class Decoder : public llvm::ModulePass
 		bool isNopInstruction(cs_insn* insn);
 		bool isNopInstruction_x86(cs_insn* insn);
 
+		void splitOnTerminatingCalls();
+
 	private:
 		llvm::Module* _module = nullptr;
 		Config* _config = nullptr;
@@ -134,7 +136,7 @@ class Decoder : public llvm::ModulePass
 		std::map<llvm::BasicBlock*, retdec::utils::Address> _bb2addr;
 //		std::set<llvm::Function*> _imports;
 		std::set<retdec::utils::Address> _imports;
-		std::set<llvm::Function*> _importsTerminating;
+		std::set<llvm::Function*> _terminatingFncs;
 
 		std::map<llvm::StoreInst*, cs_insn*>* _llvm2capstone = nullptr;
 

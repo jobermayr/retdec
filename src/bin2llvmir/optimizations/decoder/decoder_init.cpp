@@ -372,7 +372,7 @@ void Decoder::initJumpTargetsImports()
 		if ((libN == "msvcrt.dll" && name == "exit")
 				|| (libN == "msvcrt.dll" && name == "abort"))
 		{
-			_importsTerminating.insert(f);
+			_terminatingFncs.insert(f);
 		}
 	}
 }
