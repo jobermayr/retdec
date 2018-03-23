@@ -247,7 +247,23 @@ void Decoder::dumpControFlowToJsonFunction_manual(
 			{
 				out << ",\n";
 			}
-			dumpControFlowToJsonBasicBlock_manual(bb, out);
+
+			BasicBlock* bbEnd = &bb;
+			while (bbEnd->getNextNode())
+			{
+				// Next has address -- is a proper BB.
+				//
+				if (_bb2addr.count(bbEnd->getNextNode()))
+				{
+					break;
+				}
+				else
+				{
+					bbEnd = bbEnd->getNextNode();
+				}
+			}
+
+			dumpControFlowToJsonBasicBlock_manual(bb, *bbEnd, out);
 		}
 		out << "\n";
 
@@ -297,10 +313,11 @@ void Decoder::dumpControFlowToJsonFunction_manual(
 
 void Decoder::dumpControFlowToJsonBasicBlock_manual(
 		llvm::BasicBlock& bb,
+		llvm::BasicBlock& bbEnd,
 		std::ostream &out)
 {
 	auto start = getBasicBlockAddress(&bb);
-	auto end = getBasicBlockEndAddress(&bb);
+	auto end = getBasicBlockEndAddress(&bbEnd);
 
 	out << genIndent(3) << "{" << "\n";
 	out << genIndent(4) << genJsonLine("address", start.toHexPrefixString()) << "\n";
@@ -348,7 +365,7 @@ void Decoder::dumpControFlowToJsonBasicBlock_manual(
 	}
 
 	std::set<Address> succsAddrs; // sort addresses
-	for (auto sit = succ_begin(&bb), e = succ_end(&bb); sit != e; ++sit)
+	for (auto sit = succ_begin(&bbEnd), e = succ_end(&bbEnd); sit != e; ++sit)
 	{
 		// Find BB with address - there should always be some.
 		// Some BBs may not have addresses - e.g. those inside

@@ -107,6 +107,7 @@ class Decoder : public llvm::ModulePass
 				std::ostream &out);
 		void dumpControFlowToJsonBasicBlock_manual(
 				llvm::BasicBlock& bb,
+				llvm::BasicBlock& bbEnd,
 				std::ostream &out);
 
 		bool isNopInstruction(cs_insn* insn);
