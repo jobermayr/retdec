@@ -1192,6 +1192,7 @@ void Decoder::splitOnTerminatingCalls()
 
 		bool split = true;
 		bool after = false;
+		std::set<Instruction*> replaceWithCalls;
 		for (BasicBlock& bb : *f)
 		{
 			if (after)
@@ -1208,6 +1209,22 @@ void Decoder::splitOnTerminatingCalls()
 				if (!split)
 				{
 					break;
+				}
+
+				for (auto* s : successors(&bb))
+				{
+					if (before.count(s))
+					{
+						if (&f->front() == s)
+						{
+							replaceWithCalls.insert(bb.getTerminator());
+						}
+						else
+						{
+							split = false;
+							break;
+						}
+					}
 				}
 			}
 			else if (&bb == call->getParent())
@@ -1228,6 +1245,16 @@ void Decoder::splitOnTerminatingCalls()
 
 			auto* newFnc = splitFunctionOn(&nextBb->front(), name);
 			auto* newBb = &newFnc->front();
+
+			for (auto* t : replaceWithCalls)
+			{
+				llvm::CallInst::Create(f, "", t);
+				auto* r = llvm::ReturnInst::Create(
+						t->getModule()->getContext(),
+						llvm::UndefValue::get(newFnc->getReturnType()),
+						t);
+				t->eraseFromParent();
+			}
 
 			nextBb->eraseFromParent();
 
