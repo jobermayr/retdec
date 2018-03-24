@@ -77,7 +77,10 @@ class Decoder : public llvm::ModulePass
 				AsmInstruction& ai,
 				capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& tr);
 		llvm::IRBuilder<> getIrBuilder(const JumpTarget& jt);
-		retdec::utils::Address getJumpTarget(llvm::Value* val);
+		retdec::utils::Address getJumpTarget(
+				AsmInstruction& ai,
+				llvm::CallInst* branchCall,
+				llvm::Value* val);
 
 		retdec::utils::Address getFunctionAddress(llvm::Function* f);
 		retdec::utils::Address getFunctionEndAddress(llvm::Function* f);
@@ -115,6 +118,11 @@ class Decoder : public llvm::ModulePass
 
 		void splitOnTerminatingCalls();
 
+		llvm::Function* _splitFunctionOn(
+				llvm::Instruction* inst,
+				retdec::utils::Address start,
+				const std::string& fncName);
+
 	private:
 		llvm::Module* _module = nullptr;
 		Config* _config = nullptr;
@@ -127,6 +135,8 @@ class Decoder : public llvm::ModulePass
 		retdec::utils::AddressRangeContainer _allowedRanges;
 		retdec::utils::AddressRangeContainer _alternativeRanges;
 		retdec::utils::AddressRangeContainer _processedRanges;
+
+		retdec::utils::AddressRangeContainer _originalAllowedRanges;
 
 		JumpTargets _jumpTargets;
 		PseudoCallWorklist _pseudoWorklist;

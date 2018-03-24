@@ -170,6 +170,8 @@ void Decoder::initRanges()
 	{
 		initAllowedRangesWithSegments();
 	}
+
+	_originalAllowedRanges = _allowedRanges;
 }
 
 /**

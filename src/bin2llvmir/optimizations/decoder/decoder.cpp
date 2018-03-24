@@ -11,6 +11,8 @@
 
 #include "retdec/utils/conversion.h"
 #include "retdec/utils/string.h"
+#include "retdec/bin2llvmir/analyses/reaching_definitions.h"
+#include "retdec/bin2llvmir/analyses/symbolic_tree.h"
 #include "retdec/bin2llvmir/optimizations/decoder/decoder.h"
 #include "retdec/bin2llvmir/utils/instruction.h"
 #include "retdec/bin2llvmir/utils/type.h"
@@ -118,7 +120,13 @@ void Decoder::decode()
 	while (getJumpTarget(jt))
 	{
 		LOG << "\tprocessing : " << jt << std::endl;
+
+//if (jt.address == 0x406970) dumpModuleToFile(_module);
+
 		decodeJumpTarget(jt);
+
+//if (jt.address == 0x406970) { dumpModuleToFile(_module); exit(1); }
+
 	}
 }
 
@@ -239,6 +247,41 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 			{
 				_pseudoWorklist.setTargetBbTrue(
 						llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
+						targetBb);
+			}
+			else
+			{
+				assert(false);
+			}
+		}
+		else if (jt.type == JumpTarget::eType::CONTROL_FLOW_SWITCH_CASE)
+		{
+			auto* fromInst = jt.getFromInstruction();
+			auto* fromFnc = fromInst->getFunction();
+			auto* targetBb = getBasicBlockAtAddress(jt.address);
+
+//std::cout << "from @ " << AsmInstruction::getInstructionAddress(fromInst) << std::endl;
+//std::cout << "to   @ " << jt.address << std::endl;
+
+			if (targetBb == nullptr)
+			{
+				auto ai = AsmInstruction(_module, jt.address);
+				if (ai.isValid() && ai.getFunction() == fromFnc)
+				{
+					assert(false);
+				}
+				else
+				{
+					assert(false);
+				}
+			}
+			else if (targetBb->getParent() == fromFnc)
+			{
+//std::cout << "to   @ " << targetBb->getName().str() << std::endl;
+
+				_pseudoWorklist.setTargetBbSwitchCase(
+						llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
+						jt.address,
 						targetBb);
 			}
 			else
@@ -494,6 +537,43 @@ llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
 			}
 		}
 	}
+	else if (jt.type == JumpTarget::eType::CONTROL_FLOW_SWITCH_CASE)
+	{
+		auto* fromInst = jt.getFromInstruction();
+		auto* fromFnc = fromInst->getFunction();
+		auto* targetFnc = getFunctionBeforeAddress(jt.address);
+
+		if (targetFnc == nullptr)
+		{
+			assert(false);
+		}
+		else if (targetFnc == fromFnc)
+		{
+			auto* targetBb = getBasicBlockBeforeAddress(jt.address);
+			if (targetBb == nullptr)
+			{
+				// Should not ne possible - in this function, but before 1. BB.
+				assert(false);
+			}
+
+			auto* newBb = createBasicBlock(
+					jt.address,
+					jt.getName(),
+					targetFnc,
+					targetBb);
+
+			_pseudoWorklist.setTargetBbSwitchCase(
+					llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
+					jt.address,
+					newBb);
+
+			return llvm::IRBuilder<>(newBb->getTerminator());
+		}
+		else
+		{
+			assert(false);
+		}
+	}
 	else if (jt.type == JumpTarget::eType::CONTROL_FLOW_CALL_TARGET)
 	{
 		if (getFunctionAtAddress(jt.address))
@@ -502,8 +582,14 @@ llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
 			// decoded, something is wrong here.
 			assert(false);
 		}
-		else if (getFunctionContainingAddress(jt.address))
+		else if (auto* tf = getFunctionContainingAddress(jt.address))
 		{
+dumpModuleToFile(_module);
+std::cout << "from   @ "
+		<< AsmInstruction::getInstructionAddress(jt.getFromInstruction()) << std::endl;
+std::cout << "from f @ " << jt.getFromInstruction()->getFunction()->getName().str() << std::endl;
+std::cout << "to     @ " << jt.address << std::endl;
+std::cout << "to f   @ " << tf->getName().str() << std::endl;
 			// TODO: Address inside another function -> split that function.
 			assert(false);
 		}
@@ -559,7 +645,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 	//
 	if (_c2l->isCallFunctionCall(tr.branchCall))
 	{
-		if (auto t = getJumpTarget(tr.branchCall->getArgOperand(0)))
+		if (auto t = getJumpTarget(ai, tr.branchCall, tr.branchCall->getArgOperand(0)))
 		{
 			_jumpTargets.push(
 					t,
@@ -581,7 +667,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 	//
 	else if (_c2l->isReturnFunctionCall(tr.branchCall))
 	{
-		if (auto t = getJumpTarget(tr.branchCall->getArgOperand(0)))
+		if (auto t = getJumpTarget(ai, tr.branchCall, tr.branchCall->getArgOperand(0)))
 		{
 			_jumpTargets.push(
 					t,
@@ -600,7 +686,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 	// branch.
 	else if (_c2l->isBranchFunctionCall(tr.branchCall))
 	{
-		if (auto t = getJumpTarget(tr.branchCall->getArgOperand(0)))
+		if (auto t = getJumpTarget(ai, tr.branchCall, tr.branchCall->getArgOperand(0)))
 		{
 			_jumpTargets.push(
 					t,
@@ -608,9 +694,11 @@ bool Decoder::getJumpTargetsFromInstruction(
 					m,
 					tr.branchCall);
 			LOG << "\t\t" << "br @ " << addr << " -> "	<< t << std::endl;
+
+			_pseudoWorklist.addPseudoBr(tr.branchCall);
 		}
 
-		_pseudoWorklist.addPseudoBr(tr.branchCall);
+//		_pseudoWorklist.addPseudoBr(tr.branchCall);
 
 		return true;
 	}
@@ -619,7 +707,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 	//
 	else if (_c2l->isCondBranchFunctionCall(tr.branchCall))
 	{
-		if (auto t = getJumpTarget(tr.branchCall->getArgOperand(1)))
+		if (auto t = getJumpTarget(ai, tr.branchCall, tr.branchCall->getArgOperand(1)))
 		{
 			_jumpTargets.push(
 					t,
@@ -657,7 +745,10 @@ void Decoder::analyzeInstruction(
 	// - etc.
 }
 
-retdec::utils::Address Decoder::getJumpTarget(llvm::Value* val)
+retdec::utils::Address Decoder::getJumpTarget(
+		AsmInstruction& ai,
+		llvm::CallInst* branchCall,
+		llvm::Value* val)
 {
 	if (auto* ci = dyn_cast<ConstantInt>(val))
 	{
@@ -676,6 +767,65 @@ retdec::utils::Address Decoder::getJumpTarget(llvm::Value* val)
 		{
 			return ci->getZExtValue();
 		}
+	}
+	else if (ai.getAddress() == 0x404083)
+	{
+//		ReachingDefinitionsAnalysis RDA;
+//		RDA.runOnFunction(*ai.getFunction(), _config, false);
+//		SymbolicTree root(RDA, val);
+//		std::cout << root << std::endl;
+//		root.simplifyNode(_config);
+//		std::cout << root << std::endl;
+
+		Address jumpTableAddr = 0x4092E8;
+		Address tableItemAddr = jumpTableAddr;
+		Address defaultLabel = 0x403FF4;
+		std::vector<Address> cases;
+		unsigned cntr = 0;
+std::cout << "\n====> switch jump table @ " << jumpTableAddr << std::endl;
+		while (true)
+		{
+			auto* ci = _image->getConstantDefault(tableItemAddr);
+			if (ci == nullptr)
+			{
+				break;
+			}
+			if (!_originalAllowedRanges.contains(ci->getZExtValue()))
+			{
+				break;
+			}
+
+			Address item = ci->getZExtValue();
+			tableItemAddr += 4;
+			++cntr;
+
+std::cout << "\t#" << cntr << " @ " << item << std::endl;
+			cases.push_back(item);
+		}
+std::cout << "\tdefault @ " << defaultLabel << std::endl;
+
+		for (auto c : cases)
+		{
+			_jumpTargets.push(
+					c,
+					JumpTarget::eType::CONTROL_FLOW_SWITCH_CASE,
+					_currentMode,
+					branchCall);
+			LOG << "\t\t" << "switch @ " << ai.getAddress() << " -> "
+					<< c << std::endl;
+		}
+
+		llvm::Value* switchValue = _module->getNamedGlobal("ecx");
+		assert(switchValue);
+
+		_pseudoWorklist.addPseudoSwitch(
+				branchCall,
+				switchValue,
+				cases,
+				defaultLabel);
+
+return Address::getUndef;
+//		exit(1);
 	}
 	return Address::getUndef;
 }
@@ -929,6 +1079,22 @@ llvm::BasicBlock* Decoder::createBasicBlock(
 	std::string n = name.empty() ? "bb_" + a.toHexString() : name;
 
 	auto* next = insertAfter ? insertAfter->getNextNode() : nullptr;
+	while (!(next == nullptr || _bb2addr.count(next)))
+	{
+		next = next->getNextNode();
+	}
+
+//if (insertAfter && next)
+//{
+//	std::cout << "insertAfter = " << insertAfter->getName().str() << std::endl;
+//	std::cout << "next        = " << next->getName().str() << std::endl;
+////	assert(_bb2addr.count(insertAfter) && "shit 1");
+////	if (_bb2addr.count(next) == 0)
+////	{
+////		dumpModuleToFile(_module);
+////	}
+////	assert(_bb2addr.count(next) && "shit 2");
+//}
 
 	auto* b = llvm::BasicBlock::Create(
 			_module->getContext(),
@@ -1267,6 +1433,14 @@ void Decoder::splitOnTerminatingCalls()
 			LOG << "\t\tsplit fnc @ " << addr << std::endl;
 		}
 	}
+}
+
+llvm::Function* Decoder::_splitFunctionOn(
+		llvm::Instruction* inst,
+		retdec::utils::Address start,
+		const std::string& fncName)
+{
+	return nullptr;
 }
 
 } // namespace bin2llvmir

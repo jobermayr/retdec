@@ -12,6 +12,8 @@
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Module.h>
 
+#include "retdec/utils/address.h"
+
 namespace retdec {
 namespace bin2llvmir {
 
@@ -24,6 +26,7 @@ class PseudoCall
 			BR,
 			COND_BR,
 			RETURN,
+			SWITCH,
 		};
 
 	public:
@@ -36,6 +39,13 @@ class PseudoCall
 		llvm::Function* targetFunction = nullptr;
 		llvm::BasicBlock* targetBbTrue = nullptr;
 		llvm::BasicBlock* targetBbFalse = nullptr;
+
+		// Switch.
+		llvm::Value* switchValue = nullptr;
+		utils::Address defaultCase;
+		llvm::BasicBlock* defaultCaseBb = nullptr;
+		std::vector<std::pair<utils::Address, llvm::BasicBlock*>> cases;
+		std::set<utils::Address> missingCases;
 };
 
 class PseudoCallWorklist
@@ -45,11 +55,20 @@ class PseudoCallWorklist
 		void addPseudoBr(llvm::CallInst* c);
 		void addPseudoCondBr(llvm::CallInst* c);
 		void addPseudoReturn(llvm::CallInst* c);
+		void addPseudoSwitch(
+				llvm::CallInst* c,
+				llvm::Value* switchValue,
+				const std::vector<utils::Address>& cases,
+				utils::Address defaultCase = utils::Address::getUndef);
 
 		void setTargetFunction(llvm::CallInst* c, llvm::Function* f);
 		void setTargetBbTrue(llvm::CallInst* c, llvm::BasicBlock* b);
 		void setTargetBbTrue(llvm::CallInst* c, llvm::Function* f);
 		void setTargetBbFalse(llvm::CallInst* c, llvm::BasicBlock* b);
+		void setTargetBbSwitchCase(
+				llvm::CallInst* c,
+				utils::Address a,
+				llvm::BasicBlock* b);
 
 	private:
 		std::map<llvm::CallInst*, PseudoCall> _worklist;

@@ -7,6 +7,7 @@
 #include <llvm/IR/InstIterator.h>
 
 #include "retdec/bin2llvmir/optimizations/decoder/pseudo_call_worklist.h"
+#include "retdec/llvm-support/utils.h"
 
 namespace retdec {
 namespace bin2llvmir {
@@ -61,6 +62,26 @@ void PseudoCallWorklist::addPseudoReturn(llvm::CallInst* c)
 	auto* ret = r->getNextNode();
 	assert(llvm::isa<llvm::ReturnInst>(ret));
 	ret->eraseFromParent();
+}
+
+void PseudoCallWorklist::addPseudoSwitch(
+		llvm::CallInst* c,
+		llvm::Value* switchValue,
+		const std::vector<utils::Address>& cases,
+		utils::Address defaultCase)
+{
+	PseudoCall& pc = _worklist.emplace(
+			c,
+			PseudoCall(PseudoCall::eType::SWITCH, c)).first->second;
+
+	pc.switchValue = switchValue;
+	pc.defaultCase = defaultCase;
+
+	for (auto c : cases)
+	{
+		pc.missingCases.insert(c);
+		pc.cases.push_back({c, nullptr});
+	}
 }
 
 void PseudoCallWorklist::setTargetFunction(llvm::CallInst* c, llvm::Function* f)
@@ -199,6 +220,86 @@ void PseudoCallWorklist::setTargetBbFalse(llvm::CallInst* c, llvm::BasicBlock* b
 	{
 		assert(false && "cond br to a different fnc");
 	}
+}
+
+void PseudoCallWorklist::setTargetBbSwitchCase(
+		llvm::CallInst* c,
+		utils::Address a,
+		llvm::BasicBlock* b)
+{
+	auto fIt = _worklist.find(c);
+	if (fIt == _worklist.end())
+	{
+		assert(false);
+		return;
+	}
+	PseudoCall& pc = fIt->second;
+
+	assert(pc.type == PseudoCall::eType::SWITCH);
+
+	if (pc.defaultCase == a)
+	{
+		pc.defaultCaseBb = b;
+	}
+
+	if (pc.missingCases.count(a) == 0)
+	{
+		return;
+	}
+	pc.missingCases.erase(a);
+
+	for (auto&p : pc.cases)
+	{
+		if (p.first == a)
+		{
+			p.second = b;
+		}
+	}
+
+	if (!pc.missingCases.empty() || pc.defaultCaseBb == nullptr)
+	{
+		return;
+	}
+
+//retdec::llvm_support::dumpModuleToFile(c->getModule());
+
+	unsigned numCases = 0;
+	for (auto&p : pc.cases)
+	{
+		if (p.first != pc.defaultCase)
+		{
+			++numCases;
+		}
+	}
+
+	auto* load = new llvm::LoadInst(pc.switchValue, "", pc.pseudoCall);
+	auto* intType = llvm::cast<llvm::IntegerType>(load->getType());
+	auto* switchI = llvm::SwitchInst::Create(
+			load, // pc.switchValue,
+			pc.defaultCaseBb,
+			numCases,
+			pc.pseudoCall);
+	unsigned cntr = 0;
+	for (auto&p : pc.cases)
+	{
+		if (p.first != pc.defaultCase)
+		{
+			switchI->addCase(
+					llvm::ConstantInt::get(intType, cntr),
+					p.second);
+		}
+		++cntr;
+	}
+
+	pc.pseudoCall->eraseFromParent();
+	_worklist.erase(pc.pseudoCall);
+
+	auto* ret = switchI->getNextNode();
+	assert(llvm::isa<llvm::ReturnInst>(ret));
+	ret->eraseFromParent();
+
+//retdec::llvm_support::dumpModuleToFile(switchI->getModule());
+//exit(1);
 }
 
 } // namespace bin2llvmir

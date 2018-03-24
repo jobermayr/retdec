@@ -124,6 +124,9 @@ std::ostream& operator<<(std::ostream &out, const JumpTarget& jt)
 		case JumpTarget::eType::CONTROL_FLOW_BR_TRUE:
 			t = "CONTROL_FLOW_BR_TRUE";
 			break;
+		case JumpTarget::eType::CONTROL_FLOW_SWITCH_CASE:
+			t = "CONTROL_FLOW_SWITCH_CASE";
+			break;
 		case JumpTarget::eType::CONTROL_FLOW_CALL_TARGET:
 			t = "CONTROL_FLOW_CALL_TARGET";
 			break;
