@@ -119,9 +119,12 @@ class Decoder : public llvm::ModulePass
 		void splitOnTerminatingCalls();
 
 		llvm::Function* _splitFunctionOn(
-				llvm::Instruction* inst,
-				retdec::utils::Address start,
-				const std::string& fncName);
+				retdec::utils::Address addr,
+				const std::string& fncName = "");
+		llvm::Function* _splitFunctionOn(
+				retdec::utils::Address addr,
+				llvm::BasicBlock* bb,
+				const std::string& fncName = "");
 
 	private:
 		llvm::Module* _module = nullptr;

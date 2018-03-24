@@ -197,6 +197,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 
 					_addr2bb[jt.address] = newBb;
 					_bb2addr[newBb] = jt.address;
+					newBb->setName("bb_" + ai.getAddress().toHexString());
 
 					_pseudoWorklist.setTargetBbTrue(
 							llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
@@ -205,16 +206,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 				}
 				else if (ai.isValid())
 				{
-					std::string n = "function_" + jt.address.toHexString();
-					auto* newFnc = splitFunctionOn(ai.getLlvmToAsmInstruction(), n);
-					auto* newBb = &newFnc->front();
-
-					_addr2fnc[jt.address] = newFnc;
-					_fnc2addr[newFnc] = jt.address;
-
-					_addr2bb[jt.address] = newBb;
-					_bb2addr[newBb] = jt.address;
-
+					auto* newFnc = _splitFunctionOn(ai.getAddress());
 					_pseudoWorklist.setTargetBbTrue(
 							llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
 							newFnc);
@@ -300,16 +292,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 			}
 			else if (auto ai = AsmInstruction(_module, jt.address))
 			{
-				std::string n = "function_" + jt.address.toHexString();
-				auto* newFnc = splitFunctionOn(ai.getLlvmToAsmInstruction(), n);
-				auto* newBb = &newFnc->front();
-
-				_addr2fnc[jt.address] = newFnc;
-				_fnc2addr[newFnc] = jt.address;
-
-				_addr2bb[jt.address] = newBb;
-				_bb2addr[newBb] = jt.address;
-
+				auto* newFnc = _splitFunctionOn(ai.getAddress());
 				_pseudoWorklist.setTargetFunction(
 						llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
 						newFnc);
@@ -582,15 +565,34 @@ llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
 			// decoded, something is wrong here.
 			assert(false);
 		}
+		else if (getBasicBlockContainingAddress(jt.address))
+		{
+			// There is such basic block, but that means its ranges was already
+			// decoded, something is wrong here.
+			assert(false);
+		}
 		else if (auto* tf = getFunctionContainingAddress(jt.address))
 		{
-dumpModuleToFile(_module);
-std::cout << "from   @ "
-		<< AsmInstruction::getInstructionAddress(jt.getFromInstruction()) << std::endl;
-std::cout << "from f @ " << jt.getFromInstruction()->getFunction()->getName().str() << std::endl;
-std::cout << "to     @ " << jt.address << std::endl;
-std::cout << "to f   @ " << tf->getName().str() << std::endl;
-			// TODO: Address inside another function -> split that function.
+//dumpModuleToFile(_module);
+//std::cout << "from   @ "
+//		<< AsmInstruction::getInstructionAddress(jt.getFromInstruction())
+//		<< std::endl;
+//std::cout << "from f @ "
+//		<< jt.getFromInstruction()->getFunction()->getName().str()
+//		<< std::endl;
+//std::cout << "to     @ " << jt.address << std::endl;
+//std::cout << "to f   @ " << tf->getName().str() << std::endl;
+
+			auto* newFnc = _splitFunctionOn(jt.address);
+
+			_pseudoWorklist.setTargetFunction(
+					llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
+					newFnc);
+
+			return llvm::IRBuilder<>(&newFnc->front().front());
+
+//dumpModuleToFile(_module);
+
 			assert(false);
 		}
 		else if (auto* f = createFunction(jt.address, jt.getName()))
@@ -601,6 +603,27 @@ std::cout << "to f   @ " << tf->getName().str() << std::endl;
 
 			return llvm::IRBuilder<>(&f->front().front());
 		}
+
+
+//if (auto* f = getFunctionAtAddress(jt.address))
+//{
+//	_pseudoWorklist.setTargetFunction(
+//			llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
+//			f);
+//	return;
+//}
+//else if (auto ai = AsmInstruction(_module, jt.address))
+//{
+//	auto* newFnc = _splitFunctionOn(ai.getLlvmToAsmInstruction(), ai.getAddress());
+//	_pseudoWorklist.setTargetFunction(
+//			llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
+//			newFnc);
+//}
+//else
+//{
+//	assert(false);
+//}
+
 	}
 	else if (jt.type == JumpTarget::eType::LEFTOVER)
 	{
@@ -1358,7 +1381,7 @@ void Decoder::splitOnTerminatingCalls()
 
 		bool split = true;
 		bool after = false;
-		std::set<Instruction*> replaceWithCalls;
+		std::set<Instruction*> replaceWithCalls; // TODO: remove
 		for (BasicBlock& bb : *f)
 		{
 			if (after)
@@ -1407,28 +1430,21 @@ void Decoder::splitOnTerminatingCalls()
 		{
 			Address addr = getBasicBlockAddress(nextBb);
 			assert(addr.isDefined());
-			std::string name = "function_" + addr.toHexString();
 
-			auto* newFnc = splitFunctionOn(&nextBb->front(), name);
+			auto* newFnc = _splitFunctionOn(addr);
 			auto* newBb = &newFnc->front();
 
-			for (auto* t : replaceWithCalls)
-			{
-				llvm::CallInst::Create(f, "", t);
-				auto* r = llvm::ReturnInst::Create(
-						t->getModule()->getContext(),
-						llvm::UndefValue::get(newFnc->getReturnType()),
-						t);
-				t->eraseFromParent();
-			}
+//			for (auto* t : replaceWithCalls)
+//			{
+//				llvm::CallInst::Create(f, "", t);
+//				auto* r = llvm::ReturnInst::Create(
+//						t->getModule()->getContext(),
+//						llvm::UndefValue::get(newFnc->getReturnType()),
+//						t);
+//				t->eraseFromParent();
+//			}
 
-			nextBb->eraseFromParent();
-
-			_addr2fnc[addr] = newFnc;
-			_fnc2addr[newFnc] = addr;
-
-			_addr2bb[addr] = newBb;
-			_bb2addr[newBb] = addr;
+//			nextBb->eraseFromParent();
 
 			LOG << "\t\tsplit fnc @ " << addr << std::endl;
 		}
@@ -1436,11 +1452,215 @@ void Decoder::splitOnTerminatingCalls()
 }
 
 llvm::Function* Decoder::_splitFunctionOn(
-		llvm::Instruction* inst,
-		retdec::utils::Address start,
+		retdec::utils::Address addr,
 		const std::string& fncName)
 {
-	return nullptr;
+	std::string name = fncName.empty()
+			? "function_" + addr.toHexString()
+			: fncName;
+
+	if (auto* bb = getBasicBlockAtAddress(addr))
+	{
+		return _splitFunctionOn(addr, bb, name);
+	}
+	else if (auto ai = AsmInstruction(_module, addr))
+	{
+		auto* oldBb = ai.getBasicBlock();
+		auto* newBb = ai.makeStart();
+
+		auto* r = llvm::ReturnInst::Create(
+				oldBb->getModule()->getContext(),
+				llvm::UndefValue::get(oldBb->getParent()->getReturnType()),
+				oldBb->getTerminator());
+		oldBb->getTerminator()->eraseFromParent();
+
+		_addr2bb[addr] = newBb;
+		_bb2addr[newBb] = addr;
+		newBb->setName("bb_" + addr.toHexString());
+
+		return _splitFunctionOn(addr, newBb, name);
+	}
+	else
+	{
+		auto* before = getBasicBlockBeforeAddress(addr);
+		assert(before);
+		auto* newBb = createBasicBlock(
+				addr,
+				"",
+				before->getParent(),
+				before);
+
+		_addr2bb[addr] = newBb;
+		_bb2addr[newBb] = addr;
+
+		return _splitFunctionOn(addr, newBb, name);
+	}
+}
+
+llvm::Function* Decoder::_splitFunctionOn(
+		retdec::utils::Address addr,
+		llvm::BasicBlock* bb,
+		const std::string& fncName)
+{
+	if (bb->getPrevNode() == nullptr)
+	{
+		return bb->getParent();
+	}
+
+	std::string name = fncName.empty()
+			? "function_" + addr.toHexString()
+			: fncName;
+
+	Function* oldFnc = bb->getParent();
+
+	Function* newFnc = Function::Create(
+			llvm::FunctionType::get(oldFnc->getReturnType(), false),
+			oldFnc->getLinkage(),
+			name);
+	oldFnc->getParent()->getFunctionList().insertAfter(
+			oldFnc->getIterator(),
+			newFnc);
+
+	_addr2fnc[addr] = newFnc;
+	_fnc2addr[newFnc] = addr;
+
+	newFnc->getBasicBlockList().splice(
+			newFnc->begin(),
+			oldFnc->getBasicBlockList(),
+			bb->getIterator(),
+			oldFnc->getBasicBlockList().end());
+
+	bool restart = true;
+while (restart)
+{
+	restart = false;
+for (BasicBlock& b : *oldFnc)
+{
+	for (Instruction& i : b)
+	{
+		if (BranchInst* br = dyn_cast<BranchInst>(&i))
+		{
+			if (br->isConditional())
+			{
+				assert(br->getSuccessor(0)->getParent() == br->getFunction());
+				assert(br->getSuccessor(1)->getParent() == br->getFunction());
+			}
+			else
+			{
+				BasicBlock* succ = br->getSuccessor(0);
+				if (succ->getParent() != br->getFunction())
+				{
+					// Succ is first in function -> call function.
+					if (succ->getPrevNode() == nullptr)
+					{
+						llvm::CallInst::Create(succ->getParent(), "", br);
+						auto* r = llvm::ReturnInst::Create(
+								br->getModule()->getContext(),
+								llvm::UndefValue::get(br->getFunction()->getReturnType()),
+								br);
+						br->eraseFromParent();
+						break;
+					}
+					else
+					{
+						Address target = getBasicBlockAddress(succ);
+						assert(target.isDefined());
+						auto* nf = _splitFunctionOn(target, succ);
+
+						llvm::CallInst::Create(nf, "", br);
+						auto* r = llvm::ReturnInst::Create(
+								br->getModule()->getContext(),
+								llvm::UndefValue::get(br->getFunction()->getReturnType()),
+								br);
+						br->eraseFromParent();
+						restart = true;
+						break;
+					}
+				}
+			}
+		}
+		else if (SwitchInst* sw = dyn_cast<SwitchInst>(&i))
+		{
+			for (unsigned j = 0, e = sw->getNumSuccessors(); j != e; ++j)
+			{
+				assert(sw->getSuccessor(j)->getParent() == sw->getFunction());
+			}
+		}
+	}
+
+	if (restart)
+	{
+		break;
+	}
+}
+}
+
+restart = true;
+while (restart)
+{
+restart = false;
+for (BasicBlock& b : *newFnc)
+{
+for (Instruction& i : b)
+{
+	if (BranchInst* br = dyn_cast<BranchInst>(&i))
+	{
+		if (br->isConditional())
+		{
+			assert(br->getSuccessor(0)->getParent() == br->getFunction());
+			assert(br->getSuccessor(1)->getParent() == br->getFunction());
+		}
+		else
+		{
+			BasicBlock* succ = br->getSuccessor(0);
+			if (succ->getParent() != br->getFunction())
+			{
+				// Succ is first in function -> call function.
+				if (succ->getPrevNode() == nullptr)
+				{
+					llvm::CallInst::Create(succ->getParent(), "", br);
+					auto* r = llvm::ReturnInst::Create(
+							br->getModule()->getContext(),
+							llvm::UndefValue::get(br->getFunction()->getReturnType()),
+							br);
+					br->eraseFromParent();
+					break;
+				}
+				else
+				{
+					Address target = getBasicBlockAddress(succ);
+					assert(target.isDefined());
+					auto* nf = _splitFunctionOn(target, succ);
+
+					llvm::CallInst::Create(nf, "", br);
+					auto* r = llvm::ReturnInst::Create(
+							br->getModule()->getContext(),
+							llvm::UndefValue::get(br->getFunction()->getReturnType()),
+							br);
+					br->eraseFromParent();
+					restart = true;
+					break;
+				}
+			}
+		}
+	}
+	else if (SwitchInst* sw = dyn_cast<SwitchInst>(&i))
+	{
+		for (unsigned j = 0, e = sw->getNumSuccessors(); j != e; ++j)
+		{
+			assert(sw->getSuccessor(j)->getParent() == sw->getFunction());
+		}
+	}
+}
+
+if (restart)
+{
+	break;
+}
+}
+}
+
+	return newFnc;
 }
 
 } // namespace bin2llvmir
