@@ -132,9 +132,9 @@ void PseudoCallWorklist::setTargetBbTrue(llvm::CallInst* c, llvm::BasicBlock* b)
 		pc.pseudoCall->eraseFromParent();
 		_worklist.erase(pc.pseudoCall);
 
-		auto* ret = call->getNextNode();
-		assert(llvm::isa<llvm::ReturnInst>(ret));
-		ret->eraseFromParent();
+//		auto* ret = call->getNextNode();
+//		assert(llvm::isa<llvm::ReturnInst>(ret));
+//		ret->eraseFromParent();
 	}
 	else if (pc.type == PseudoCall::eType::COND_BR && pc.targetBbFalse
 			&& pc.pseudoCall->getFunction() == pc.targetBbTrue->getParent()
@@ -176,9 +176,9 @@ void PseudoCallWorklist::setTargetBbTrue(llvm::CallInst* c, llvm::Function* f)
 		pc.pseudoCall->eraseFromParent();
 		_worklist.erase(pc.pseudoCall);
 
-		auto* ret = call->getNextNode();
-		assert(llvm::isa<llvm::ReturnInst>(ret));
-		ret->eraseFromParent();
+//		auto* ret = call->getNextNode();
+//		assert(llvm::isa<llvm::ReturnInst>(ret));
+//		ret->eraseFromParent();
 	}
 	else
 	{

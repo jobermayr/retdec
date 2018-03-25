@@ -109,6 +109,21 @@ dumpModuleToFile(_module);
 //dumpControFlowToJson_jsoncpp();
 dumpControFlowToJsonModule_manual();
 exit(1);
+
+for (auto& p : _fnc2addr)
+{
+	Function* f = p.first;
+	Address end = p.second;
+	if (!f->empty() && !f->back().empty())
+	{
+		if (auto ai = AsmInstruction(&f->back().back()))
+		{
+			end = ai.getEndAddress() - 1;
+		}
+	}
+	_config->insertFunction(f, p.second, end);
+}
+
 	return false;
 }
 
@@ -790,6 +805,39 @@ retdec::utils::Address Decoder::getJumpTarget(
 		{
 			return ci->getZExtValue();
 		}
+	}
+	else if (ai.getAddress() == 0x401293)
+	{
+//dumpModuleToFile(_module);
+//		ReachingDefinitionsAnalysis RDA;
+//		RDA.runOnFunction(*ai.getFunction(), _config, false);
+//		SymbolicTree root(RDA, val);
+//		std::cout << root << std::endl;
+//		root.simplifyNode(_config);
+//		std::cout << root << std::endl;
+//		exit(1);
+	}
+	else if (ai.getAddress() == 0x40485A)
+	{
+//dumpModuleToFile(_module);
+//		ReachingDefinitionsAnalysis RDA;
+//		RDA.runOnFunction(*ai.getFunction(), _config, false);
+//		SymbolicTree root(RDA, val);
+//		std::cout << root << std::endl;
+//		root.simplifyNode(_config);
+//		std::cout << root << std::endl;
+//		exit(1);
+	}
+	else if (ai.getAddress() == 0x404083)
+	{
+dumpModuleToFile(_module);
+		ReachingDefinitionsAnalysis RDA;
+		RDA.runOnFunction(*ai.getFunction(), _config, false);
+		SymbolicTree root(RDA, val);
+		std::cout << root << std::endl;
+		root.simplifyNode(_config);
+		std::cout << root << std::endl;
+		exit(1);
 	}
 	else if (ai.getAddress() == 0x404083)
 	{
