@@ -11,7 +11,6 @@ set(BIN2LLVMIR_SOURCES
 	analyses/var_depend_analysis.cpp
 	optimizations/adapter_methods/adapter_methods.cpp
 	optimizations/asm_inst_remover/asm_inst_remover.cpp
-	optimizations/cfg_function_detection/cfg_function_detection.cpp
 	optimizations/class_hierarchy/hierarchy.cpp
 	optimizations/class_hierarchy/hierarchy_analysis.cpp
 	optimizations/cond_branch_opt/cond_branch_opt.cpp
