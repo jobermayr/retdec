@@ -770,9 +770,6 @@ retdec::utils::Address Decoder::getJumpTarget(
 			return ci->getZExtValue();
 		}
 	}
-//	else if (ai.getAddress() == 0x404083) // 91 cases
-//	else if (ai.getAddress() == 0x40485A) // 5 cases
-//	else if (ai.getAddress() == 0x404083 || ai.getAddress() == 0x40485A)
 	// TODO: check that from conditional br
 	else if (auto* l = dyn_cast<LoadInst>(val))
 	{

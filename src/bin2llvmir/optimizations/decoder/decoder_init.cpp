@@ -42,7 +42,7 @@ void Decoder::initTranslator()
 			case 32: basicMode = CS_MODE_32; break;
 		}
 	}
-	else if (_config->getConfig().architecture.isMipsOrPic32())
+	else if (a.isMipsOrPic32())
 	{
 		arch = CS_ARCH_MIPS;
 		switch (_config->getConfig().architecture.getBitSize())
@@ -52,7 +52,7 @@ void Decoder::initTranslator()
 			case 32: basicMode = CS_MODE_MIPS32; break;
 		}
 	}
-	else if (_config->getConfig().architecture.isPpc())
+	else if (a.isPpc())
 	{
 		arch = CS_ARCH_PPC;
 		switch (_config->getConfig().architecture.getBitSize())
@@ -62,11 +62,15 @@ void Decoder::initTranslator()
 			case 32: basicMode = CS_MODE_32; break;
 		}
 	}
-	else if (_config->getConfig().architecture.isArmOrThumb()
-			&& _config->getConfig().architecture.getBitSize() == 32)
+	else if (a.isArmOrThumb()
+			&& a.getBitSize() == 32)
 	{
 		arch = CS_ARCH_ARM;
 		basicMode = CS_MODE_ARM;
+	}
+	else
+	{
+		throw std::runtime_error("Unsupported architecture.");
 	}
 
 	_c2l = Capstone2LlvmIrTranslator::createArch(
@@ -367,7 +371,6 @@ void Decoder::initJumpTargetsImports()
 		LOG << "\t\timport: " << imp.getName() << " @ " << addr << std::endl;
 
 		auto* f = createFunction(addr, name, true);
-//		_imports.insert(f);
 		_imports.insert(addr);
 
 		if ((libN == "msvcrt.dll" && name == "exit")
