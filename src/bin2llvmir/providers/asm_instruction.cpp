@@ -226,6 +226,14 @@ retdec::utils::Address AsmInstruction::getInstructionAddress(
 	return ret;
 }
 
+retdec::utils::Address AsmInstruction::getBasicBlockAddress(
+		llvm::BasicBlock* bb)
+{
+	return bb->empty()
+			? retdec::utils::Address()
+			: getInstructionAddress(&bb->front());
+}
+
 bool AsmInstruction::isLlvmToAsmInstructionPrivate(llvm::Value* inst) const
 {
 	auto* s = dyn_cast_or_null<StoreInst>(inst);

@@ -343,6 +343,8 @@ class AsmInstruction
 				const llvm::Module* m);
 		static retdec::utils::Address getInstructionAddress(
 				llvm::Instruction* inst);
+		static retdec::utils::Address getBasicBlockAddress(
+				llvm::BasicBlock* bb);
 		static bool isLlvmToAsmInstruction(const llvm::Value* inst);
 		static void clear();
 

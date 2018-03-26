@@ -117,6 +117,48 @@ TEST_F(AsmInstructionTests, getInstructionAddressReturnsAddressIfAddrInfoAvailab
 }
 
 //
+// getBasicBlockAddress()
+//
+
+TEST_F(AsmInstructionTests, getBasicBlockAddressReturnsUndefAddressIfNotAddrInfo)
+{
+	parseInput(R"(
+		define void @fnc() {
+		bb:
+			%a = add i32 0, 1
+			ret void
+		}
+	)");
+	auto* bb = getInstructionByName("a")->getParent();
+	ASSERT_NE(nullptr, bb);
+
+	auto addr = AsmInstruction::getBasicBlockAddress(bb);
+	EXPECT_TRUE(addr.isUndefined());
+}
+
+TEST_F(AsmInstructionTests, getBasicBlockAddressReturnsAddressIfAddrInfoAvailable)
+{
+	parseInput(R"(
+		define void @fnc() {
+			store volatile i64 1234, i64* @llvm2asm, !asm !1
+			%a = add i32 0, 1
+			ret void
+		}
+		!1 = !{ !"name", i64 1234, i64 10, !"asm", !"annotation" }
+		!0 = !{ !"llvm2asm" }
+		!llvmToAsmGlobalVariableName = !{ !0 }
+		@llvm2asm = global i64 0
+	)");
+	auto* bb = getInstructionByName("a")->getParent();
+	ASSERT_NE(nullptr, bb);
+
+	auto addr = AsmInstruction::getBasicBlockAddress(bb);
+
+	EXPECT_TRUE(addr.isDefined());
+	EXPECT_EQ(1234, addr);
+}
+
+//
 // isLlvmToAsmInstruction()
 //
 
