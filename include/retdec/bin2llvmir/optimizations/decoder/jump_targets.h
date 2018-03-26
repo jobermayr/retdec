@@ -108,7 +108,7 @@ class JumpTargets
 
 	friend std::ostream& operator<<(std::ostream &out, const JumpTargets& jts);
 
-	private:
+	public:
 		std::set<JumpTarget> _data;
 		std::set<retdec::utils::Address> _poped;
 };

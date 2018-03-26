@@ -70,7 +70,7 @@ class PseudoCallWorklist
 				utils::Address a,
 				llvm::BasicBlock* b);
 
-	private:
+	public:
 		std::map<llvm::CallInst*, PseudoCall> _worklist;
 };
 

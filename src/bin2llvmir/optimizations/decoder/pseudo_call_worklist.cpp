@@ -6,6 +6,7 @@
 
 #include <llvm/IR/InstIterator.h>
 
+#include "retdec/bin2llvmir/providers/asm_instruction.h"
 #include "retdec/bin2llvmir/optimizations/decoder/pseudo_call_worklist.h"
 #include "retdec/llvm-support/utils.h"
 
@@ -261,8 +262,6 @@ void PseudoCallWorklist::setTargetBbSwitchCase(
 		return;
 	}
 
-//retdec::llvm_support::dumpModuleToFile(c->getModule());
-
 	unsigned numCases = 0;
 	for (auto&p : pc.cases)
 	{
@@ -272,10 +271,9 @@ void PseudoCallWorklist::setTargetBbSwitchCase(
 		}
 	}
 
-	auto* load = new llvm::LoadInst(pc.switchValue, "", pc.pseudoCall);
-	auto* intType = llvm::cast<llvm::IntegerType>(load->getType());
+	auto* intType = llvm::cast<llvm::IntegerType>(pc.switchValue->getType());
 	auto* switchI = llvm::SwitchInst::Create(
-			load, // pc.switchValue,
+			pc.switchValue, // pc.switchValue // load
 			pc.defaultCaseBb,
 			numCases,
 			pc.pseudoCall);
@@ -297,9 +295,6 @@ void PseudoCallWorklist::setTargetBbSwitchCase(
 	auto* ret = switchI->getNextNode();
 	assert(llvm::isa<llvm::ReturnInst>(ret));
 	ret->eraseFromParent();
-
-//retdec::llvm_support::dumpModuleToFile(switchI->getModule());
-//exit(1);
 }
 
 } // namespace bin2llvmir

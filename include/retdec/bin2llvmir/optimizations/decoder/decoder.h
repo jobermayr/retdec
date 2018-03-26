@@ -166,6 +166,10 @@ class Decoder : public llvm::ModulePass
 		const std::string _x87dataStoreFunction = "__frontend_reg_store.fpr";
 		const std::string _x87tagStoreFunction = "__frontend_reg_store.fpu_tag";
 		const std::string _entryPointFunction = "entry_point";
+
+	// TODO: temp hack.
+	private:
+		JumpTarget _currentJt;
 };
 
 } // namespace bin2llvmir
