@@ -39,7 +39,6 @@ set(BIN2LLVMIR_SOURCES
 	optimizations/idioms/idioms_owatcom.cpp
 	optimizations/idioms/idioms_vstudio.cpp
 	optimizations/idioms_libgcc/idioms_libgcc.cpp
-	optimizations/inst_opt/inst_opt.cpp
 	optimizations/local_vars/local_vars.cpp
 	optimizations/main_detection/main_detection.cpp
 	optimizations/never_returning_funcs/never_returning_funcs.cpp

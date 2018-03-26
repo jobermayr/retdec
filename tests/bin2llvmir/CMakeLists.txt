@@ -7,7 +7,6 @@ set(RETDEC_TESTS_BIN2LLVMIR_SOURCES
 	optimizations/globals/dead_global_assign_tests.cpp
 	optimizations/globals/global_to_local.cpp
 	optimizations/idioms_libgcc/idioms_libgcc_tests.cpp
-	optimizations/inst_opt/inst_opt_tests.cpp
 	optimizations/never_returning_funcs/never_returning_funcs_tests.cpp
 	optimizations/param_return/param_return_tests.cpp
 	optimizations/phi2seq/phi2seq_tests.cpp
