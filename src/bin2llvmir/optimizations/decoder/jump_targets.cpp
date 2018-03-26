@@ -25,14 +25,12 @@ JumpTarget::JumpTarget(
 		retdec::utils::Address a,
 		eType t,
 		cs_mode m,
-		retdec::utils::Address f,
-		const std::string& n)
+		retdec::utils::Address f)
 		:
-		address(a),
-		type(t),
+		_address(a),
+		_type(t),
 		_fromAddress(f),
-		_mode(m),
-		_name(n)
+		_mode(m)
 {
 
 }
@@ -41,55 +39,43 @@ JumpTarget::JumpTarget(
 		retdec::utils::Address a,
 		eType t,
 		cs_mode m,
-		llvm::Instruction* f,
-		const std::string& n)
+		llvm::Instruction* f)
 		:
-		address(a),
-		type(t),
+		_address(a),
+		_type(t),
 		_fromInst(f),
-		_mode(m),
-		_name(n)
+		_mode(m)
 {
 
 }
 
 bool JumpTarget::operator<(const JumpTarget& o) const
 {
-	if (type == o.type)
+	if (getType() == o.getType())
 	{
-		if (address == o.address)
+		if (getAddress() == o.getAddress())
 		{
 			return getFromAddress() < o.getFromAddress();
 		}
 		else
 		{
-			return address < o.address;
+			return getAddress() < o.getAddress();
 		}
 	}
 	else
 	{
-		return type < o.type;
+		return getType() < o.getType();
 	}
 }
 
-bool JumpTarget::hasName() const
+retdec::utils::Address JumpTarget::getAddress() const
 {
-	return !_name.empty();
+	return _address;
 }
 
-std::string JumpTarget::getName() const
+JumpTarget::eType JumpTarget::getType() const
 {
-	return _name;
-}
-
-bool JumpTarget::isKnownMode() const
-{
-	return !isUnknownMode();
-}
-
-bool JumpTarget::isUnknownMode() const
-{
-	return _mode == CS_MODE_BIG_ENDIAN;
+	return _type;
 }
 
 llvm::Instruction* JumpTarget::getFromInstruction() const
@@ -116,7 +102,7 @@ retdec::utils::Address JumpTarget::getFromAddress() const
 std::ostream& operator<<(std::ostream &out, const JumpTarget& jt)
 {
 	std::string t;
-	switch (jt.type)
+	switch (jt.getType())
 	{
 		case JumpTarget::eType::CONTROL_FLOW_BR_FALSE:
 			t = "CONTROL_FLOW_BR_FALSE";
@@ -145,11 +131,7 @@ std::ostream& operator<<(std::ostream &out, const JumpTarget& jt)
 			break;
 	}
 
-	out << jt.address << " (" << t << ")";
-	if (jt.hasName())
-	{
-		out << ", name = " << jt.getName();
-	}
+	out << jt.getAddress() << " (" << t << ")";
 	if (jt.getFromAddress().isDefined())
 	{
 		out << ", from = " << jt.getFromAddress();
@@ -167,12 +149,11 @@ void JumpTargets::push(
 		retdec::utils::Address a,
 		JumpTarget::eType t,
 		cs_mode m,
-		retdec::utils::Address f,
-		const std::string& n)
+		retdec::utils::Address f)
 {
 	if (a.isDefined())
 	{
-		_data.insert(JumpTarget(a, t, m, f, n));
+		_data.insert(JumpTarget(a, t, m, f));
 	}
 }
 
@@ -180,12 +161,11 @@ void JumpTargets::push(
 		retdec::utils::Address a,
 		JumpTarget::eType t,
 		cs_mode m,
-		llvm::Instruction* f,
-		const std::string& n)
+		llvm::Instruction* f)
 {
 	if (a.isDefined())
 	{
-		_data.insert(JumpTarget(a, t, m, f, n));
+		_data.insert(JumpTarget(a, t, m, f));
 	}
 }
 
@@ -211,13 +191,7 @@ const JumpTarget& JumpTargets::top()
 
 void JumpTargets::pop()
 {
-	_poped.insert(top().address);
 	_data.erase(top());
-}
-
-bool JumpTargets::wasAlreadyPoped(JumpTarget& ct) const
-{
-	return _poped.count(ct.address);
 }
 
 auto JumpTargets::begin()
