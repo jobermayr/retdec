@@ -47,24 +47,6 @@ void PseudoCallWorklist::addPseudoCondBr(llvm::CallInst* c)
 	_worklist.emplace(c, PseudoCall(PseudoCall::eType::COND_BR, c));
 }
 
-void PseudoCallWorklist::addPseudoReturn(llvm::CallInst* c)
-{
-	// TODO: right now, we replace return right away,
-	// this could be done later.
-//	_worklist.emplace(c, PseudoCall(PseudoCall::eType::RETURN, c));
-
-	auto* f = c->getFunction();
-	auto* r = llvm::ReturnInst::Create(
-			c->getModule()->getContext(),
-			llvm::UndefValue::get(f->getReturnType()),
-			c);
-	c->eraseFromParent();
-
-	auto* ret = r->getNextNode();
-	assert(llvm::isa<llvm::ReturnInst>(ret));
-	ret->eraseFromParent();
-}
-
 void PseudoCallWorklist::addPseudoSwitch(
 		llvm::CallInst* c,
 		llvm::Value* switchValue,

@@ -89,7 +89,7 @@ class Decoder : public llvm::ModulePass
 		llvm::Function* getFunctionContainingAddress(retdec::utils::Address a);
 		llvm::Function* createFunction(
 				retdec::utils::Address a,
-				const std::string& name,
+				const std::string& name = "",
 				bool declaration = false);
 
 		retdec::utils::Address getBasicBlockAddress(llvm::BasicBlock* b);
@@ -125,6 +125,13 @@ class Decoder : public llvm::ModulePass
 				retdec::utils::Address addr,
 				llvm::BasicBlock* bb,
 				const std::string& fncName = "");
+
+		void getOrCreateTarget(
+				retdec::utils::Address addr,
+				bool isCall,
+				llvm::BasicBlock*& tBb,
+				llvm::Function*& tFnc,
+				llvm::Instruction* fromI = nullptr);
 
 	private:
 		llvm::Module* _module = nullptr;

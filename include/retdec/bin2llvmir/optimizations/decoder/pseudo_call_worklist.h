@@ -54,7 +54,6 @@ class PseudoCallWorklist
 		void addPseudoCall(llvm::CallInst* c);
 		void addPseudoBr(llvm::CallInst* c);
 		void addPseudoCondBr(llvm::CallInst* c);
-		void addPseudoReturn(llvm::CallInst* c);
 		void addPseudoSwitch(
 				llvm::CallInst* c,
 				llvm::Value* switchValue,

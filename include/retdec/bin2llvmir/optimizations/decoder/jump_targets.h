@@ -75,6 +75,8 @@ class JumpTarget
 		llvm::Instruction* _fromInst = nullptr;
 		/// Disassembler mode that should be used for this jump target.
 		cs_mode _mode = CS_MODE_BIG_ENDIAN;
+
+		llvm::BasicBlock* _bb = nullptr;
 };
 
 /**

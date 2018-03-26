@@ -174,150 +174,6 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 	auto* range = _allowedRanges.getRange(addr);
 	if (range == nullptr)
 	{
-		if (jt.getType() == JumpTarget::eType::CONTROL_FLOW_BR_FALSE)
-		{
-			auto* fromInst = jt.getFromInstruction();
-			auto* fromFnc = fromInst->getFunction();
-			auto* targetBb = getBasicBlockAtAddress(jt.getAddress());
-
-			if (targetBb && targetBb->getParent() == fromFnc)
-			{
-				_pseudoWorklist.setTargetBbFalse(
-						llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
-						targetBb);
-				return;
-			}
-			else
-			{
-				assert(false);
-			}
-		}
-		else if (jt.getType() == JumpTarget::eType::CONTROL_FLOW_BR_TRUE)
-		{
-			auto* fromInst = jt.getFromInstruction();
-			auto* fromFnc = fromInst->getFunction();
-			auto* targetBb = getBasicBlockAtAddress(jt.getAddress());
-
-			if (targetBb == nullptr)
-			{
-				auto ai = AsmInstruction(_module, jt.getAddress());
-				if (ai.isValid() && ai.getFunction() == fromFnc)
-				{
-					auto* newBb = ai.makeStart();
-
-					_addr2bb[jt.getAddress()] = newBb;
-					_bb2addr[newBb] = jt.getAddress();
-					newBb->setName("bb_" + ai.getAddress().toHexString());
-
-					_pseudoWorklist.setTargetBbTrue(
-							llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
-							newBb);
-					return;
-				}
-				else if (ai.isValid())
-				{
-					auto* newFnc = _splitFunctionOn(ai.getAddress());
-					_pseudoWorklist.setTargetBbTrue(
-							llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
-							newFnc);
-
-				}
-				// Functions without BBs (e.g. import declarations).
-				//
-				else if (auto* targetFnc = getFunctionAtAddress(jt.getAddress()))
-				{
-					_pseudoWorklist.setTargetBbTrue(
-							llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
-							targetFnc);
-				}
-				else
-				{
-					assert(false);
-				}
-			}
-			else if (targetBb->getParent() == fromFnc)
-			{
-				_pseudoWorklist.setTargetBbTrue(
-						llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
-						targetBb);
-				return;
-			}
-			// Target is different function (target BB = fnc start) -> change
-			// jmp for call.
-			//
-			else if (&targetBb->getParent()->front() == targetBb)
-			{
-				_pseudoWorklist.setTargetBbTrue(
-						llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
-						targetBb);
-			}
-			else
-			{
-				assert(false);
-			}
-		}
-		else if (jt.getType() == JumpTarget::eType::CONTROL_FLOW_SWITCH_CASE)
-		{
-			auto* fromInst = jt.getFromInstruction();
-			auto* fromFnc = fromInst->getFunction();
-			auto* targetBb = getBasicBlockAtAddress(jt.getAddress());
-
-			if (targetBb == nullptr)
-			{
-				auto ai = AsmInstruction(_module, jt.getAddress());
-				if (ai.isValid() && ai.getFunction() == fromFnc)
-				{
-					auto* newBb = ai.makeStart();
-
-					_addr2bb[jt.getAddress()] = newBb;
-					_bb2addr[newBb] = jt.getAddress();
-					newBb->setName("bb_" + ai.getAddress().toHexString());
-
-					_pseudoWorklist.setTargetBbSwitchCase(
-							llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
-							jt.getAddress(),
-							newBb);
-					return;
-				}
-				else
-				{
-					assert(false);
-				}
-			}
-			else if (targetBb->getParent() == fromFnc)
-			{
-				_pseudoWorklist.setTargetBbSwitchCase(
-						llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
-						jt.getAddress(),
-						targetBb);
-			}
-			else
-			{
-				assert(false);
-			}
-		}
-		else if (jt.getType() == JumpTarget::eType::CONTROL_FLOW_CALL_TARGET)
-		{
-			if (auto* f = getFunctionAtAddress(jt.getAddress()))
-			{
-				_pseudoWorklist.setTargetFunction(
-						llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
-						f);
-				return;
-			}
-			else if (auto ai = AsmInstruction(_module, jt.getAddress()))
-			{
-				auto* newFnc = _splitFunctionOn(ai.getAddress());
-				_pseudoWorklist.setTargetFunction(
-						llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
-						newFnc);
-			}
-			else
-			{
-				assert(false);
-			}
-		}
-
 		LOG << "\t\tfound no range -> skipped" << std::endl;
 		return;
 	}
@@ -454,181 +310,6 @@ std::size_t Decoder::decodeJumpTargetDryRun_x86(
 
 llvm::IRBuilder<> Decoder::getIrBuilder(const JumpTarget& jt)
 {
-//	if (_addr2fnc.empty())
-	if (jt.getType() == JumpTarget::eType::ENTRY_POINT)
-	{
-		auto* f = createFunction(jt.getAddress(), "");
-		return llvm::IRBuilder<>(&f->front().front());
-	}
-	else if (jt.getType() == JumpTarget::eType::CONTROL_FLOW_BR_FALSE)
-	{
-		auto* bb = createBasicBlock(
-				jt.getAddress(),
-				"",
-				jt.getFromInstruction()->getFunction(),
-				jt.getFromInstruction()->getParent());
-		_pseudoWorklist.setTargetBbFalse(
-				llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
-				bb);
-		return llvm::IRBuilder<>(bb->getTerminator());
-	}
-	else if (jt.getType() == JumpTarget::eType::CONTROL_FLOW_BR_TRUE)
-	{
-		auto* fromInst = jt.getFromInstruction();
-		auto* fromFnc = fromInst->getFunction();
-		auto* targetFnc = getFunctionBeforeAddress(jt.getAddress());
-
-		if (targetFnc == nullptr)
-		{
-			auto* f = createFunction(jt.getAddress(), "");
-
-			_pseudoWorklist.setTargetFunction(
-					llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
-					f);
-
-			return llvm::IRBuilder<>(&f->front().front());
-		}
-		else if (targetFnc == fromFnc)
-		{
-			auto* targetBb = getBasicBlockBeforeAddress(jt.getAddress());
-			if (targetBb == nullptr)
-			{
-				// Should not ne possible - in this function, but before 1. BB.
-				assert(false);
-			}
-
-			auto* newBb = createBasicBlock(
-					jt.getAddress(),
-					"",
-					targetFnc,
-					targetBb);
-
-			_pseudoWorklist.setTargetBbTrue(
-					llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
-					newBb);
-
-			return llvm::IRBuilder<>(newBb->getTerminator());
-		}
-		else
-		{
-			auto targetFncAddr = getFunctionAddress(targetFnc);
-			if (targetFncAddr == jt.getAddress())
-			{
-				// There is such function, but that means its entry BB was
-				// already decoded, something is wrong here.
-				assert(false);
-			}
-
-			auto* contFnc = getFunctionContainingAddress(jt.getAddress());
-			if (contFnc)
-			{
-				assert(false);
-			}
-			else
-			{
-				auto* f = createFunction(jt.getAddress(), "");
-
-				_pseudoWorklist.setTargetFunction(
-						llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
-						f);
-
-				return llvm::IRBuilder<>(&f->front().front());
-			}
-		}
-	}
-	else if (jt.getType() == JumpTarget::eType::CONTROL_FLOW_SWITCH_CASE)
-	{
-		auto* fromInst = jt.getFromInstruction();
-		auto* fromFnc = fromInst->getFunction();
-		auto* targetFnc = getFunctionBeforeAddress(jt.getAddress());
-
-		if (targetFnc == nullptr)
-		{
-			assert(false);
-		}
-		else if (targetFnc == fromFnc)
-		{
-			auto* targetBb = getBasicBlockBeforeAddress(jt.getAddress());
-			if (targetBb == nullptr)
-			{
-				// Should not ne possible - in this function, but before 1. BB.
-				assert(false);
-			}
-
-			auto* newBb = createBasicBlock(
-					jt.getAddress(),
-					"",
-					targetFnc,
-					targetBb);
-
-			_pseudoWorklist.setTargetBbSwitchCase(
-					llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
-					jt.getAddress(),
-					newBb);
-
-			return llvm::IRBuilder<>(newBb->getTerminator());
-		}
-		else
-		{
-			assert(false);
-		}
-	}
-	else if (jt.getType() == JumpTarget::eType::CONTROL_FLOW_CALL_TARGET)
-	{
-		if (getFunctionAtAddress(jt.getAddress()))
-		{
-			// There is such function, but that means its entry BB was already
-			// decoded, something is wrong here.
-			assert(false);
-		}
-		else if (getBasicBlockContainingAddress(jt.getAddress()))
-		{
-			// There is such basic block, but that means its ranges was already
-			// decoded, something is wrong here.
-			assert(false);
-		}
-		else if (auto* tf = getFunctionContainingAddress(jt.getAddress()))
-		{
-			auto* newFnc = _splitFunctionOn(jt.getAddress());
-
-			_pseudoWorklist.setTargetFunction(
-					llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
-					newFnc);
-
-			return llvm::IRBuilder<>(&newFnc->front().front());
-			assert(false);
-		}
-		else if (auto* f = createFunction(jt.getAddress(), ""))
-		{
-			_pseudoWorklist.setTargetFunction(
-					llvm::cast<llvm::CallInst>(jt.getFromInstruction()),
-					f);
-
-			return llvm::IRBuilder<>(&f->front().front());
-		}
-	}
-	else if (jt.getType() == JumpTarget::eType::LEFTOVER)
-	{
-		if (auto* targetFnc = getFunctionContainingAddress(jt.getAddress()))
-		{
-			auto* targetBb = getBasicBlockBeforeAddress(jt.getAddress());
-			assert(targetBb);
-
-			auto* newBb = createBasicBlock(
-					jt.getAddress(),
-					"",
-					targetFnc,
-					targetBb);
-
-			return llvm::IRBuilder<>(newBb->getTerminator());
-		}
-		else
-		{
-			auto* f = createFunction(jt.getAddress(), "");
-			return llvm::IRBuilder<>(&f->front().front());
-		}
-	}
-
 	assert(false);
 }
 
@@ -645,22 +326,24 @@ bool Decoder::getJumpTargetsFromInstruction(
 	auto addr = ai.getAddress();
 	auto nextAddr = addr + tr.size;
 
+	BasicBlock* tBb = nullptr;
+	Function* tFnc = nullptr;
+
 	// Function call -> insert target (if computed) and next (call
 	// may return).
 	//
 	if (_c2l->isCallFunctionCall(tr.branchCall))
 	{
-		if (auto t = getJumpTarget(ai, tr.branchCall, tr.branchCall->getArgOperand(0)))
-		{
-			_jumpTargets.push(
-					t,
-					JumpTarget::eType::CONTROL_FLOW_CALL_TARGET,
-					m,
-					tr.branchCall);
-			LOG << "\t\t" << "call @ " << addr << " -> " << t << std::endl;
-		}
-
-		_pseudoWorklist.addPseudoCall(tr.branchCall);
+//		if (auto t = getJumpTarget(ai, tr.branchCall, tr.branchCall->getArgOperand(0)))
+//		{
+//			_jumpTargets.push(
+//					t,
+//					JumpTarget::eType::CONTROL_FLOW_CALL_TARGET,
+//					m,
+//					tr.branchCall);
+//			LOG << "\t\t" << "call @ " << addr << " -> " << t << std::endl;
+//		}
+//		_pseudoWorklist.addPseudoCall(tr.branchCall);
 
 		return false;
 	}
@@ -672,17 +355,17 @@ bool Decoder::getJumpTargetsFromInstruction(
 	//
 	else if (_c2l->isReturnFunctionCall(tr.branchCall))
 	{
-		if (auto t = getJumpTarget(ai, tr.branchCall, tr.branchCall->getArgOperand(0)))
-		{
-			_jumpTargets.push(
-					t,
-					JumpTarget::eType::CONTROL_FLOW_RETURN_TARGET,
-					m,
-					tr.branchCall);
-			LOG << "\t\t" << "return @ " << addr << " -> " << t << std::endl;
-		}
+		llvm::CallInst* c = tr.branchCall;
+		auto* f = c->getFunction();
+		auto* r = llvm::ReturnInst::Create(
+				c->getModule()->getContext(),
+				llvm::UndefValue::get(f->getReturnType()),
+				c);
+		c->eraseFromParent();
 
-		_pseudoWorklist.addPseudoReturn(tr.branchCall);
+		auto* ret = r->getNextNode();
+		assert(llvm::isa<llvm::ReturnInst>(ret));
+		ret->eraseFromParent();
 
 		return true;
 	}
@@ -691,17 +374,38 @@ bool Decoder::getJumpTargetsFromInstruction(
 	// branch.
 	else if (_c2l->isBranchFunctionCall(tr.branchCall))
 	{
+//		if (auto t = getJumpTarget(ai, tr.branchCall, tr.branchCall->getArgOperand(0)))
+//		{
+//			_jumpTargets.push(
+//					t,
+//					JumpTarget::eType::CONTROL_FLOW_BR_TRUE,
+//					m,
+//					tr.branchCall);
+//			LOG << "\t\t" << "br @ " << addr << " -> "	<< t << std::endl;
+//
+//			_pseudoWorklist.addPseudoBr(tr.branchCall);
+//		}
+
 		if (auto t = getJumpTarget(ai, tr.branchCall, tr.branchCall->getArgOperand(0)))
 		{
-			_jumpTargets.push(
-					t,
-					JumpTarget::eType::CONTROL_FLOW_BR_TRUE,
-					m,
-					tr.branchCall);
-			LOG << "\t\t" << "br @ " << addr << " -> "	<< t << std::endl;
+			getOrCreateTarget(t, false, tBb, tFnc, tr.branchCall);
+			if (tBb)
+			{
+				auto* br = llvm::BranchInst::Create(tBb, tr.branchCall);
+				tr.branchCall->eraseFromParent();
 
-			_pseudoWorklist.addPseudoBr(tr.branchCall);
+				auto* ret = br->getNextNode();
+				assert(llvm::isa<llvm::ReturnInst>(ret));
+				ret->eraseFromParent();
+			}
+			else if (tFnc)
+			{
+				auto* call = llvm::CallInst::Create(tFnc, "", tr.branchCall);
+				tr.branchCall->eraseFromParent();
+				_worklist.erase(pc.pseudoCall);
+			}
 		}
+
 		return true;
 	}
 	// Conditional branch -> insert target (if computed) and next (flow
@@ -709,31 +413,100 @@ bool Decoder::getJumpTargetsFromInstruction(
 	//
 	else if (_c2l->isCondBranchFunctionCall(tr.branchCall))
 	{
-		if (auto t = getJumpTarget(ai, tr.branchCall, tr.branchCall->getArgOperand(1)))
-		{
-			_jumpTargets.push(
-					t,
-					JumpTarget::eType::CONTROL_FLOW_BR_TRUE,
-					m,
-					tr.branchCall);
-			LOG << "\t\t" << "cond br @ " << addr << " -> (true) "
-					<< t << std::endl;
-		}
-
-		_jumpTargets.push(
-				nextAddr,
-				JumpTarget::eType::CONTROL_FLOW_BR_FALSE,
-				m,
-				tr.branchCall);
-		LOG << "\t\t" << "cond br @ " << addr << " -> (false) "
-				<< nextAddr << std::endl;
-
-		_pseudoWorklist.addPseudoCondBr(tr.branchCall);
+//		if (auto t = getJumpTarget(ai, tr.branchCall, tr.branchCall->getArgOperand(1)))
+//		{
+//			_jumpTargets.push(
+//					t,
+//					JumpTarget::eType::CONTROL_FLOW_BR_TRUE,
+//					m,
+//					tr.branchCall);
+//			LOG << "\t\t" << "cond br @ " << addr << " -> (true) "
+//					<< t << std::endl;
+//		}
+//
+//		_jumpTargets.push(
+//				nextAddr,
+//				JumpTarget::eType::CONTROL_FLOW_BR_FALSE,
+//				m,
+//				tr.branchCall);
+//		LOG << "\t\t" << "cond br @ " << addr << " -> (false) "
+//				<< nextAddr << std::endl;
+//
+//		_pseudoWorklist.addPseudoCondBr(tr.branchCall);
 
 		return true;
 	}
 
 	return false;
+}
+
+void Decoder::getOrCreateTarget(
+		retdec::utils::Address addr,
+		bool isCall,
+		llvm::BasicBlock*& tBb,
+		llvm::Function*& tFnc,
+		llvm::Instruction* fromI) // = nullptr
+{
+	tBb = nullptr;
+	tFnc = nullptr;
+
+	if (isCall)
+	{
+		if (auto* f = getFunctionAtAddress(addr))
+		{
+			tFnc = f;
+		}
+		else
+		{
+			tFnc = _splitFunctionOn(addr);
+		}
+	}
+	else if (fromI == nullptr)
+	{
+		if (auto* bb = getBasicBlockAtAddress(addr))
+		{
+			tBb = bb;
+		}
+		else if (auto ai = AsmInstruction(addr))
+		{
+			tBb = ai.makeStart();
+			tBb->setName("bb_" + ai.getAddress().toHexString());
+
+			_addr2bb[addr] = tBb;
+			_bb2addr[tBb] = addr;
+		}
+		// Function without BBs (e.g. import declarations).
+		//
+		else if (auto* targetFnc = getFunctionAtAddress(addr))
+		{
+			tFnc = targetFnc;
+		}
+		else if (auto* bb = getBasicBlockBeforeAddress(addr))
+		{
+			tBb = createBasicBlock(
+					addr,
+					"",
+					bb->getParent(),
+					bb);
+		}
+		else
+		{
+			auto* newFnc = createFunction(addr);
+			tBb = &newFnc->front();
+		}
+	}
+	else
+	{
+		auto* fromFnc = fromI->getFunction();
+
+		getOrCreateTarget(addr, false, tBb, tFnc);
+
+		if (tBb && tBb->getParent() != fromFnc)
+		{
+			tBb = nullptr;
+			tFnc = _splitFunctionOn(addr);
+		}
+	}
 }
 
 void Decoder::analyzeInstruction(
@@ -1488,10 +1261,8 @@ llvm::Function* Decoder::_splitFunctionOn(
 
 		return _splitFunctionOn(addr, newBb, name);
 	}
-	else
+	else if (auto* before = getBasicBlockBeforeAddress(addr))
 	{
-		auto* before = getBasicBlockBeforeAddress(addr);
-		assert(before);
 		auto* newBb = createBasicBlock(
 				addr,
 				"",
@@ -1502,6 +1273,10 @@ llvm::Function* Decoder::_splitFunctionOn(
 		_bb2addr[newBb] = addr;
 
 		return _splitFunctionOn(addr, newBb, name);
+	}
+	else
+	{
+		return createFunction(addr);
 	}
 }
 
