@@ -72,9 +72,6 @@ class Decoder : public llvm::ModulePass
 		std::size_t decodeJumpTargetDryRun(
 				const JumpTarget& jt,
 				ByteData bytes);
-		std::size_t decodeJumpTargetDryRun_x86(
-				const JumpTarget& jt,
-				ByteData bytes);
 
 		bool getJumpTargetsFromInstruction(
 				capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& tr);
@@ -119,7 +116,7 @@ class Decoder : public llvm::ModulePass
 				std::ostream &out);
 
 		bool isNopInstruction(cs_insn* insn);
-		bool isNopInstruction_x86(cs_insn* insn);
+
 
 		void splitOnTerminatingCalls();
 
@@ -138,6 +135,14 @@ class Decoder : public llvm::ModulePass
 				llvm::Function*& tFnc,
 				llvm::Instruction* fromI = nullptr);
 
+	// x86 specifix.
+	//
+	private:
+		std::size_t decodeJumpTargetDryRun_x86(
+				const JumpTarget& jt,
+				ByteData bytes);
+		bool isNopInstruction_x86(cs_insn* insn);
+
 	private:
 		llvm::Module* _module = nullptr;
 		Config* _config = nullptr;
@@ -149,8 +154,6 @@ class Decoder : public llvm::ModulePass
 
 		retdec::utils::AddressRangeContainer _allowedRanges;
 		retdec::utils::AddressRangeContainer _alternativeRanges;
-		retdec::utils::AddressRangeContainer _processedRanges;
-
 		retdec::utils::AddressRangeContainer _originalAllowedRanges;
 
 		JumpTargets _jumpTargets;
