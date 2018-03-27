@@ -1,5 +1,5 @@
 /**
-* @file src/bin2llvmir/optimizations/decoder/decoder.cpp
+* @file src/bin2llvmir/optimizations/decoder/cfg_to_json.cpp
 * @brief Various decoder initializations.
 * @copyright (c) 2017 Avast Software, licensed under the MIT license
 */

@@ -115,8 +115,9 @@ bool Decoder::run()
 
 dumpModuleToFile(_module);
 dumpControFlowToJsonModule_manual();
-exit(1);
+//exit(1);
 
+	removePseudoCalls();
 	initConfigFunction();
 
 	return false;
@@ -199,7 +200,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		return;
 	}
 
-	llvm::BasicBlock* bb = getBasicBlockAtAddress(start);
+	BasicBlock* bb = getBasicBlockAtAddress(start);
 	if (bb == nullptr)
 	{
 		if (jt.getType() != JumpTarget::eType::LEFTOVER)
@@ -208,8 +209,8 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 			return;
 		}
 
-		llvm::BasicBlock* tBb = nullptr;
-		llvm::Function* tFnc = nullptr;
+		BasicBlock* tBb = nullptr;
+		Function* tFnc = nullptr;
 		getOrCreateTarget(start, true, tBb, tFnc, nullptr);
 		if (tFnc && !tFnc->empty())
 		{
@@ -222,14 +223,16 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		}
 	}
 	assert(bb && bb->getTerminator());
-	llvm::IRBuilder<> irb(bb->getTerminator());
+	IRBuilder<> irb(bb->getTerminator());
 
 	Address addr = start;
+	Address oldAddr = addr;
 	bool bbEnd = false;
 	do
 	{
 		LOG << "\t\t\t translating = " << addr << std::endl;
 
+		oldAddr = addr;
 		auto res = _c2l->translateOne(bytes.first, bytes.second, addr, irb);
 		if (res.failed() || res.llvmInsn == nullptr)
 		{
@@ -249,7 +252,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		}
 
 		_llvm2capstone->emplace(res.llvmInsn, res.capstoneInsn);
-		bbEnd = getJumpTargetsFromInstruction(res);
+		bbEnd = getJumpTargetsFromInstruction(oldAddr, res);
 	}
 	while (!bbEnd);
 
@@ -285,14 +288,12 @@ std::size_t Decoder::decodeJumpTargetDryRun(
  * @return @c True if this instruction ends basic block, @c false otherwise.
  */
 bool Decoder::getJumpTargetsFromInstruction(
+		retdec::utils::Address addr,
 		capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& tr)
 {
-	AsmInstruction ai(tr.llvmInsn);
-	CallInst* pCall = tr.branchCall;
-
 	cs_mode m = _currentMode;
-	auto addr = ai.getAddress();
 	auto nextAddr = addr + tr.size;
+	CallInst* pCall = tr.branchCall;
 
 	BasicBlock* tBb = nullptr;
 	Function* tFnc = nullptr;
@@ -301,20 +302,11 @@ bool Decoder::getJumpTargetsFromInstruction(
 	//
 	if (_c2l->isCallFunctionCall(pCall))
 	{
-		if (auto t = getJumpTarget(ai, pCall, pCall->getArgOperand(0)))
+		if (auto t = getJumpTarget(pCall, pCall->getArgOperand(0)))
 		{
 			getOrCreateTarget(t, true, tBb, tFnc, pCall);
-			if (tFnc)
-			{
-				auto* call = llvm::CallInst::Create(
-						tFnc,
-						"",
-						pCall->getParent()->getTerminator());
-			}
-			else if (tBb)
-			{
-				assert(false);
-			}
+			assert(tFnc && tBb == nullptr);
+			transformToCall(pCall, tFnc);
 
 			_jumpTargets.push(
 					t,
@@ -323,43 +315,28 @@ bool Decoder::getJumpTargetsFromInstruction(
 					pCall);
 			LOG << "\t\t" << "call @ " << addr << " -> " << t << std::endl;
 		}
-
-		return false;
 	}
 	// Return -> break flow, do not try to compute target.
 	//
 	else if (_c2l->isReturnFunctionCall(pCall))
 	{
-		auto* f = pCall->getFunction();
-		auto* r = llvm::ReturnInst::Create(
-				pCall->getModule()->getContext(),
-				llvm::UndefValue::get(f->getReturnType()),
-				pCall->getParent()->getTerminator());
-
-		auto* ret = r->getNextNode();
-		assert(llvm::isa<llvm::ReturnInst>(ret));
-		ret->eraseFromParent();
-
+		transformToReturn(pCall);
 		return true;
 	}
 	// Unconditional branch -> insert target (if computed).
 	//
 	else if (_c2l->isBranchFunctionCall(pCall))
 	{
-		if (auto t = getJumpTarget(ai, pCall, pCall->getArgOperand(0)))
+		if (auto t = getJumpTarget(pCall, pCall->getArgOperand(0)))
 		{
 			getOrCreateTarget(t, false, tBb, tFnc, pCall);
 			if (tBb)
 			{
-				auto* br = llvm::BranchInst::Create(tBb, pCall->getParent()->getTerminator());
-
-				auto* ret = br->getNextNode();
-				assert(llvm::isa<llvm::ReturnInst>(ret));
-				ret->eraseFromParent();
+				transformToBranch(pCall, tBb);
 			}
 			else if (tFnc)
 			{
-				auto* call = llvm::CallInst::Create(tFnc, "", pCall->getParent()->getTerminator());
+				transformToCall(pCall, tFnc);
 			}
 
 			_jumpTargets.push(
@@ -377,7 +354,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 	//
 	else if (_c2l->isCondBranchFunctionCall(pCall))
 	{
-		if (auto t = getJumpTarget(ai, pCall, pCall->getArgOperand(1)))
+		if (auto t = getJumpTarget(pCall, pCall->getArgOperand(1)))
 		{
 			getOrCreateTarget(t, false, tBb, tFnc, pCall);
 
@@ -385,17 +362,11 @@ bool Decoder::getJumpTargetsFromInstruction(
 			Function* tFncN = nullptr;
 			getOrCreateTarget(nextAddr, false, tBbN, tFncN, pCall);
 
-			if (tBb && tBbN && tBb->getParent() == tBbN->getParent() && tBb->getParent() == pCall->getFunction())
+			if (tBb && tBbN
+					&& tBb->getParent() == tBbN->getParent()
+					&& tBb->getParent() == pCall->getFunction())
 			{
-				auto* br = llvm::BranchInst::Create(
-						tBb,
-						tBbN,
-						pCall->getOperand(0),
-						pCall->getParent()->getTerminator());
-
-				auto* ret = br->getNextNode();
-				assert(llvm::isa<llvm::ReturnInst>(ret));
-				ret->eraseFromParent();
+				transformToCondBranch(pCall, pCall->getOperand(0), tBb, tBbN);
 			}
 			else
 			{
@@ -495,7 +466,6 @@ void Decoder::getOrCreateTarget(
 }
 
 retdec::utils::Address Decoder::getJumpTarget(
-		AsmInstruction& ai,
 		llvm::CallInst* branchCall,
 		llvm::Value* val)
 {
@@ -556,7 +526,7 @@ retdec::utils::Address Decoder::getJumpTarget(
 
 			Address falseAddr;
 			Address trueAddr;
-			Address defaultAddr;
+			Address defAddr;
 
 			// One addr is this JT, second is already in worlist -> this is
 			// true (processed after false), second is false -> cond br on
@@ -574,37 +544,19 @@ retdec::utils::Address Decoder::getJumpTarget(
 
 					if (thisBbAddr == falseAddr)
 					{
-						defaultAddr = trueAddr;
+						defAddr = trueAddr;
 					}
 					else if (thisBbAddr == trueAddr)
 					{
-						defaultAddr = falseAddr;
+						defAddr = falseAddr;
 					}
 
 					break;
 				}
 			}
 
-			if (!cases.empty() && defaultAddr.isDefined())
+			if (!cases.empty() && defAddr.isDefined())
 			{
-				for (auto c : cases)
-				{
-					_jumpTargets.push(
-							c,
-							JumpTarget::eType::CONTROL_FLOW_SWITCH_CASE,
-							_currentMode,
-							branchCall);
-					LOG << "\t\t" << "switch @ " << ai.getAddress() << " -> "
-							<< c << std::endl;
-				}
-
-				_jumpTargets.push(
-						defaultAddr,
-						JumpTarget::eType::CONTROL_FLOW_SWITCH_CASE,
-						_currentMode,
-						branchCall);
-
-				unsigned numCases = 0;
 				std::vector<BasicBlock*> casesBbs;
 				for (auto c : cases)
 				{
@@ -618,47 +570,38 @@ retdec::utils::Address Decoder::getJumpTarget(
 					else
 					{
 						assert(false);
-					}
-
-					if (c != defaultAddr)
-					{
-						++numCases;
+						return Address::getUndef;
 					}
 				}
 
 				Function* tFnc = nullptr;
-				BasicBlock* defaultBb = nullptr;
-				getOrCreateTarget(defaultAddr, false, defaultBb, tFnc, branchCall);
-				if (defaultBb && defaultBb->getParent() == branchCall->getFunction())
-				{
-					// nothing
-				}
-				else
+				BasicBlock* defBb = nullptr;
+				getOrCreateTarget(defAddr, false, defBb, tFnc, branchCall);
+				if (defBb == nullptr
+						|| defBb->getParent() != branchCall->getFunction())
 				{
 					assert(false);
+					return Address::getUndef;
 				}
 
-				auto* intType = llvm::cast<llvm::IntegerType>(idxLoad->getType());
-				auto* switchI = llvm::SwitchInst::Create(
-						idxLoad,
-						defaultBb,
-						numCases,
-						branchCall->getParent()->getTerminator());
-				unsigned cntr = 0;
-				for (auto& c : casesBbs)
+				transformToSwitch(branchCall, idxLoad, defBb, casesBbs);
+
+				for (auto c : cases)
 				{
-					if (c != defaultBb)
-					{
-						switchI->addCase(
-								llvm::ConstantInt::get(intType, cntr),
-								c);
-					}
-					++cntr;
+					_jumpTargets.push(
+							c,
+							JumpTarget::eType::CONTROL_FLOW_SWITCH_CASE,
+							_currentMode,
+							branchCall);
+					LOG << "\t\t" << "switch -> (case) " << c << std::endl;
 				}
 
-				auto* ret = switchI->getNextNode();
-				assert(llvm::isa<llvm::ReturnInst>(ret));
-				ret->eraseFromParent();
+				_jumpTargets.push(
+						defAddr,
+						JumpTarget::eType::CONTROL_FLOW_SWITCH_CASE,
+						_currentMode,
+						branchCall);
+				LOG << "\t\t" << "switch -> (default) " << defAddr << std::endl;
 			}
 
 			return Address::getUndef;
@@ -780,30 +723,30 @@ llvm::Function* Decoder::createFunction(
 {
 	std::string n = name.empty() ? "function_" + a.toHexString() : name;
 
-	llvm::Function* f = nullptr;
+	Function* f = nullptr;
 	auto& fl = _module->getFunctionList();
 
 	if (fl.empty())
 	{
-		f = llvm::Function::Create(
-				llvm::FunctionType::get(
+		f = Function::Create(
+				FunctionType::get(
 						getDefaultType(_module),
 						false),
-				llvm::GlobalValue::ExternalLinkage,
+				GlobalValue::ExternalLinkage,
 				n,
 				_module);
 	}
 	else
 	{
-		f = llvm::Function::Create(
-				llvm::FunctionType::get(
+		f = Function::Create(
+				FunctionType::get(
 						getDefaultType(_module),
 						false),
-				llvm::GlobalValue::ExternalLinkage,
+				GlobalValue::ExternalLinkage,
 				n);
 	}
 
-	llvm::Function* before = getFunctionBeforeAddress(a);
+	Function* before = getFunctionBeforeAddress(a);
 	if (before)
 	{
 		fl.insertAfter(before->getIterator(), f);
@@ -947,14 +890,14 @@ llvm::BasicBlock* Decoder::createBasicBlock(
 		next = next->getNextNode();
 	}
 
-	auto* b = llvm::BasicBlock::Create(
+	auto* b = BasicBlock::Create(
 			_module->getContext(),
 			n,
 			f,
 			next);
 
-	llvm::IRBuilder<> irb(b);
-	irb.CreateRet(llvm::UndefValue::get(f->getReturnType()));
+	IRBuilder<> irb(b);
+	irb.CreateRet(UndefValue::get(f->getReturnType()));
 
 	_addr2bb[a] = b;
 	_bb2addr[b] = a;
@@ -1088,7 +1031,7 @@ void Decoder::splitOnTerminatingCalls()
 		if (callAi.getBasicBlock() != nextAi.getBasicBlock())
 		{
 			auto* term = bb->getTerminator();
-			auto* r = llvm::ReturnInst::Create(
+			auto* r = ReturnInst::Create(
 					call->getModule()->getContext(),
 					llvm::UndefValue::get(f->getReturnType()),
 					term);
@@ -1099,9 +1042,9 @@ void Decoder::splitOnTerminatingCalls()
 
 		auto* newBb = bb->splitBasicBlock(nextAi.getLlvmToAsmInstruction());
 		auto* term = bb->getTerminator();
-		auto* r = llvm::ReturnInst::Create(
+		auto* r = ReturnInst::Create(
 				call->getModule()->getContext(),
-				llvm::UndefValue::get(f->getReturnType()),
+				UndefValue::get(f->getReturnType()),
 				term);
 		term->eraseFromParent();
 
@@ -1241,9 +1184,9 @@ llvm::Function* Decoder::_splitFunctionOn(
 		auto* oldBb = ai.getBasicBlock();
 		auto* newBb = ai.makeStart();
 
-		auto* r = llvm::ReturnInst::Create(
+		auto* r = ReturnInst::Create(
 				oldBb->getModule()->getContext(),
-				llvm::UndefValue::get(oldBb->getParent()->getReturnType()),
+				UndefValue::get(oldBb->getParent()->getReturnType()),
 				oldBb->getTerminator());
 		oldBb->getTerminator()->eraseFromParent();
 
@@ -1289,7 +1232,7 @@ llvm::Function* Decoder::_splitFunctionOn(
 	Function* oldFnc = bb->getParent();
 
 	Function* newFnc = Function::Create(
-			llvm::FunctionType::get(oldFnc->getReturnType(), false),
+			FunctionType::get(oldFnc->getReturnType(), false),
 			oldFnc->getLinkage(),
 			name);
 	oldFnc->getParent()->getFunctionList().insertAfter(
@@ -1328,10 +1271,10 @@ llvm::Function* Decoder::_splitFunctionOn(
 							// Succ is first in function -> call function.
 							if (succ->getPrevNode() == nullptr)
 							{
-								llvm::CallInst::Create(succ->getParent(), "", br);
-								auto* r = llvm::ReturnInst::Create(
+								CallInst::Create(succ->getParent(), "", br);
+								auto* r = ReturnInst::Create(
 										br->getModule()->getContext(),
-										llvm::UndefValue::get(br->getFunction()->getReturnType()),
+										UndefValue::get(br->getFunction()->getReturnType()),
 										br);
 								br->eraseFromParent();
 								break;
@@ -1342,10 +1285,10 @@ llvm::Function* Decoder::_splitFunctionOn(
 								assert(target.isDefined());
 								auto* nf = _splitFunctionOn(target, succ);
 
-								llvm::CallInst::Create(nf, "", br);
-								auto* r = llvm::ReturnInst::Create(
+								CallInst::Create(nf, "", br);
+								auto* r = ReturnInst::Create(
 										br->getModule()->getContext(),
-										llvm::UndefValue::get(br->getFunction()->getReturnType()),
+										UndefValue::get(br->getFunction()->getReturnType()),
 										br);
 								br->eraseFromParent();
 								restart = true;
@@ -1393,10 +1336,10 @@ llvm::Function* Decoder::_splitFunctionOn(
 							// Succ is first in function -> call function.
 							if (succ->getPrevNode() == nullptr)
 							{
-								llvm::CallInst::Create(succ->getParent(), "", br);
-								auto* r = llvm::ReturnInst::Create(
+								CallInst::Create(succ->getParent(), "", br);
+								auto* r = ReturnInst::Create(
 										br->getModule()->getContext(),
-										llvm::UndefValue::get(br->getFunction()->getReturnType()),
+										UndefValue::get(br->getFunction()->getReturnType()),
 										br);
 								br->eraseFromParent();
 								break;
@@ -1407,10 +1350,10 @@ llvm::Function* Decoder::_splitFunctionOn(
 								assert(target.isDefined());
 								auto* nf = _splitFunctionOn(target, succ);
 
-								llvm::CallInst::Create(nf, "", br);
-								auto* r = llvm::ReturnInst::Create(
+								CallInst::Create(nf, "", br);
+								auto* r = ReturnInst::Create(
 										br->getModule()->getContext(),
-										llvm::UndefValue::get(br->getFunction()->getReturnType()),
+										UndefValue::get(br->getFunction()->getReturnType()),
 										br);
 								br->eraseFromParent();
 								restart = true;
@@ -1436,6 +1379,116 @@ llvm::Function* Decoder::_splitFunctionOn(
 	}
 
 	return newFnc;
+}
+
+void Decoder::removePseudoCalls()
+{
+	for (Function& f : _module->functions())
+	for (BasicBlock& bb : f)
+	for (auto it = bb.begin(), e = bb.end(); it != e; )
+	{
+		CallInst* call = dyn_cast<CallInst>(&(*it));
+		++it;
+
+		if (call &&
+				(_c2l->isCallFunctionCall(call)
+				|| _c2l->isBranchFunctionCall(call)
+				|| _c2l->isCondBranchFunctionCall(call)
+				|| _c2l->isReturnFunctionCall(call)))
+		{
+			call->eraseFromParent();
+		}
+	}
+}
+
+llvm::CallInst* Decoder::transformToCall(
+		llvm::CallInst* pseudo,
+		llvm::Function* callee)
+{
+	if (callee == nullptr)
+	{
+		return nullptr;
+	}
+
+	auto* c = CallInst::Create(
+			callee,
+			"");
+	c->insertAfter(pseudo);
+
+	return c;
+}
+
+llvm::ReturnInst* Decoder::transformToReturn(llvm::CallInst* pseudo)
+{
+	auto* term = pseudo->getParent()->getTerminator();
+	auto* r = ReturnInst::Create(
+			pseudo->getModule()->getContext(),
+			UndefValue::get(pseudo->getFunction()->getReturnType()),
+			term);
+	term->eraseFromParent();
+	return r;
+}
+
+llvm::BranchInst* Decoder::transformToBranch(
+		llvm::CallInst* pseudo,
+		llvm::BasicBlock* branchee)
+{
+	if (branchee == nullptr)
+	{
+		return nullptr;
+	}
+
+	auto* term = pseudo->getParent()->getTerminator();
+	auto* br = BranchInst::Create(branchee, term);
+	term->eraseFromParent();
+
+	return br;
+}
+
+llvm::BranchInst* Decoder::transformToCondBranch(
+		llvm::CallInst* pseudo,
+		llvm::Value* cond,
+		llvm::BasicBlock* trueBb,
+		llvm::BasicBlock* falseBb)
+{
+	auto* term = pseudo->getParent()->getTerminator();
+	auto* br = BranchInst::Create(trueBb, falseBb, cond, term);
+	term->eraseFromParent();
+
+	return br;
+}
+
+llvm::SwitchInst* Decoder::transformToSwitch(
+		llvm::CallInst* pseudo,
+		llvm::Value* val,
+		llvm::BasicBlock* defaultBb,
+		const std::vector<llvm::BasicBlock*>& cases)
+{
+	unsigned numCases = 0;
+	for (auto* c : cases)
+	{
+		if (c != defaultBb)
+		{
+			++numCases;
+		}
+	}
+
+	auto* term = pseudo->getParent()->getTerminator();
+	auto* intType = cast<IntegerType>(val->getType());
+	auto* sw = SwitchInst::Create(val, defaultBb, numCases, term);
+	unsigned cntr = 0;
+	for (auto& c : cases)
+	{
+		if (c != defaultBb)
+		{
+			sw->addCase(ConstantInt::get(intType, cntr), c);
+		}
+		++cntr;
+	}
+
+	term->eraseFromParent();
+
+	return sw;
 }
 
 } // namespace bin2llvmir

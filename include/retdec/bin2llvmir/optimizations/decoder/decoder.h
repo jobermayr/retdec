@@ -74,9 +74,9 @@ class Decoder : public llvm::ModulePass
 				ByteData bytes);
 
 		bool getJumpTargetsFromInstruction(
+				retdec::utils::Address addr,
 				capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& tr);
 		retdec::utils::Address getJumpTarget(
-				AsmInstruction& ai,
 				llvm::CallInst* branchCall,
 				llvm::Value* val);
 
@@ -117,7 +117,6 @@ class Decoder : public llvm::ModulePass
 
 		bool isNopInstruction(cs_insn* insn);
 
-
 		void splitOnTerminatingCalls();
 
 		llvm::Function* _splitFunctionOn(
@@ -134,6 +133,26 @@ class Decoder : public llvm::ModulePass
 				llvm::BasicBlock*& tBb,
 				llvm::Function*& tFnc,
 				llvm::Instruction* fromI = nullptr);
+
+		void removePseudoCalls();
+
+		llvm::CallInst* transformToCall(
+				llvm::CallInst* pseudo,
+				llvm::Function* callee);
+		llvm::ReturnInst* transformToReturn(llvm::CallInst* pseudo);
+		llvm::BranchInst* transformToBranch(
+				llvm::CallInst* pseudo,
+				llvm::BasicBlock* branchee);
+		llvm::BranchInst* transformToCondBranch(
+				llvm::CallInst* pseudo,
+				llvm::Value* cond,
+				llvm::BasicBlock* trueBb,
+				llvm::BasicBlock* falseBb);
+		llvm::SwitchInst* transformToSwitch(
+				llvm::CallInst* pseudo,
+				llvm::Value* val,
+				llvm::BasicBlock* defaultBb,
+				const std::vector<llvm::BasicBlock*>& cases);
 
 	// x86 specifix.
 	//
