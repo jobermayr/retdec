@@ -161,6 +161,7 @@ class Decoder : public llvm::ModulePass
 				const JumpTarget& jt,
 				ByteData bytes);
 		bool isNopInstruction_x86(cs_insn* insn);
+		void eraseReturnAddrStoreInCall_x86(llvm::CallInst* c);
 
 	private:
 		llvm::Module* _module = nullptr;

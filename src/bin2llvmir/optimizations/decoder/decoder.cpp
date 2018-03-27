@@ -1415,6 +1415,11 @@ llvm::CallInst* Decoder::transformToCall(
 			"");
 	c->insertAfter(pseudo);
 
+	if (_config->getConfig().architecture.isX86())
+	{
+		eraseReturnAddrStoreInCall_x86(c);
+	}
+
 	return c;
 }
 

@@ -104,5 +104,23 @@ bool Decoder::isNopInstruction_x86(cs_insn* insn)
 	return false;
 }
 
+void Decoder::eraseReturnAddrStoreInCall_x86(llvm::CallInst* c)
+{
+	Instruction* it = c;
+	while (it && !AsmInstruction::isLlvmToAsmInstruction(it))
+	{
+		auto* i = it;
+		it = it->getPrevNode();
+		if (auto* st = dyn_cast<StoreInst>(i))
+		{
+			if (_config->isStackPointerRegister(st->getPointerOperand())
+					|| isa<ConstantInt>(st->getValueOperand()))
+			{
+				st->eraseFromParent();
+			}
+		}
+	}
+}
+
 } // namespace bin2llvmir
 } // namespace retdec
