@@ -331,7 +331,9 @@ void Decoder::initJumpTargetsEntryPoint()
 				mode,
 				Address::getUndef);
 
-createFunction(ep, "");
+		_names.addNameForAddress(ep, "entry_point", Name::eType::EP);
+
+		createFunction(ep);
 
 		LOG << "\tentry point @ " << ep << std::endl;
 	}

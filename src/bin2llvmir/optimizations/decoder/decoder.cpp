@@ -721,7 +721,15 @@ llvm::Function* Decoder::createFunction(
 		const std::string& name,
 		bool declaration)
 {
-	std::string n = name.empty() ? "function_" + a.toHexString() : name;
+	std::string n = name;
+	if (n.empty())
+	{
+		n = _names.getPreferredNameForAddress(a);
+	}
+	if (n.empty())
+	{
+		n = std::string("function_") + a.toHexString();
+	}
 
 	Function* f = nullptr;
 	auto& fl = _module->getFunctionList();
