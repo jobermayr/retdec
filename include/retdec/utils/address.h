@@ -23,6 +23,7 @@ class Address
 		Address();
 		Address(uint64_t a);
 		operator uint64_t() const;
+		explicit operator bool() const;
 
 		Address& operator++();
 		Address operator++(int);

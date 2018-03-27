@@ -38,6 +38,11 @@ Address::operator uint64_t() const
 	return address;
 }
 
+Address::operator bool() const
+{
+	return isDefined() && address;
+}
+
 Address& Address::operator++()
 {
 	if (isDefined())

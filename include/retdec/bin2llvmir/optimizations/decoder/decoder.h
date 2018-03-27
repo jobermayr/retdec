@@ -39,6 +39,7 @@ class Decoder : public llvm::ModulePass
 	public:
 		static char ID;
 		Decoder();
+		~Decoder();
 		virtual bool runOnModule(llvm::Module& m) override;
 		bool runOnModuleCustom(
 				llvm::Module& m,
@@ -47,10 +48,14 @@ class Decoder : public llvm::ModulePass
 				DebugFormat* d);
 
 	private:
+		using ByteData = typename std::pair<const std::uint8_t*, std::uint64_t>;
+
+	private:
 		bool runCatcher();
 		bool run();
 
 		void initTranslator();
+		void initDryRunCsInstruction();
 		void initEnvironment();
 		void initEnvironmentAsm2LlvmMapping();
 		void initEnvironmentPseudoFunctions();
@@ -60,23 +65,20 @@ class Decoder : public llvm::ModulePass
 		void initJumpTargets();
 		void initJumpTargetsEntryPoint();
 		void initJumpTargetsImports();
+		void initConfigFunction();
 
 		void decode();
 		bool getJumpTarget(JumpTarget& jt);
 		void decodeJumpTarget(const JumpTarget& jt);
 		std::size_t decodeJumpTargetDryRun(
 				const JumpTarget& jt,
-				std::pair<const std::uint8_t*, std::uint64_t> bytes);
-		std::size_t decodeJumpTargetDryRun_x86(const JumpTarget& jt,
-				std::pair<const std::uint8_t*, std::uint64_t> bytes);
+				ByteData bytes);
+		std::size_t decodeJumpTargetDryRun_x86(
+				const JumpTarget& jt,
+				ByteData bytes);
 
 		bool getJumpTargetsFromInstruction(
-				AsmInstruction& ai,
 				capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& tr);
-		void analyzeInstruction(
-				AsmInstruction& ai,
-				capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& tr);
-		llvm::IRBuilder<> getIrBuilder(const JumpTarget& jt);
 		retdec::utils::Address getJumpTarget(
 				AsmInstruction& ai,
 				llvm::CallInst* branchCall,
@@ -84,8 +86,10 @@ class Decoder : public llvm::ModulePass
 
 		retdec::utils::Address getFunctionAddress(llvm::Function* f);
 		retdec::utils::Address getFunctionEndAddress(llvm::Function* f);
+		retdec::utils::Address getFunctionAddressAfter(retdec::utils::Address a);
 		llvm::Function* getFunctionAtAddress(retdec::utils::Address a);
 		llvm::Function* getFunctionBeforeAddress(retdec::utils::Address a);
+		llvm::Function* getFunctionAfterAddress(retdec::utils::Address a);
 		llvm::Function* getFunctionContainingAddress(retdec::utils::Address a);
 		llvm::Function* createFunction(
 				retdec::utils::Address a,
@@ -94,8 +98,10 @@ class Decoder : public llvm::ModulePass
 
 		retdec::utils::Address getBasicBlockAddress(llvm::BasicBlock* b);
 		retdec::utils::Address getBasicBlockEndAddress(llvm::BasicBlock* b);
+		retdec::utils::Address getBasicBlockAddressAfter(retdec::utils::Address a);
 		llvm::BasicBlock* getBasicBlockAtAddress(retdec::utils::Address a);
 		llvm::BasicBlock* getBasicBlockBeforeAddress(retdec::utils::Address a);
+		llvm::BasicBlock* getBasicBlockAfterAddress(retdec::utils::Address a);
 		llvm::BasicBlock* getBasicBlockContainingAddress(retdec::utils::Address a);
 		llvm::BasicBlock* createBasicBlock(
 				retdec::utils::Address a,
@@ -149,7 +155,6 @@ class Decoder : public llvm::ModulePass
 		retdec::utils::AddressRangeContainer _originalAllowedRanges;
 
 		JumpTargets _jumpTargets;
-		PseudoCallWorklist _pseudoWorklist;
 
 		std::map<retdec::utils::Address, llvm::Function*> _addr2fnc;
 		std::map<llvm::Function*, retdec::utils::Address> _fnc2addr;
@@ -159,6 +164,8 @@ class Decoder : public llvm::ModulePass
 		std::set<llvm::Function*> _terminatingFncs;
 
 		std::map<llvm::StoreInst*, cs_insn*>* _llvm2capstone = nullptr;
+
+		cs_insn* _dryCsInsn = nullptr;
 
 	private:
 		const std::string _asm2llvmGv = "_asm_program_counter";
@@ -172,10 +179,6 @@ class Decoder : public llvm::ModulePass
 		const std::string _x87dataStoreFunction = "__frontend_reg_store.fpr";
 		const std::string _x87tagStoreFunction = "__frontend_reg_store.fpu_tag";
 		const std::string _entryPointFunction = "entry_point";
-
-	// TODO: temp hack.
-	private:
-		JumpTarget _currentJt;
 };
 
 } // namespace bin2llvmir

@@ -81,6 +81,12 @@ void Decoder::initTranslator()
 	_currentMode = basicMode;
 }
 
+void Decoder::initDryRunCsInstruction()
+{
+	csh ce = _c2l->getCapstoneEngine();
+	_dryCsInsn = cs_malloc(ce);
+}
+
 /**
  * Synchronize metadata between capstone2llvmir and bin2llvmir.
  */
@@ -325,6 +331,8 @@ void Decoder::initJumpTargetsEntryPoint()
 				mode,
 				Address::getUndef);
 
+createFunction(ep, "");
+
 		LOG << "\tentry point @ " << ep << std::endl;
 	}
 	else
@@ -378,6 +386,26 @@ void Decoder::initJumpTargetsImports()
 		{
 			_terminatingFncs.insert(f);
 		}
+	}
+}
+
+void Decoder::initConfigFunction()
+{
+	for (auto& p : _fnc2addr)
+	{
+		Function* f = p.first;
+		Address start = p.second;
+		Address end = start;
+
+		if (!f->empty() && !f->back().empty())
+		{
+			if (auto ai = AsmInstruction(&f->back().back()))
+			{
+				end = ai.getEndAddress() - 1;
+			}
+		}
+
+		_config->insertFunction(f, p.second, end);
 	}
 }
 
