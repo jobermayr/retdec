@@ -23,7 +23,6 @@
 #include "retdec/bin2llvmir/providers/debugformat.h"
 #include "retdec/bin2llvmir/providers/fileimage.h"
 #include "retdec/bin2llvmir/optimizations/decoder/jump_targets.h"
-#include "retdec/bin2llvmir/optimizations/decoder/pseudo_call_worklist.h"
 #include "retdec/bin2llvmir/utils/ir_modifier.h"
 #include "retdec/capstone2llvmir/capstone2llvmir.h"
 

@@ -517,7 +517,6 @@ retdec::utils::Address Decoder::getJumpTarget(
 			return ci->getZExtValue();
 		}
 	}
-	// TODO: check that from conditional br
 	else if (auto* l = dyn_cast<LoadInst>(val))
 	{
 		auto* ptr = skipCasts(l->getPointerOperand());
@@ -585,24 +584,6 @@ retdec::utils::Address Decoder::getJumpTarget(
 				}
 			}
 
-//			// One addr is this JT, second is still in JTs -> this is false
-//			// (processed first), second is true -> cond br on success jumps
-//			// over this -> second is default label.
-//			//
-//			if (defaultAddr.isUndefined())
-//			{
-//				for (auto& jt : _jumpTargets._data)
-//				{
-//					if (jt.getFromInstruction() == _currentJt.getFromInstruction())
-//					{
-//						falseAddr = _currentJt.getAddress();
-//						trueAddr = jt.getAddress();
-//						defaultAddr = trueAddr;
-//						break;
-//					}
-//				}
-//			}
-
 			if (!cases.empty() && defaultAddr.isDefined())
 			{
 				for (auto c : cases)
@@ -621,12 +602,6 @@ retdec::utils::Address Decoder::getJumpTarget(
 						JumpTarget::eType::CONTROL_FLOW_SWITCH_CASE,
 						_currentMode,
 						branchCall);
-
-//				_pseudoWorklist.addPseudoSwitch(
-//						branchCall,
-//						idxLoad,
-//						cases,
-//						defaultAddr);
 
 				unsigned numCases = 0;
 				std::vector<BasicBlock*> casesBbs;
@@ -667,7 +642,6 @@ retdec::utils::Address Decoder::getJumpTarget(
 						idxLoad,
 						defaultBb,
 						numCases,
-//						branchCall);
 						branchCall->getParent()->getTerminator());
 				unsigned cntr = 0;
 				for (auto& c : casesBbs)
@@ -680,8 +654,6 @@ retdec::utils::Address Decoder::getJumpTarget(
 					}
 					++cntr;
 				}
-
-//				branchCall->eraseFromParent();
 
 				auto* ret = switchI->getNextNode();
 				assert(llvm::isa<llvm::ReturnInst>(ret));
@@ -974,18 +946,6 @@ llvm::BasicBlock* Decoder::createBasicBlock(
 		next = next->getNextNode();
 	}
 
-//if (insertAfter && next)
-//{
-//	std::cout << "insertAfter = " << insertAfter->getName().str() << std::endl;
-//	std::cout << "next        = " << next->getName().str() << std::endl;
-////	assert(_bb2addr.count(insertAfter) && "shit 1");
-////	if (_bb2addr.count(next) == 0)
-////	{
-////		dumpModuleToFile(_module);
-////	}
-////	assert(_bb2addr.count(next) && "shit 2");
-//}
-
 	auto* b = llvm::BasicBlock::Create(
 			_module->getContext(),
 			n,
@@ -1000,6 +960,12 @@ llvm::BasicBlock* Decoder::createBasicBlock(
 
 	return b;
 }
+
+//
+//==============================================================================
+// Other methods.
+//==============================================================================
+//
 
 bool Decoder::isNopInstruction(cs_insn* insn)
 {
@@ -1383,134 +1349,134 @@ llvm::Function* Decoder::_splitFunctionOn(
 			oldFnc->getBasicBlockList().end());
 
 	bool restart = true;
-while (restart)
-{
-	restart = false;
-for (BasicBlock& b : *oldFnc)
-{
-	for (Instruction& i : b)
+	while (restart)
 	{
-		if (BranchInst* br = dyn_cast<BranchInst>(&i))
+		restart = false;
+		for (BasicBlock& b : *oldFnc)
 		{
-			if (br->isConditional())
+			for (Instruction& i : b)
 			{
-				assert(br->getSuccessor(0)->getParent() == br->getFunction());
-				assert(br->getSuccessor(1)->getParent() == br->getFunction());
-			}
-			else
-			{
-				BasicBlock* succ = br->getSuccessor(0);
-				if (succ->getParent() != br->getFunction())
+				if (BranchInst* br = dyn_cast<BranchInst>(&i))
 				{
-					// Succ is first in function -> call function.
-					if (succ->getPrevNode() == nullptr)
+					if (br->isConditional())
 					{
-						llvm::CallInst::Create(succ->getParent(), "", br);
-						auto* r = llvm::ReturnInst::Create(
-								br->getModule()->getContext(),
-								llvm::UndefValue::get(br->getFunction()->getReturnType()),
-								br);
-						br->eraseFromParent();
-						break;
+						assert(br->getSuccessor(0)->getParent() == br->getFunction());
+						assert(br->getSuccessor(1)->getParent() == br->getFunction());
 					}
 					else
 					{
-						Address target = getBasicBlockAddress(succ);
-						assert(target.isDefined());
-						auto* nf = _splitFunctionOn(target, succ);
+						BasicBlock* succ = br->getSuccessor(0);
+						if (succ->getParent() != br->getFunction())
+						{
+							// Succ is first in function -> call function.
+							if (succ->getPrevNode() == nullptr)
+							{
+								llvm::CallInst::Create(succ->getParent(), "", br);
+								auto* r = llvm::ReturnInst::Create(
+										br->getModule()->getContext(),
+										llvm::UndefValue::get(br->getFunction()->getReturnType()),
+										br);
+								br->eraseFromParent();
+								break;
+							}
+							else
+							{
+								Address target = getBasicBlockAddress(succ);
+								assert(target.isDefined());
+								auto* nf = _splitFunctionOn(target, succ);
 
-						llvm::CallInst::Create(nf, "", br);
-						auto* r = llvm::ReturnInst::Create(
-								br->getModule()->getContext(),
-								llvm::UndefValue::get(br->getFunction()->getReturnType()),
-								br);
-						br->eraseFromParent();
-						restart = true;
-						break;
+								llvm::CallInst::Create(nf, "", br);
+								auto* r = llvm::ReturnInst::Create(
+										br->getModule()->getContext(),
+										llvm::UndefValue::get(br->getFunction()->getReturnType()),
+										br);
+								br->eraseFromParent();
+								restart = true;
+								break;
+							}
+						}
+					}
+				}
+				else if (SwitchInst* sw = dyn_cast<SwitchInst>(&i))
+				{
+					for (unsigned j = 0, e = sw->getNumSuccessors(); j != e; ++j)
+					{
+						assert(sw->getSuccessor(j)->getParent() == sw->getFunction());
 					}
 				}
 			}
-		}
-		else if (SwitchInst* sw = dyn_cast<SwitchInst>(&i))
-		{
-			for (unsigned j = 0, e = sw->getNumSuccessors(); j != e; ++j)
+
+			if (restart)
 			{
-				assert(sw->getSuccessor(j)->getParent() == sw->getFunction());
+				break;
 			}
 		}
 	}
 
-	if (restart)
+	restart = true;
+	while (restart)
 	{
-		break;
-	}
-}
-}
-
-restart = true;
-while (restart)
-{
-restart = false;
-for (BasicBlock& b : *newFnc)
-{
-for (Instruction& i : b)
-{
-	if (BranchInst* br = dyn_cast<BranchInst>(&i))
-	{
-		if (br->isConditional())
+		restart = false;
+		for (BasicBlock& b : *newFnc)
 		{
-			assert(br->getSuccessor(0)->getParent() == br->getFunction());
-			assert(br->getSuccessor(1)->getParent() == br->getFunction());
-		}
-		else
-		{
-			BasicBlock* succ = br->getSuccessor(0);
-			if (succ->getParent() != br->getFunction())
+			for (Instruction& i : b)
 			{
-				// Succ is first in function -> call function.
-				if (succ->getPrevNode() == nullptr)
+				if (BranchInst* br = dyn_cast<BranchInst>(&i))
 				{
-					llvm::CallInst::Create(succ->getParent(), "", br);
-					auto* r = llvm::ReturnInst::Create(
-							br->getModule()->getContext(),
-							llvm::UndefValue::get(br->getFunction()->getReturnType()),
-							br);
-					br->eraseFromParent();
-					break;
-				}
-				else
-				{
-					Address target = getBasicBlockAddress(succ);
-					assert(target.isDefined());
-					auto* nf = _splitFunctionOn(target, succ);
+					if (br->isConditional())
+					{
+						assert(br->getSuccessor(0)->getParent() == br->getFunction());
+						assert(br->getSuccessor(1)->getParent() == br->getFunction());
+					}
+					else
+					{
+						BasicBlock* succ = br->getSuccessor(0);
+						if (succ->getParent() != br->getFunction())
+						{
+							// Succ is first in function -> call function.
+							if (succ->getPrevNode() == nullptr)
+							{
+								llvm::CallInst::Create(succ->getParent(), "", br);
+								auto* r = llvm::ReturnInst::Create(
+										br->getModule()->getContext(),
+										llvm::UndefValue::get(br->getFunction()->getReturnType()),
+										br);
+								br->eraseFromParent();
+								break;
+							}
+							else
+							{
+								Address target = getBasicBlockAddress(succ);
+								assert(target.isDefined());
+								auto* nf = _splitFunctionOn(target, succ);
 
-					llvm::CallInst::Create(nf, "", br);
-					auto* r = llvm::ReturnInst::Create(
-							br->getModule()->getContext(),
-							llvm::UndefValue::get(br->getFunction()->getReturnType()),
-							br);
-					br->eraseFromParent();
-					restart = true;
-					break;
+								llvm::CallInst::Create(nf, "", br);
+								auto* r = llvm::ReturnInst::Create(
+										br->getModule()->getContext(),
+										llvm::UndefValue::get(br->getFunction()->getReturnType()),
+										br);
+								br->eraseFromParent();
+								restart = true;
+								break;
+							}
+						}
+					}
 				}
+				else if (SwitchInst* sw = dyn_cast<SwitchInst>(&i))
+				{
+					for (unsigned j = 0, e = sw->getNumSuccessors(); j != e; ++j)
+					{
+						assert(sw->getSuccessor(j)->getParent() == sw->getFunction());
+					}
+				}
+			}
+
+			if (restart)
+			{
+				break;
 			}
 		}
 	}
-	else if (SwitchInst* sw = dyn_cast<SwitchInst>(&i))
-	{
-		for (unsigned j = 0, e = sw->getNumSuccessors(); j != e; ++j)
-		{
-			assert(sw->getSuccessor(j)->getParent() == sw->getFunction());
-		}
-	}
-}
-
-if (restart)
-{
-	break;
-}
-}
-}
 
 	return newFnc;
 }
