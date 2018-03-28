@@ -455,6 +455,7 @@ void Decoder::initJumpTargetsExports()
 					Address::getUndef);
 
 			createFunction(addr);
+			_exports.insert(addr);
 
 			LOG << "\t\texport @ " << addr << std::endl;
 		}
@@ -567,6 +568,7 @@ void Decoder::initJumpTargetsDebug()
 				sz);
 
 		createFunction(addr);
+		_debugFncs.insert(addr);
 
 		LOG << "\tdebug @ " << addr << std::endl;
 	}
@@ -588,7 +590,14 @@ void Decoder::initConfigFunction()
 			}
 		}
 
-		_config->insertFunction(f, p.second, end);
+		auto* cf = _config->insertFunction(f, p.second, end);
+		if (_imports.count(start))
+		{
+			cf->setIsDynamicallyLinked();
+		}
+
+		cf->setIsExported(_exports.count(start));
+		cf->setIsFromDebug(_debugFncs.count(start));
 	}
 }
 
