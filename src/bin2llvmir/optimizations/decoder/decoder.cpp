@@ -184,6 +184,10 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 
 	auto toRangeEnd = range->getEnd() + 1 - start;
 	bytes.second = toRangeEnd < bytes.second ? toRangeEnd : bytes.second;
+	if (jt.hasSize() && jt.getSize() < bytes.second)
+	{
+		bytes.second = jt.getSize();
+	}
 	if (auto nextBbAddr = getBasicBlockAddressAfter(start))
 	{
 		auto sz = nextBbAddr - start;
@@ -1048,7 +1052,7 @@ void Decoder::splitOnTerminatingCalls()
 		if (callAi.getBasicBlock() != nextAi.getBasicBlock())
 		{
 			auto* term = bb->getTerminator();
-			auto* r = ReturnInst::Create(
+			ReturnInst::Create(
 					call->getModule()->getContext(),
 					llvm::UndefValue::get(f->getReturnType()),
 					term);
@@ -1059,7 +1063,7 @@ void Decoder::splitOnTerminatingCalls()
 
 		auto* newBb = bb->splitBasicBlock(nextAi.getLlvmToAsmInstruction());
 		auto* term = bb->getTerminator();
-		auto* r = ReturnInst::Create(
+		ReturnInst::Create(
 				call->getModule()->getContext(),
 				UndefValue::get(f->getReturnType()),
 				term);
@@ -1176,8 +1180,7 @@ void Decoder::splitOnTerminatingCalls()
 			Address addr = getBasicBlockAddress(nextBb);
 			assert(addr.isDefined());
 
-			auto* newFnc = _splitFunctionOn(addr);
-			auto* newBb = &newFnc->front();
+			_splitFunctionOn(addr);
 
 			LOG << "\t\tsplit fnc @ " << addr << std::endl;
 		}
@@ -1201,7 +1204,7 @@ llvm::Function* Decoder::_splitFunctionOn(
 		auto* oldBb = ai.getBasicBlock();
 		auto* newBb = ai.makeStart();
 
-		auto* r = ReturnInst::Create(
+		ReturnInst::Create(
 				oldBb->getModule()->getContext(),
 				UndefValue::get(oldBb->getParent()->getReturnType()),
 				oldBb->getTerminator());
@@ -1289,7 +1292,7 @@ llvm::Function* Decoder::_splitFunctionOn(
 							if (succ->getPrevNode() == nullptr)
 							{
 								CallInst::Create(succ->getParent(), "", br);
-								auto* r = ReturnInst::Create(
+								ReturnInst::Create(
 										br->getModule()->getContext(),
 										UndefValue::get(br->getFunction()->getReturnType()),
 										br);
@@ -1303,7 +1306,7 @@ llvm::Function* Decoder::_splitFunctionOn(
 								auto* nf = _splitFunctionOn(target, succ);
 
 								CallInst::Create(nf, "", br);
-								auto* r = ReturnInst::Create(
+								ReturnInst::Create(
 										br->getModule()->getContext(),
 										UndefValue::get(br->getFunction()->getReturnType()),
 										br);
@@ -1354,7 +1357,7 @@ llvm::Function* Decoder::_splitFunctionOn(
 							if (succ->getPrevNode() == nullptr)
 							{
 								CallInst::Create(succ->getParent(), "", br);
-								auto* r = ReturnInst::Create(
+								ReturnInst::Create(
 										br->getModule()->getContext(),
 										UndefValue::get(br->getFunction()->getReturnType()),
 										br);
@@ -1368,7 +1371,7 @@ llvm::Function* Decoder::_splitFunctionOn(
 								auto* nf = _splitFunctionOn(target, succ);
 
 								CallInst::Create(nf, "", br);
-								auto* r = ReturnInst::Create(
+								ReturnInst::Create(
 										br->getModule()->getContext(),
 										UndefValue::get(br->getFunction()->getReturnType()),
 										br);

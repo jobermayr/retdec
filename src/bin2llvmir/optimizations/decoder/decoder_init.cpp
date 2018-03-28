@@ -331,11 +331,19 @@ void Decoder::initJumpTargetsConfig()
 			m = f.isThumb() ? CS_MODE_THUMB : CS_MODE_ARM;
 		}
 
+		utils::Maybe<std::size_t> sz;
+		auto tmpSz = f.getSize();
+		if (tmpSz.isDefined() && tmpSz > 0)
+		{
+			sz = tmpSz.getValue();
+		}
+
 		_jumpTargets.push(
 				f.getStart(),
 				JumpTarget::eType::CONFIG,
 				m,
-				Address::getUndef);
+				Address::getUndef,
+				sz);
 
 		createFunction(f.getStart());
 
@@ -481,13 +489,21 @@ void Decoder::initJumpTargetsSymbols()
 			m = addr % 2 || s->isThumbSymbol() ? CS_MODE_THUMB : CS_MODE_ARM;
 		}
 
+		utils::Maybe<std::size_t> sz;
+		unsigned long long tmpSz = 0;
+		if (s->getSize(tmpSz) && tmpSz > 0)
+		{
+			sz = tmpSz;
+		}
+
 		if (s->getType() == retdec::fileformat::Symbol::Type::PUBLIC)
 		{
 			_jumpTargets.push(
 					addr,
 					JumpTarget::eType::SYMBOL_PUBLIC,
 					m,
-					Address::getUndef);
+					Address::getUndef,
+					sz);
 
 			createFunction(addr);
 
@@ -499,7 +515,8 @@ void Decoder::initJumpTargetsSymbols()
 					addr,
 					JumpTarget::eType::SYMBOL,
 					m,
-					Address::getUndef);
+					Address::getUndef,
+					sz);
 
 			createFunction(addr);
 
@@ -535,11 +552,19 @@ void Decoder::initJumpTargetsDebug()
 			m = addr % 2 || f.isThumb() ? CS_MODE_THUMB : CS_MODE_ARM;
 		}
 
+		utils::Maybe<std::size_t> sz;
+		auto tmpSz = p.second.getSize();
+		if (tmpSz.isDefined() && tmpSz > 0)
+		{
+			sz = tmpSz.getValue();
+		}
+
 		_jumpTargets.push(
 				addr,
 				JumpTarget::eType::DEBUG,
 				m,
-				Address::getUndef);
+				Address::getUndef,
+				sz);
 
 		createFunction(addr);
 

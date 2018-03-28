@@ -25,9 +25,11 @@ JumpTarget::JumpTarget(
 		retdec::utils::Address a,
 		eType t,
 		cs_mode m,
-		retdec::utils::Address f)
+		retdec::utils::Address f,
+		utils::Maybe<std::size_t> sz)
 		:
 		_address(a),
+		_size(sz),
 		_type(t),
 		_fromAddress(f),
 		_mode(m)
@@ -57,6 +59,16 @@ bool JumpTarget::operator<(const JumpTarget& o) const
 retdec::utils::Address JumpTarget::getAddress() const
 {
 	return _address;
+}
+
+bool JumpTarget::hasSize() const
+{
+	return _size.isDefined();
+}
+
+utils::Maybe<std::size_t> JumpTarget::getSize() const
+{
+	return _size;
 }
 
 JumpTarget::eType JumpTarget::getType() const
@@ -134,11 +146,12 @@ void JumpTargets::push(
 		retdec::utils::Address a,
 		JumpTarget::eType t,
 		cs_mode m,
-		retdec::utils::Address f)
+		retdec::utils::Address f,
+		utils::Maybe<std::size_t> sz)
 {
 	if (a.isDefined())
 	{
-		_data.insert(JumpTarget(a, t, m, f));
+		_data.insert(JumpTarget(a, t, m, f, sz));
 	}
 }
 

@@ -12,6 +12,7 @@
 #include "retdec/capstone2llvmir/capstone2llvmir.h"
 #include "retdec/capstone2llvmir/x86/x86.h"
 #include "retdec/utils/address.h"
+#include "retdec/utils/value.h"
 
 namespace retdec {
 namespace bin2llvmir {
@@ -52,11 +53,14 @@ class JumpTarget
 				retdec::utils::Address a,
 				eType t,
 				cs_mode m,
-				retdec::utils::Address f);
+				retdec::utils::Address f,
+				utils::Maybe<std::size_t> sz = utils::Maybe<std::size_t>());
 
 		bool operator<(const JumpTarget& o) const;
 
 		retdec::utils::Address getAddress() const;
+		bool hasSize() const;
+		utils::Maybe<std::size_t> getSize() const;
 		eType getType() const;
 		retdec::utils::Address getFromAddress() const;
 
@@ -65,6 +69,8 @@ class JumpTarget
 	private:
 		// This address will be tried to be decoded.
 		retdec::utils::Address _address;
+		///
+		utils::Maybe<std::size_t> _size;
 		// The type of jump target - determined by its source.
 		eType _type = eType::UNKNOWN;
 		/// Address from which this jump target was created.
@@ -94,7 +100,8 @@ class JumpTargets
 				retdec::utils::Address a,
 				JumpTarget::eType t,
 				cs_mode m,
-				retdec::utils::Address f);
+				retdec::utils::Address f,
+				utils::Maybe<std::size_t> sz = utils::Maybe<std::size_t>());
 
 	friend std::ostream& operator<<(std::ostream &out, const JumpTargets& jts);
 
