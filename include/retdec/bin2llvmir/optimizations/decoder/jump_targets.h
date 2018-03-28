@@ -53,17 +53,11 @@ class JumpTarget
 				eType t,
 				cs_mode m,
 				retdec::utils::Address f);
-		JumpTarget(
-				retdec::utils::Address a,
-				eType t,
-				cs_mode m,
-				llvm::Instruction* f);
 
 		bool operator<(const JumpTarget& o) const;
 
 		retdec::utils::Address getAddress() const;
 		eType getType() const;
-		llvm::Instruction* getFromInstruction() const;
 		retdec::utils::Address getFromAddress() const;
 
 	friend std::ostream& operator<<(std::ostream &out, const JumpTarget& jt);
@@ -75,9 +69,6 @@ class JumpTarget
 		eType _type = eType::UNKNOWN;
 		/// Address from which this jump target was created.
 		retdec::utils::Address _fromAddress;
-		/// Instruction from which this jump target was created.
-		/// This can be used to get from address.
-		llvm::Instruction* _fromInst = nullptr;
 		/// Disassembler mode that should be used for this jump target.
 		cs_mode _mode = CS_MODE_BIG_ENDIAN;
 
@@ -104,11 +95,6 @@ class JumpTargets
 				JumpTarget::eType t,
 				cs_mode m,
 				retdec::utils::Address f);
-		void push(
-				retdec::utils::Address a,
-				JumpTarget::eType t,
-				cs_mode m,
-				llvm::Instruction* f);
 
 	friend std::ostream& operator<<(std::ostream &out, const JumpTargets& jts);
 

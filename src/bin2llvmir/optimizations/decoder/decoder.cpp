@@ -305,7 +305,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 	//
 	if (_c2l->isCallFunctionCall(pCall))
 	{
-		if (auto t = getJumpTarget(pCall, pCall->getArgOperand(0)))
+		if (auto t = getJumpTarget(addr, pCall, pCall->getArgOperand(0)))
 		{
 			getOrCreateTarget(t, true, tBb, tFnc, pCall);
 			assert(tFnc && tBb == nullptr);
@@ -315,7 +315,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 					t,
 					JumpTarget::eType::CONTROL_FLOW_CALL_TARGET,
 					m,
-					pCall);
+					addr);
 			LOG << "\t\t" << "call @ " << addr << " -> " << t << std::endl;
 		}
 	}
@@ -330,7 +330,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 	//
 	else if (_c2l->isBranchFunctionCall(pCall))
 	{
-		if (auto t = getJumpTarget(pCall, pCall->getArgOperand(0)))
+		if (auto t = getJumpTarget(addr, pCall, pCall->getArgOperand(0)))
 		{
 			getOrCreateTarget(t, false, tBb, tFnc, pCall);
 			if (tBb)
@@ -346,7 +346,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 					t,
 					JumpTarget::eType::CONTROL_FLOW_BR_TRUE,
 					m,
-					pCall);
+					addr);
 			LOG << "\t\t" << "br @ " << addr << " -> "	<< t << std::endl;
 		}
 
@@ -357,7 +357,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 	//
 	else if (_c2l->isCondBranchFunctionCall(pCall))
 	{
-		if (auto t = getJumpTarget(pCall, pCall->getArgOperand(1)))
+		if (auto t = getJumpTarget(addr, pCall, pCall->getArgOperand(1)))
 		{
 			getOrCreateTarget(t, false, tBb, tFnc, pCall);
 
@@ -380,7 +380,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 					t,
 					JumpTarget::eType::CONTROL_FLOW_BR_TRUE,
 					m,
-					pCall);
+					addr);
 			LOG << "\t\t" << "cond br @ " << addr << " -> (true) "
 					<< t << std::endl;
 
@@ -388,7 +388,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 					nextAddr,
 					JumpTarget::eType::CONTROL_FLOW_BR_FALSE,
 					m,
-					pCall);
+					addr);
 			LOG << "\t\t" << "cond br @ " << addr << " -> (false) "
 					<< nextAddr << std::endl;
 		}
@@ -435,7 +435,6 @@ void Decoder::getOrCreateTarget(
 			_bb2addr[tBb] = addr;
 		}
 		// Function without BBs (e.g. import declarations).
-		//
 		else if (auto* targetFnc = getFunctionAtAddress(addr))
 		{
 			tFnc = targetFnc;
@@ -469,6 +468,7 @@ void Decoder::getOrCreateTarget(
 }
 
 retdec::utils::Address Decoder::getJumpTarget(
+		retdec::utils::Address addr,
 		llvm::CallInst* branchCall,
 		llvm::Value* val)
 {
@@ -595,7 +595,7 @@ retdec::utils::Address Decoder::getJumpTarget(
 							c,
 							JumpTarget::eType::CONTROL_FLOW_SWITCH_CASE,
 							_currentMode,
-							branchCall);
+							addr);
 					LOG << "\t\t" << "switch -> (case) " << c << std::endl;
 				}
 
@@ -603,7 +603,7 @@ retdec::utils::Address Decoder::getJumpTarget(
 						defAddr,
 						JumpTarget::eType::CONTROL_FLOW_SWITCH_CASE,
 						_currentMode,
-						branchCall);
+						addr);
 				LOG << "\t\t" << "switch -> (default) " << defAddr << std::endl;
 			}
 

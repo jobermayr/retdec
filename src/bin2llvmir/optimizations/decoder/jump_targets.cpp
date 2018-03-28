@@ -35,20 +35,6 @@ JumpTarget::JumpTarget(
 
 }
 
-JumpTarget::JumpTarget(
-		retdec::utils::Address a,
-		eType t,
-		cs_mode m,
-		llvm::Instruction* f)
-		:
-		_address(a),
-		_type(t),
-		_fromInst(f),
-		_mode(m)
-{
-
-}
-
 bool JumpTarget::operator<(const JumpTarget& o) const
 {
 	if (getType() == o.getType())
@@ -78,25 +64,9 @@ JumpTarget::eType JumpTarget::getType() const
 	return _type;
 }
 
-llvm::Instruction* JumpTarget::getFromInstruction() const
-{
-	return _fromInst;
-}
-
 retdec::utils::Address JumpTarget::getFromAddress() const
 {
-	if (_fromAddress.isDefined())
-	{
-		return _fromAddress;
-	}
-	else if (getFromInstruction())
-	{
-		return AsmInstruction::getInstructionAddress(getFromInstruction());
-	}
-	else
-	{
-		return retdec::utils::Address();
-	}
+	return _fromAddress;
 }
 
 std::ostream& operator<<(std::ostream &out, const JumpTarget& jt)
@@ -165,18 +135,6 @@ void JumpTargets::push(
 		JumpTarget::eType t,
 		cs_mode m,
 		retdec::utils::Address f)
-{
-	if (a.isDefined())
-	{
-		_data.insert(JumpTarget(a, t, m, f));
-	}
-}
-
-void JumpTargets::push(
-		retdec::utils::Address a,
-		JumpTarget::eType t,
-		cs_mode m,
-		llvm::Instruction* f)
 {
 	if (a.isDefined())
 	{

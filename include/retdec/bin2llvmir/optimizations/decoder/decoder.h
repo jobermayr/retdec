@@ -83,6 +83,7 @@ class Decoder : public llvm::ModulePass
 				retdec::utils::Address addr,
 				capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& tr);
 		retdec::utils::Address getJumpTarget(
+				retdec::utils::Address addr,
 				llvm::CallInst* branchCall,
 				llvm::Value* val);
 
