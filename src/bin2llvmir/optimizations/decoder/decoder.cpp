@@ -56,6 +56,7 @@ bool Decoder::runOnModule(Module& m)
 	_image = FileImageProvider::getFileImage(_module);
 	_debug = DebugFormatProvider::getDebugFormat(_module);
 	_llvm2capstone = &AsmInstruction::getLlvmToCapstoneInsnMap(_module);
+	_names = NamesProvider::getNames(_module);
 	return runCatcher();
 }
 
@@ -63,12 +64,14 @@ bool Decoder::runOnModuleCustom(
 		llvm::Module& m,
 		Config* c,
 		FileImage* o,
-		DebugFormat* d)
+		DebugFormat* d,
+		NameContainer* n)
 {
 	_module = &m;
 	_config = c;
 	_image = o;
 	_debug = d;
+	_names = n;
 	_llvm2capstone = &AsmInstruction::getLlvmToCapstoneInsnMap(_module);
 	return runCatcher();
 }
@@ -730,7 +733,11 @@ llvm::Function* Decoder::createFunction(
 	std::string n = name;
 	if (n.empty())
 	{
-		n = std::string("function_") + a.toHexString();
+		n = _names->getPreferredNameForAddress(a);
+	}
+	if (n.empty())
+	{
+		n = names::generateFunctionName(a, _config->getConfig().isIda());
 	}
 
 	Function* f = nullptr;

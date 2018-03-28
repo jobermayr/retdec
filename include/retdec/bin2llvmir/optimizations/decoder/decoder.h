@@ -22,6 +22,7 @@
 #include "retdec/bin2llvmir/providers/config.h"
 #include "retdec/bin2llvmir/providers/debugformat.h"
 #include "retdec/bin2llvmir/providers/fileimage.h"
+#include "retdec/bin2llvmir/providers/names.h"
 #include "retdec/bin2llvmir/optimizations/decoder/jump_targets.h"
 #include "retdec/bin2llvmir/utils/ir_modifier.h"
 #include "retdec/capstone2llvmir/capstone2llvmir.h"
@@ -44,7 +45,8 @@ class Decoder : public llvm::ModulePass
 				llvm::Module& m,
 				Config* c,
 				FileImage* o,
-				DebugFormat* d);
+				DebugFormat* d,
+				NameContainer* n);
 
 	private:
 		using ByteData = typename std::pair<const std::uint8_t*, std::uint64_t>;
@@ -172,6 +174,7 @@ class Decoder : public llvm::ModulePass
 		Config* _config = nullptr;
 		FileImage* _image = nullptr;
 		DebugFormat* _debug = nullptr;
+		NameContainer* _names = nullptr;
 
 		cs_mode _currentMode = CS_MODE_LITTLE_ENDIAN;
 		std::unique_ptr<capstone2llvmir::Capstone2LlvmIrTranslator> _c2l;

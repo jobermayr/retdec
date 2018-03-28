@@ -17,6 +17,7 @@
 #include "retdec/bin2llvmir/providers/demangler.h"
 #include "retdec/bin2llvmir/providers/fileimage.h"
 #include "retdec/bin2llvmir/providers/lti.h"
+#include "retdec/bin2llvmir/providers/names.h"
 #include "retdec/bin2llvmir/utils/defs.h"
 #include "retdec/bin2llvmir/utils/instruction.h"
 
@@ -84,7 +85,7 @@ bool ProviderInitialization::runOnModule(Module& m)
 			return false;
 		}
 
-		DebugFormatProvider::addDebugFormat(
+		auto* debug = DebugFormatProvider::addDebugFormat(
 				&m,
 				f->getImage(),
 				c->getConfig().getPdbInputFile(),
@@ -95,6 +96,13 @@ bool ProviderInitialization::runOnModule(Module& m)
 				&m,
 				c,
 				f->getImage());
+
+		NamesProvider::addNames(
+				&m,
+				c,
+				debug,
+				f,
+				d);
 
 		AsmInstruction::clear();
 
