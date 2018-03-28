@@ -119,8 +119,23 @@ std::ostream& operator<<(std::ostream &out, const JumpTarget& jt)
 		case JumpTarget::eType::CONTROL_FLOW_RETURN_TARGET:
 			t = "CONTROL_FLOW_RETURN_TARGET";
 			break;
+		case JumpTarget::eType::CONFIG:
+			t = "CONFIG";
+			break;
 		case JumpTarget::eType::ENTRY_POINT:
 			t = "ENTRY_POINT";
+			break;
+		case JumpTarget::eType::EXPORT:
+			t = "EXPORT";
+			break;
+		case JumpTarget::eType::DEBUG:
+			t = "DEBUG";
+			break;
+		case JumpTarget::eType::SYMBOL_PUBLIC:
+			t = "SYMBOL_PUBLIC";
+			break;
+		case JumpTarget::eType::SYMBOL:
+			t = "SYMBOL";
 			break;
 		case JumpTarget::eType::LEFTOVER:
 			t = "LEFTOVER";

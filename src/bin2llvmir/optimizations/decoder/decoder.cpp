@@ -721,11 +721,13 @@ llvm::Function* Decoder::createFunction(
 		const std::string& name,
 		bool declaration)
 {
-	std::string n = name;
-	if (n.empty())
+	auto existing = _addr2fnc.find(a);
+	if (existing != _addr2fnc.end())
 	{
-		n = _names.getPreferredNameForAddress(a);
+		return existing->second;
 	}
+
+	std::string n = name;
 	if (n.empty())
 	{
 		n = std::string("function_") + a.toHexString();

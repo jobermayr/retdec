@@ -35,7 +35,12 @@ class JumpTarget
 			CONTROL_FLOW_CALL_TARGET,
 			CONTROL_FLOW_RETURN_TARGET,
 			// Jump targets from various other sources.
+			CONFIG,
 			ENTRY_POINT,
+			EXPORT,
+			DEBUG,
+			SYMBOL_PUBLIC,
+			SYMBOL,
 			LEFTOVER,
 			// Default jump target.
 			UNKNOWN,

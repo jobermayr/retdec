@@ -305,13 +305,44 @@ void Decoder::initAllowedRangesWithSegments()
  */
 void Decoder::initJumpTargets()
 {
+	initJumpTargetsConfig();
 	initJumpTargetsEntryPoint();
 	initJumpTargetsImports();
+	initJumpTargetsExports();
+	initJumpTargetsDebug();
+	initJumpTargetsSymbols();
 }
 
-/**
- * Create jump target from entry point.
- */
+void Decoder::initJumpTargetsConfig()
+{
+	LOG << "\n initJumpTargetsConfig():" << std::endl;
+
+	for (auto& p : _config->getConfig().functions)
+	{
+		retdec::config::Function& f = p.second;
+		if (f.getStart().isUndefined())
+		{
+			continue;
+		}
+
+		cs_mode m = _currentMode;
+		if (_config->isArmOrThumb())
+		{
+			m = f.isThumb() ? CS_MODE_THUMB : CS_MODE_ARM;
+		}
+
+		_jumpTargets.push(
+				f.getStart(),
+				JumpTarget::eType::CONFIG,
+				m,
+				Address::getUndef);
+
+		createFunction(f.getStart());
+
+		LOG << "\tfunction @ " << f.getStart() << std::endl;
+	}
+}
+
 void Decoder::initJumpTargetsEntryPoint()
 {
 	LOG << "\n initJumpTargetsEntryPoint():" << std::endl;
@@ -319,21 +350,19 @@ void Decoder::initJumpTargetsEntryPoint()
 	auto ep = _config->getConfig().getEntryPoint();
 	if (ep.isDefined())
 	{
-		auto mode = _c2l->getBasicMode();
+		cs_mode m = _currentMode;
 		if (_config->isArmOrThumb())
 		{
-			mode = ep % 2 ? CS_MODE_THUMB : CS_MODE_ARM;
+			m = ep % 2 ? CS_MODE_THUMB : CS_MODE_ARM;
 		}
 
 		_jumpTargets.push(
 				ep,
 				JumpTarget::eType::ENTRY_POINT,
-				mode,
+				m,
 				Address::getUndef);
 
-		_names.addNameForAddress(ep, "entry_point", Name::eType::EP);
-
-		createFunction(ep);
+		createFunction(ep, "entry_point");
 
 		LOG << "\tentry point @ " << ep << std::endl;
 	}
@@ -388,6 +417,133 @@ void Decoder::initJumpTargetsImports()
 		{
 			_terminatingFncs.insert(f);
 		}
+	}
+}
+
+void Decoder::initJumpTargetsExports()
+{
+	LOG << "\n initJumpTargetsExports():" << std::endl;
+
+	if (auto* exTbl = _image->getFileFormat()->getExportTable())
+	{
+		for (const auto& exp : *exTbl)
+		{
+			retdec::utils::Address addr = exp.getAddress();
+			if (addr.isUndefined())
+			{
+				continue;
+			}
+
+			cs_mode m = _currentMode;
+			if (_config->isArmOrThumb())
+			{
+				m = addr % 2 ? CS_MODE_THUMB : CS_MODE_ARM;
+			}
+
+			_jumpTargets.push(
+					addr,
+					JumpTarget::eType::EXPORT,
+					m,
+					Address::getUndef);
+
+			createFunction(addr);
+
+			LOG << "\t\texport @ " << addr << std::endl;
+		}
+	}
+}
+
+void Decoder::initJumpTargetsSymbols()
+{
+	LOG << "\n initJumpTargetsSymbols():" << std::endl;
+
+	for (const auto* t : _image->getFileFormat()->getSymbolTables())
+	for (const auto& s : *t)
+	{
+		if (!s->isFunction())
+		{
+			continue;
+		}
+		unsigned long long a = 0;
+		if (!s->getRealAddress(a))
+		{
+			continue;
+		}
+		retdec::utils::Address addr = a;
+		if (addr.isUndefined())
+		{
+			continue;
+		}
+
+		cs_mode m = _currentMode;
+		if (_config->isArmOrThumb())
+		{
+			m = addr % 2 || s->isThumbSymbol() ? CS_MODE_THUMB : CS_MODE_ARM;
+		}
+
+		if (s->getType() == retdec::fileformat::Symbol::Type::PUBLIC)
+		{
+			_jumpTargets.push(
+					addr,
+					JumpTarget::eType::SYMBOL_PUBLIC,
+					m,
+					Address::getUndef);
+
+			createFunction(addr);
+
+			LOG << "\tsymbol public @ " << addr << std::endl;
+		}
+		else
+		{
+			_jumpTargets.push(
+					addr,
+					JumpTarget::eType::SYMBOL,
+					m,
+					Address::getUndef);
+
+			createFunction(addr);
+
+			LOG << "\tsymbol @ " << addr << std::endl;
+		}
+	}
+}
+
+void Decoder::initJumpTargetsDebug()
+{
+	LOG << "\n initJumpTargetsDebug():" << std::endl;
+
+	if (_debug)
+	{
+		LOG << "\tno debug info -> skip" << std::endl;
+		return;
+	}
+
+	for (const auto& p : _debug->functions)
+	{
+		retdec::utils::Address addr = p.first;
+		if (addr.isUndefined())
+		{
+			continue;
+		}
+		auto& f = p.second;
+
+		LOG << "\tdebug @ " << addr << std::endl;
+
+		cs_mode m = _currentMode;
+		if (_config->isArmOrThumb())
+		{
+			m = addr % 2 || f.isThumb() ? CS_MODE_THUMB : CS_MODE_ARM;
+		}
+
+		_jumpTargets.push(
+				addr,
+				JumpTarget::eType::DEBUG,
+				m,
+				Address::getUndef);
+
+		createFunction(addr);
+
+		LOG << "\tdebug @ " << addr << std::endl;
 	}
 }
 

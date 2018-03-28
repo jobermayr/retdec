@@ -23,7 +23,6 @@
 #include "retdec/bin2llvmir/providers/debugformat.h"
 #include "retdec/bin2llvmir/providers/fileimage.h"
 #include "retdec/bin2llvmir/optimizations/decoder/jump_targets.h"
-#include "retdec/bin2llvmir/optimizations/decoder/names.h"
 #include "retdec/bin2llvmir/utils/ir_modifier.h"
 #include "retdec/capstone2llvmir/capstone2llvmir.h"
 
@@ -63,8 +62,12 @@ class Decoder : public llvm::ModulePass
 		void initRanges();
 		void initAllowedRangesWithSegments();
 		void initJumpTargets();
+		void initJumpTargetsConfig();
 		void initJumpTargetsEntryPoint();
 		void initJumpTargetsImports();
+		void initJumpTargetsExports();
+		void initJumpTargetsDebug();
+		void initJumpTargetsSymbols();
 		void initConfigFunction();
 
 		void decode();
@@ -169,9 +172,6 @@ class Decoder : public llvm::ModulePass
 		Config* _config = nullptr;
 		FileImage* _image = nullptr;
 		DebugFormat* _debug = nullptr;
-		/// TODO: This might be usefull in entire bin2llvmir
-		/// -> move somewhere else - globally visible.
-		NameContainer _names;
 
 		cs_mode _currentMode = CS_MODE_LITTLE_ENDIAN;
 		std::unique_ptr<capstone2llvmir::Capstone2LlvmIrTranslator> _c2l;
