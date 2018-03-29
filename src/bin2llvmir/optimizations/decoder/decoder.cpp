@@ -102,6 +102,7 @@ bool Decoder::run()
 	initEnvironment();
 	initRanges();
 	initJumpTargets();
+	initStaticCode();
 
 	LOG << std::endl;
 	LOG << "Allowed ranges:" << std::endl;

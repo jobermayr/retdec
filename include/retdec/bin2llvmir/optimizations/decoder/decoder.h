@@ -71,6 +71,7 @@ class Decoder : public llvm::ModulePass
 		void initJumpTargetsDebug();
 		void initJumpTargetsSymbols();
 		void initConfigFunction();
+		void initStaticCode();
 
 		void decode();
 		bool getJumpTarget(JumpTarget& jt);
