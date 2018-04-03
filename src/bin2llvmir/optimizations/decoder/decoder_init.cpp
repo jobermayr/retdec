@@ -418,7 +418,7 @@ void Decoder::initJumpTargetsImports()
 		LOG << "\t\timport: " << imp.getName() << " @ " << addr << std::endl;
 
 		auto* f = createFunction(addr, name, true);
-		_imports.insert(addr);
+		_imports.emplace(addr, name);
 
 		if ((libN == "msvcrt.dll" && name == "exit")
 				|| (libN == "msvcrt.dll" && name == "abort"))

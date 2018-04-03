@@ -192,7 +192,7 @@ class Decoder : public llvm::ModulePass
 		std::map<retdec::utils::Address, llvm::BasicBlock*> _addr2bb;
 		std::map<llvm::BasicBlock*, retdec::utils::Address> _bb2addr;
 
-		std::set<retdec::utils::Address> _imports;
+		std::map<retdec::utils::Address, std::string> _imports;
 		std::set<retdec::utils::Address> _exports;
 		std::set<retdec::utils::Address> _debugFncs;
 		std::set<llvm::Function*> _terminatingFncs;
