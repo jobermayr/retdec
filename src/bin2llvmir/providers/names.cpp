@@ -44,7 +44,10 @@ Name::Name(const std::string& name, eType type) :
 		_name(normalizeNamePrefix(name)), // TODO: normalizeNamePrefix()
 		_type(type)
 {
-
+	if (_name == "_main") // TODO: ugly
+	{
+		_name = "main";
+	}
 }
 
 Name::operator std::string() const
