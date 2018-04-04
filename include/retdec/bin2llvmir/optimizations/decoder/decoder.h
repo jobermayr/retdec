@@ -26,6 +26,7 @@
 #include "retdec/bin2llvmir/optimizations/decoder/jump_targets.h"
 #include "retdec/bin2llvmir/utils/ir_modifier.h"
 #include "retdec/capstone2llvmir/capstone2llvmir.h"
+#include "retdec/stacofin/stacofin.h"
 
 // Debug logs enabled/disabled.
 #include "retdec/bin2llvmir/utils/defs.h"
@@ -71,7 +72,12 @@ class Decoder : public llvm::ModulePass
 		void initJumpTargetsDebug();
 		void initJumpTargetsSymbols();
 		void initConfigFunction();
+
 		void initStaticCode();
+		void addStaticFunction(
+				retdec::utils::Address addr,
+				stacofin::DetectedFunction& df,
+				std::map<retdec::utils::Address, std::pair<retdec::utils::Address, std::string>>& solvedRefs);
 
 		void decode();
 		bool getJumpTarget(JumpTarget& jt);
@@ -162,6 +168,9 @@ class Decoder : public llvm::ModulePass
 				llvm::BasicBlock* defaultBb,
 				const std::vector<llvm::BasicBlock*>& cases);
 
+		void removeRange(const retdec::utils::AddressRange& ar);
+		void removeRange(retdec::utils::Address s, retdec::utils::Address e);
+
 	// x86 specifix.
 	//
 	private:
@@ -195,6 +204,7 @@ class Decoder : public llvm::ModulePass
 		std::map<retdec::utils::Address, std::string> _imports;
 		std::set<retdec::utils::Address> _exports;
 		std::set<retdec::utils::Address> _debugFncs;
+		std::set<retdec::utils::Address> _staticFncs;
 		std::set<llvm::Function*> _terminatingFncs;
 
 		std::map<llvm::StoreInst*, cs_insn*>* _llvm2capstone = nullptr;

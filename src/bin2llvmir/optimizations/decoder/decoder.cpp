@@ -102,7 +102,6 @@ bool Decoder::run()
 	initEnvironment();
 	initRanges();
 	initJumpTargets();
-	initStaticCode();
 
 	LOG << std::endl;
 	LOG << "Allowed ranges:" << std::endl;
@@ -117,12 +116,15 @@ bool Decoder::run()
 	decode();
 	splitOnTerminatingCalls();
 
-dumpModuleToFile(_module);
 dumpControFlowToJsonModule_manual();
-//exit(1);
+
+dumpModuleToFile(_module);
 
 	removePseudoCalls();
 	initConfigFunction();
+
+dumpModuleToFile(_module);
+//exit(1);
 
 	return false;
 }
@@ -650,7 +652,7 @@ retdec::utils::Address Decoder::getFunctionEndAddress(llvm::Function* f)
 	}
 
 	AsmInstruction ai(&f->back().back());
-	return ai.isValid() ? ai.getEndAddress() : Address();
+	return ai.isValid() ? ai.getEndAddress() : getFunctionAddress(f);
 }
 
 retdec::utils::Address Decoder::getFunctionAddressAfter(
@@ -824,7 +826,7 @@ retdec::utils::Address Decoder::getBasicBlockEndAddress(llvm::BasicBlock* b)
 	}
 
 	AsmInstruction ai(&b->back());
-	return ai.getEndAddress();
+	return ai.isValid() ? ai.getEndAddress() : getBasicBlockAddress(b);
 }
 
 retdec::utils::Address Decoder::getBasicBlockAddressAfter(
@@ -1281,6 +1283,12 @@ llvm::Function* Decoder::_splitFunctionOn(
 				{
 					if (br->isConditional())
 					{
+if (br->getSuccessor(0)->getParent() != br->getFunction())
+{
+	std::cout << "spit @ " << addr << std::endl;
+	exit(1);
+}
+
 						assert(br->getSuccessor(0)->getParent() == br->getFunction());
 						assert(br->getSuccessor(1)->getParent() == br->getFunction());
 					}
@@ -1417,7 +1425,28 @@ void Decoder::removePseudoCalls()
 				|| _c2l->isCondBranchFunctionCall(call)
 				|| _c2l->isReturnFunctionCall(call)))
 		{
+			// Remove operand of return - it would create stack store, that
+			// would screw up the param/return analysis.
+			// Similar thing is done in other place for x86 calls.
+			// TODO: Better implementation - remove all instructions that became
+			// unused once pseudo call is removed -> make some special general
+			// method for this.
+			//
+			Instruction* op = nullptr;
+			if (_c2l->isReturnFunctionCall(call)
+					&& call->getNumOperands() >= 1)
+			{
+				if (auto* i = dyn_cast<Instruction>(call->getOperand(0)))
+				{
+					op = i;
+				}
+			}
+
 			call->eraseFromParent();
+			if (op)
+			{
+				op->eraseFromParent();
+			}
 		}
 	}
 }
@@ -1452,6 +1481,7 @@ llvm::ReturnInst* Decoder::transformToReturn(llvm::CallInst* pseudo)
 			UndefValue::get(pseudo->getFunction()->getReturnType()),
 			term);
 	term->eraseFromParent();
+
 	return r;
 }
 
@@ -1515,6 +1545,17 @@ llvm::SwitchInst* Decoder::transformToSwitch(
 	term->eraseFromParent();
 
 	return sw;
+}
+
+void Decoder::removeRange(const retdec::utils::AddressRange& ar)
+{
+	_allowedRanges.remove(ar);
+	_alternativeRanges.remove(ar);
+}
+
+void Decoder::removeRange(retdec::utils::Address s, retdec::utils::Address e)
+{
+	removeRange(AddressRange(s, e));
 }
 
 } // namespace bin2llvmir

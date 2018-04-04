@@ -308,6 +308,7 @@ void Decoder::initJumpTargets()
 	initJumpTargetsConfig();
 	initJumpTargetsEntryPoint();
 	initJumpTargetsImports();
+	initStaticCode();
 	initJumpTargetsExports();
 	initJumpTargetsDebug();
 	initJumpTargetsSymbols();
@@ -594,6 +595,10 @@ void Decoder::initConfigFunction()
 		if (_imports.count(start))
 		{
 			cf->setIsDynamicallyLinked();
+		}
+		else if (_staticFncs.count(start))
+		{
+			cf->setIsStaticallyLinked();
 		}
 
 		cf->setIsExported(_exports.count(start));

@@ -6,14 +6,15 @@
 
 #include <iostream>
 
+#include "retdec/bin2llvmir/optimizations/decoder/decoder.h"
+#include "retdec/llvm-support/utils.h"
 #include "retdec/utils/container.h"
 #include "retdec/utils/filesystem_path.h"
 #include "retdec/utils/string.h"
-#include "retdec/bin2llvmir/optimizations/decoder/decoder.h"
-#include "retdec/stacofin/stacofin.h"
 
-using namespace retdec::utils;
+using namespace retdec::llvm_support;
 using namespace retdec::stacofin;
+using namespace retdec::utils;
 
 namespace {
 
@@ -335,16 +336,13 @@ void Decoder::initStaticCode()
 //=============================================================================
 
 	std::map<Address, stacofin::DetectedFunction> confirmedDetections;
-	std::list<stacofin::DetectedFunction> worklistDetections;
+	std::map<Address, std::pair<Address, std::string>> solvedRefs;
+	std::multimap<Address, stacofin::DetectedFunction> worklistDetections;
 
 	for (auto& f : codeFinder.accessDectedFunctions())
 	{
-		worklistDetections.push_back(f);
+		worklistDetections.emplace(f.address, f);
 	}
-
-Address logAddr = 0x401d00;
-
-LOG << "\tChecking detected functions:" << std::endl;
 
 	bool changed = true;
 	while (changed && !worklistDetections.empty())
@@ -353,14 +351,17 @@ LOG << "\tChecking detected functions:" << std::endl;
 
 		for (auto wIt = worklistDetections.begin(), e = worklistDetections.end(); wIt != e;)
 		{
-			auto& f = *wIt;
-
-if (logAddr == f.address) LOG << "\t\t" << f.names.front() << " @ " << f.address << std::endl;
+			auto& f = wIt->second;
 
 			bool allRefsOk = true;
 			for (auto& p : f.references)
 			{
 				Address refAddr = f.address + p.first;
+				if (solvedRefs.count(refAddr))
+				{
+					continue;
+				}
+
 				std::string& refedName = p.second;
 
 				uint64_t val = 0;
@@ -377,14 +378,12 @@ if (logAddr == f.address) LOG << "\t\t" << f.names.front() << " @ " << f.address
 				auto absCdIt = confirmedDetections.find(absAddr);
 				auto relCdIt = confirmedDetections.find(relAddr);
 
-if (logAddr == f.address) LOG << "\t\t\tref = " << refedName << " @ " << refAddr << ", abs = " << absAddr << ", rel = " << relAddr << " (" << addrAfterRef << " + " << int32_t(val) << ")" << std::endl;
-
 				// Absolute address of detected function.
 				//
 				if (absCdIt != confirmedDetections.end()
 						&& hasItem(absCdIt->second.names, refedName))
 				{
-if (logAddr == f.address) LOG << "\t\t\t\t" << "ok #1" << std::endl;
+					solvedRefs[refAddr] = std::make_pair(absAddr, refedName);
 					// ok
 				}
 				// Absolute address of imported function.
@@ -392,7 +391,7 @@ if (logAddr == f.address) LOG << "\t\t\t\t" << "ok #1" << std::endl;
 				else if (_imports.count(absAddr)
 						&& _imports[absAddr] == refedName)
 				{
-if (logAddr == f.address) LOG << "\t\t\t\t" << "ok #2" << std::endl;
+					solvedRefs[refAddr] = std::make_pair(absAddr, refedName);
 					// ok
 				}
 				// Absolute address of data in named section.
@@ -400,14 +399,14 @@ if (logAddr == f.address) LOG << "\t\t\t\t" << "ok #2" << std::endl;
 				else if (_image->getImage()->getSegmentFromAddress(absAddr)
 						&& _image->getImage()->getSegmentFromAddress(absAddr)->getName() == refedName)
 				{
-if (logAddr == f.address) LOG << "\t\t\t\t" << "ok #3" << std::endl;
+					solvedRefs[refAddr] = std::make_pair(absAddr, "");
 					// ok
 				}
 				else if (_image->getImage()->getSegmentFromAddress(absAddr)
 						&& _image->getImage()->getSegmentFromAddress(absAddr)->getSecSeg()
 						&& _image->getImage()->getSegmentFromAddress(absAddr)->getSecSeg()->getType() == fileformat::SecSeg::Type::BSS)
 				{
-if (logAddr == f.address) LOG << "\t\t\t\t" << "ok #3.5" << std::endl;
+					solvedRefs[refAddr] = std::make_pair(absAddr, refedName);
 					// ok
 				}
 				// Image base can be referenced.
@@ -415,7 +414,7 @@ if (logAddr == f.address) LOG << "\t\t\t\t" << "ok #3.5" << std::endl;
 				else if (absAddr == _image->getImage()->getBaseAddress()
 						&& refedName == "__image_base__")
 				{
-if (logAddr == f.address) LOG << "\t\t\t\t" << "ok #3.6" << std::endl;
+					solvedRefs[refAddr] = std::make_pair(absAddr, "");
 					// ok
 				}
 				else if (_image->getImage()->getSegmentFromAddress(absAddr)
@@ -423,7 +422,7 @@ if (logAddr == f.address) LOG << "\t\t\t\t" << "ok #3.6" << std::endl;
 						&& (_image->getImage()->getSegmentFromAddress(absAddr)->getSecSeg()->getType() == fileformat::SecSeg::Type::DATA
 								|| _image->getImage()->getSegmentFromAddress(absAddr)->getSecSeg()->getType() == fileformat::SecSeg::Type::CONST_DATA))
 				{
-if (logAddr == f.address) LOG << "\t\t\t\t" << "ok #3.5" << std::endl;
+					solvedRefs[refAddr] = std::make_pair(absAddr, refedName);
 					// ok
 				}
 				// Relative address of detected function.
@@ -431,7 +430,7 @@ if (logAddr == f.address) LOG << "\t\t\t\t" << "ok #3.5" << std::endl;
 				else if (relCdIt != confirmedDetections.end()
 						&& hasItem(relCdIt->second.names, refedName))
 				{
-if (logAddr == f.address) LOG << "\t\t\t\t" << "ok #4" << std::endl;
+					solvedRefs[refAddr] = std::make_pair(relAddr, refedName);
 					// ok
 				}
 				// Relative address of imported function.
@@ -439,7 +438,7 @@ if (logAddr == f.address) LOG << "\t\t\t\t" << "ok #4" << std::endl;
 				else if (_imports.count(relAddr)
 						&& _imports[relAddr] == refedName)
 				{
-if (logAddr == f.address) LOG << "\t\t\t\t" << "ok #5" << std::endl;
+					solvedRefs[refAddr] = std::make_pair(relAddr, refedName);
 					// ok
 				}
 				// Relative address of data in named section.
@@ -447,20 +446,17 @@ if (logAddr == f.address) LOG << "\t\t\t\t" << "ok #5" << std::endl;
 				else if (_image->getImage()->getSegmentFromAddress(relAddr)
 						&& _image->getImage()->getSegmentFromAddress(relAddr)->getName() == refedName)
 				{
-if (logAddr == f.address) LOG << "\t\t\t\t" << "ok #6" << std::endl;
+					solvedRefs[refAddr] = std::make_pair(relAddr, "");
 					// ok
 				}
 				else if (_image->getConstantDefault(relAddr+2)
 						&& _imports.count(_image->getConstantDefault(relAddr+2)->getZExtValue()))
-//					)
 				{
-//if (logAddr == f.address) LOG << "\t\t\t\t" << "ok #7 - " << Address(_image->getConstantDefault(relAddr+2)->getZExtValue()) << std::endl;
-if (logAddr == f.address) LOG << "\t\t\t\t" << "ok #7" << std::endl;
+					solvedRefs[refAddr] = std::make_pair(relAddr, refedName);
 					// ok
 				}
 				else
 				{
-if (logAddr == f.address) LOG << "\t\t\t\t" << "fail #1" << std::endl;
 					allRefsOk = false;
 					break;
 				}
@@ -483,6 +479,31 @@ if (logAddr == f.address) LOG << "\t\t\t\t" << "fail #1" << std::endl;
 	while (changed && !worklistDetections.empty())
 	{
 		changed = false;
+
+		for (auto& p : confirmedDetections)
+		{
+			Address addr = p.first;
+			Address endAddr = addr + p.second.size;
+			for (auto it = solvedRefs.lower_bound(addr);
+					it != solvedRefs.end() && it->first < endAddr;
+					++it)
+			{
+				Address& ra = it->second.first;
+				std::string& rn = it->second.second;
+
+				auto fIt = worklistDetections.equal_range(ra);
+				for (auto it=fIt.first; it!=fIt.second; ++it)
+				{
+					if (hasItem(it->second.names, rn))
+					{
+						confirmedDetections.emplace(it->first, it->second);
+						worklistDetections.erase(it);
+						changed = true;
+						break;
+					}
+				}
+			}
+		}
 	}
 
 	LOG << "\tConfirmed functions:" << std::endl;
@@ -491,12 +512,49 @@ if (logAddr == f.address) LOG << "\t\t\t\t" << "fail #1" << std::endl;
 		LOG << "\t\t" << p.first << " @ " << p.second.names.front() << std::endl;
 	}
 	LOG << "\tUn-confirmed functions:" << std::endl;
-	for (auto& f : worklistDetections)
+	for (auto& p : worklistDetections)
 	{
+		auto& f = p.second;
 		LOG << "\t\t" << f.address << " @ " << f.names.front() << std::endl;
 	}
 
-	exit(1);
+	for (auto& p : confirmedDetections)
+	{
+		addStaticFunction(p.first, p.second, solvedRefs);
+	}
+}
+
+void Decoder::addStaticFunction(
+		retdec::utils::Address addr,
+		stacofin::DetectedFunction& df,
+		std::map<retdec::utils::Address, std::pair<retdec::utils::Address, std::string>>& solvedRefs)
+{
+	Address endAddr = addr + df.size;
+
+	// Add all referenced names.
+	//
+	for (auto it = solvedRefs.lower_bound(addr);
+			it != solvedRefs.end() && it->first < endAddr;
+			++it)
+	{
+		Address& ra = it->second.first;
+		std::string& rn = it->second.second;
+		if (!rn.empty())
+		{
+			_names->addNameForAddress(ra, rn, Name::eType::STATIC_CODE);
+		}
+	}
+
+	// Add all detected function names.
+	//
+	for (auto& n : df.names)
+	{
+		_names->addNameForAddress(addr, n, Name::eType::STATIC_CODE);
+	}
+
+	createFunction(addr, "", true);
+	_staticFncs.insert(addr);
+	removeRange(addr, addr + df.size - 1);
 }
 
 } // namespace bin2llvmir
