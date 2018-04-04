@@ -41,7 +41,7 @@ Name::Name()
 }
 
 Name::Name(const std::string& name, eType type) :
-		_name(name),
+		_name(normalizeNamePrefix(name)), // TODO: normalizeNamePrefix()
 		_type(type)
 {
 
@@ -49,7 +49,7 @@ Name::Name(const std::string& name, eType type) :
 
 Name::operator std::string() const
 {
-	return _name;
+	return getName();
 }
 
 Name::operator bool() const

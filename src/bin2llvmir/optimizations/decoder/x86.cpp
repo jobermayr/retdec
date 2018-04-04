@@ -52,7 +52,9 @@ std::size_t Decoder::decodeJumpTargetDryRun_x86(
 		return nops;
 	}
 
-	if (getBasicBlockAtAddress(addr))
+	// There is a BB right after, that is not a function start.
+	//
+	if (getBasicBlockAtAddress(addr) && getFunctionAtAddress(addr) == nullptr)
 	{
 		return false;
 	}

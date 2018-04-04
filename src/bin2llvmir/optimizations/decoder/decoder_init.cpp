@@ -400,27 +400,13 @@ void Decoder::initJumpTargetsImports()
 			continue;
 		}
 
-		std::string name = imp.getName();
-		auto libN = impTbl->getLibrary(imp.getLibraryIndex());
-		std::transform(libN.begin(), libN.end(), libN.begin(), ::tolower);
-
-		if (name.empty())
-		{
-			unsigned long long ord = 0;
-			if (!imp.getOrdinalNumber(ord))
-			{
-				continue;
-			}
-
-			name = "import_" + retdec::utils::removeSuffixRet(libN, ".dll")
-					+ "_" + std::to_string(ord);
-		}
-
 		LOG << "\t\timport: " << imp.getName() << " @ " << addr << std::endl;
 
-		auto* f = createFunction(addr, name, true);
-		_imports.emplace(addr, name);
+		auto* f = createFunction(addr, "", true);
+		_imports.emplace(addr, f->getName());
 
+		std::string name = imp.getName();
+		auto libN = impTbl->getLibrary(imp.getLibraryIndex());
 		if ((libN == "msvcrt.dll" && name == "exit")
 				|| (libN == "msvcrt.dll" && name == "abort"))
 		{

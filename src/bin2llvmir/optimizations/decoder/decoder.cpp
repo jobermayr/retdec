@@ -248,11 +248,18 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		{
 			if (auto* bb = getBasicBlockAtAddress(addr))
 			{
-				auto* br = irb.CreateBr(bb);
-				assert(br->getNextNode() == br->getParent()->getTerminator());
-				br->getNextNode()->eraseFromParent();
-				LOG << "\t\ttranslation ended -> reached BB @ " << addr
-						<< std::endl;
+				if (bb->getParent() == irb.GetInsertBlock()->getParent())
+				{
+					auto* br = irb.CreateBr(bb);
+					assert(br->getNextNode() == br->getParent()->getTerminator());
+					br->getNextNode()->eraseFromParent();
+					LOG << "\t\ttranslation ended -> reached BB @ " << addr
+							<< std::endl;
+				}
+				else
+				{
+					// TODO: ???
+				}
 			}
 			else
 			{
