@@ -118,15 +118,6 @@ class Decoder : public llvm::ModulePass
 				llvm::Function* f,
 				llvm::BasicBlock* insertAfter = nullptr);
 
-		void dumpControFlowToJsonModule_manual();
-		void dumpControFlowToJsonFunction_manual(
-				llvm::Function& f,
-				std::ostream &out);
-		void dumpControFlowToJsonBasicBlock_manual(
-				llvm::BasicBlock& bb,
-				llvm::BasicBlock& bbEnd,
-				std::ostream &out);
-
 		bool isNopInstruction(cs_insn* insn);
 
 		void splitOnTerminatingCalls();

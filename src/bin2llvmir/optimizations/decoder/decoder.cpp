@@ -117,9 +117,7 @@ dumpModuleToFile(_module);
 	decode();
 	splitOnTerminatingCalls();
 
-dumpControFlowToJsonModule_manual();
 dumpControFlowToJson(_module, "test-control-flow.json");
-
 dumpModuleToFile(_module);
 
 	removePseudoCalls();
@@ -1134,6 +1132,7 @@ void Decoder::splitOnTerminatingCalls()
 		if (newBb)
 		{
 			Address addr = AsmInstruction::getInstructionAddress(&newBb->front());
+			newBb->setName("bb_" + addr.toHexString());
 			_addr2bb[addr] = newBb;
 			_bb2addr[newBb] = addr;
 		}

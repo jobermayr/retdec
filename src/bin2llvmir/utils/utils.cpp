@@ -16,6 +16,7 @@
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
 #include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/utils/address.h"
+#include "retdec/utils/string.h"
 
 using namespace retdec::utils;
 
@@ -116,22 +117,81 @@ std::string genJsonLine(const std::string& name, const std::string& val)
 
 retdec::utils::Address getFunctionAddress(llvm::Function* f)
 {
-	return Address();
+	if (f == nullptr)
+	{
+		return Address();
+	}
+
+	AsmInstruction ai(f);
+	return ai.isValid() ? ai.getAddress() : Address();
 }
 
 retdec::utils::Address getFunctionEndAddress(llvm::Function* f)
 {
-	return Address();
+	if (f == nullptr)
+	{
+		return Address();
+	}
+
+	if (f->empty() || f->back().empty())
+	{
+		return getFunctionAddress(f);
+	}
+
+	AsmInstruction ai(&f->back().back());
+	return ai.isValid() ? ai.getEndAddress() : getFunctionAddress(f);
+}
+
+retdec::utils::Address getBasicBlockAddressFromName(llvm::BasicBlock* b)
+{
+	if (b == nullptr)
+	{
+		return Address();
+	}
+
+	std::string n = b->getName();
+
+	unsigned long long a = 0;
+	int ret = std::sscanf(n.c_str(), "bb_%llx", &a);
+	return ret == 1 ? Address(a) : Address();
 }
 
 retdec::utils::Address getBasicBlockAddress(llvm::BasicBlock* b)
 {
-	return Address();
+	if (b == nullptr)
+	{
+		return Address();
+	}
+
+	std::string n = b->getName();
+	if (!retdec::utils::startsWith(n, "bb_"))
+	{
+		return Address();
+	}
+
+	if (b->empty())
+	{
+		return getBasicBlockAddressFromName(b);
+	}
+
+	AsmInstruction ai(&b->front());
+	return ai.isValid() ? ai.getAddress() : getBasicBlockAddressFromName(b);
 }
 
 retdec::utils::Address getBasicBlockEndAddress(llvm::BasicBlock* b)
 {
-	return Address();
+	if (b == nullptr)
+	{
+		return Address();
+	}
+
+	if (b->empty())
+	{
+		return getBasicBlockAddress(b);
+	}
+
+	AsmInstruction ai(&b->back());
+	return ai.isValid() ? ai.getEndAddress() : getBasicBlockAddress(b);
 }
 
 void dumpControFlowToJsonBasicBlock(
@@ -336,9 +396,9 @@ void dumpControFlowToJsonFunction(
 
 void dumpControFlowToJson(
 		llvm::Module* m,
-		const std::string fileName)
+		const std::string& fileName)
 {
-	std::ofstream json("fileName");
+	std::ofstream json(fileName);
 	if (!json.is_open())
 	{
 		return;

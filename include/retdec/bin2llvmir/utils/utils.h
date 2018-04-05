@@ -41,7 +41,7 @@ std::string llvmObjToString(const llvm::Module& t);
 void dumpModuleToFile(const llvm::Module* m, const std::string fileName = "");
 void dumpControFlowToJson(
 		llvm::Module* m,
-		const std::string fileName = "control-flow.json");
+		const std::string& fileName = "control-flow.json");
 
 llvm::Value* skipCasts(llvm::Value* val);
 
