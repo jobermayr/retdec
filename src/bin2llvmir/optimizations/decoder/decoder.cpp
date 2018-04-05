@@ -103,6 +103,8 @@ bool Decoder::run()
 	initRanges();
 	initJumpTargets();
 
+dumpModuleToFile(_module);
+
 	LOG << std::endl;
 	LOG << "Allowed ranges:" << std::endl;
 	LOG << _allowedRanges << std::endl;

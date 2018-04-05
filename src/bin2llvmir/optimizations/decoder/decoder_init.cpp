@@ -392,6 +392,13 @@ void Decoder::initJumpTargetsImports()
 		return;
 	}
 
+	// TODO: ugly hack, in ack.arm.clang-3.2.O0.g.elf there are 2 imports for
+	// printf/scanf/etc. - the first one (by addr) in .plt that is called from
+	// program, second in data from relocation. We need to give the first one
+	// a scanf name, because otherwise LTI fails -> bad type.
+	// Solve somehow better.
+	//
+	std::map<Address, const fileformat::Import&> _imps;
 	for (const auto &imp : *impTbl)
 	{
 		retdec::utils::Address addr = imp.getAddress();
@@ -400,10 +407,30 @@ void Decoder::initJumpTargetsImports()
 			continue;
 		}
 
+		_imps.emplace(addr, imp);
+	}
+
+//	for (const auto &imp : *impTbl)
+//	{
+//		retdec::utils::Address addr = imp.getAddress();
+//		if (addr.isUndefined())
+//		{
+//			continue;
+//		}
+	for (auto& p : _imps)
+	{
+		Address addr = p.first;
+		auto& imp = p.second;
+
 		LOG << "\t\timport: " << imp.getName() << " @ " << addr << std::endl;
 
 		auto* f = createFunction(addr, "", true);
 		_imports.emplace(addr, f->getName());
+
+// TODO: in ack.arm.clang-3.2.O0.g.elf, imports in .plt -> has asm insns that
+// could be decoded.
+//
+removeRange(addr, addr+3);
 
 		std::string name = imp.getName();
 		auto libN = impTbl->getLibrary(imp.getLibraryIndex());
