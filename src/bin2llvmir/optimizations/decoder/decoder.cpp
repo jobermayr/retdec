@@ -204,6 +204,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		bytes.second = sz < bytes.second ? sz : bytes.second;
 	}
 
+	if (jt.getType() == JumpTarget::eType::LEFTOVER)
 	if (auto skipSz = decodeJumpTargetDryRun(jt, bytes))
 	{
 		AddressRange skipRange(start, start+skipSz-1);
@@ -398,7 +399,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 			else
 			{
 				// TODO: deal with this
-//				assert(false);
+				assert(false);
 			}
 
 			_jumpTargets.push(
@@ -1305,13 +1306,17 @@ llvm::Function* Decoder::_splitFunctionOn(
 //						assert(br->getSuccessor(0)->getParent() == br->getFunction());
 //						assert(br->getSuccessor(1)->getParent() == br->getFunction());
 
-						auto* r = ReturnInst::Create(
-								br->getModule()->getContext(),
-								UndefValue::get(br->getFunction()->getReturnType()),
-								br);
-						br->eraseFromParent();
-						restart = true;
-						break;
+						if (br->getSuccessor(0)->getParent() != br->getFunction()
+								|| br->getSuccessor(1)->getParent() != br->getFunction())
+						{
+							auto* r = ReturnInst::Create(
+									br->getModule()->getContext(),
+									UndefValue::get(br->getFunction()->getReturnType()),
+									br);
+							br->eraseFromParent();
+							restart = true;
+							break;
+						}
 					}
 					else
 					{
@@ -1379,13 +1384,17 @@ llvm::Function* Decoder::_splitFunctionOn(
 //						assert(br->getSuccessor(0)->getParent() == br->getFunction());
 //						assert(br->getSuccessor(1)->getParent() == br->getFunction());
 
-						auto* r = ReturnInst::Create(
-								br->getModule()->getContext(),
-								UndefValue::get(br->getFunction()->getReturnType()),
-								br);
-						br->eraseFromParent();
-						restart = true;
-						break;
+						if (br->getSuccessor(0)->getParent() != br->getFunction()
+								|| br->getSuccessor(1)->getParent() != br->getFunction())
+						{
+							auto* r = ReturnInst::Create(
+									br->getModule()->getContext(),
+									UndefValue::get(br->getFunction()->getReturnType()),
+									br);
+							br->eraseFromParent();
+							restart = true;
+							break;
+						}
 					}
 					else
 					{

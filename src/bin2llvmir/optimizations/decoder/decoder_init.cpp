@@ -308,7 +308,7 @@ void Decoder::initJumpTargets()
 	initJumpTargetsConfig();
 	initJumpTargetsEntryPoint();
 	initJumpTargetsImports();
-	initStaticCode();
+//	initStaticCode();
 	initJumpTargetsExports();
 	initJumpTargetsDebug();
 	initJumpTargetsSymbols();
