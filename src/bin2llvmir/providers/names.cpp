@@ -23,8 +23,8 @@ namespace names {
 std::string generateFunctionName(retdec::utils::Address a, bool ida)
 {
 	return ida
-			? generateFunctionPrefixIDA + a.toHexString()
-			: generateFunctionPrefix + a.toHexString();
+			? generatedFunctionPrefixIDA + a.toHexString()
+			: generatedFunctionPrefix + a.toHexString();
 }
 
 } // namespace names
@@ -157,8 +157,6 @@ NameContainer::NameContainer(
 /**
  * Name is not added if \p a is undefined or \p name is empty.
  * \return \c True if name added, \c false otherwise.
- *
- * TODO: What with Arm/Thumb odd addresses?
  */
 bool NameContainer::addNameForAddress(
 		retdec::utils::Address a,

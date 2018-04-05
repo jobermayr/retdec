@@ -742,12 +742,11 @@ llvm::Function* Decoder::getFunctionContainingAddress(retdec::utils::Address a)
 }
 
 /**
- * Create function at address \p a with name \p name.
+ * Create function at address \p a.
  * \return Created function.
  */
 llvm::Function* Decoder::createFunction(
 		retdec::utils::Address a,
-		const std::string& name,
 		bool declaration)
 {
 	auto existing = _addr2fnc.find(a);
@@ -756,7 +755,7 @@ llvm::Function* Decoder::createFunction(
 		return existing->second;
 	}
 
-	std::string n = name;
+	std::string n;
 	if (n.empty())
 	{
 		n = _names->getPreferredNameForAddress(a);

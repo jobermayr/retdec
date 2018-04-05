@@ -776,7 +776,7 @@ std::ostream& operator<<(std::ostream& out, const AsmInstruction& a)
 	return out << a.dump();
 }
 
-std::map<llvm::StoreInst*, cs_insn*>& AsmInstruction::getLlvmToCapstoneInsnMap(
+Llvm2CapstoneMap& AsmInstruction::getLlvmToCapstoneInsnMap(
 		const llvm::Module* m)
 {
 	for (auto& p : _module2instMap)

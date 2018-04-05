@@ -20,6 +20,8 @@ namespace bin2llvmir {
 
 class Config;
 
+using Llvm2CapstoneMap = typename std::map<llvm::StoreInst*, cs_insn*>;
+
 class AsmInstruction
 {
 	public:
@@ -337,7 +339,7 @@ class AsmInstruction
 		}
 
 	public:
-		static std::map<llvm::StoreInst*, cs_insn*>& getLlvmToCapstoneInsnMap(
+		static Llvm2CapstoneMap& getLlvmToCapstoneInsnMap(
 				const llvm::Module* m);
 		static const llvm::GlobalVariable* getLlvmToAsmGlobalVariable(
 				const llvm::Module* m);

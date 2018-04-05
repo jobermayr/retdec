@@ -103,7 +103,6 @@ class Decoder : public llvm::ModulePass
 		llvm::Function* getFunctionContainingAddress(retdec::utils::Address a);
 		llvm::Function* createFunction(
 				retdec::utils::Address a,
-				const std::string& name = "",
 				bool declaration = false);
 
 		retdec::utils::Address getBasicBlockAddress(llvm::BasicBlock* b);
@@ -198,6 +197,7 @@ class Decoder : public llvm::ModulePass
 		FileImage* _image = nullptr;
 		DebugFormat* _debug = nullptr;
 		NameContainer* _names = nullptr;
+		Llvm2CapstoneMap* _llvm2capstone = nullptr;
 
 		cs_mode _currentMode = CS_MODE_LITTLE_ENDIAN;
 		std::unique_ptr<capstone2llvmir::Capstone2LlvmIrTranslator> _c2l;
@@ -219,8 +219,6 @@ class Decoder : public llvm::ModulePass
 		std::set<retdec::utils::Address> _staticFncs;
 		std::set<llvm::Function*> _terminatingFncs;
 
-		std::map<llvm::StoreInst*, cs_insn*>* _llvm2capstone = nullptr;
-
 		cs_insn* _dryCsInsn = nullptr;
 
 	private:
@@ -234,8 +232,6 @@ class Decoder : public llvm::ModulePass
 		const std::string _x87tagLoadFunction = "__frontend_reg_load.fpu_tag";
 		const std::string _x87dataStoreFunction = "__frontend_reg_store.fpr";
 		const std::string _x87tagStoreFunction = "__frontend_reg_store.fpu_tag";
-		const std::string _entryPointFunction = "entry_point";
-		const std::string _functionPrefix = "_function";
 };
 
 } // namespace bin2llvmir

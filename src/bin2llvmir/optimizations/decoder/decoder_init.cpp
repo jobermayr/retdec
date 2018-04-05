@@ -424,7 +424,7 @@ void Decoder::initJumpTargetsImports()
 
 		LOG << "\t\timport: " << imp.getName() << " @ " << addr << std::endl;
 
-		auto* f = createFunction(addr, "", true);
+		auto* f = createFunction(addr, true);
 		_imports.emplace(addr, f->getName());
 
 // TODO: in ack.arm.clang-3.2.O0.g.elf, imports in .plt -> has asm insns that

@@ -23,8 +23,8 @@ namespace names {
 
 const std::string entryPointName            = "entry_point";
 const std::string generatedImportPrefix     = "imported_function_ord_";
-const std::string generateFunctionPrefix    = "function_";
-const std::string generateFunctionPrefixIDA = "function_";
+const std::string generatedFunctionPrefix    = "function_";
+const std::string generatedFunctionPrefixIDA = "ida_";
 
 std::string generateFunctionName(retdec::utils::Address a, bool ida = false);
 

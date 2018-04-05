@@ -552,7 +552,7 @@ void Decoder::addStaticFunction(
 		_names->addNameForAddress(addr, n, Name::eType::STATIC_CODE);
 	}
 
-	createFunction(addr, "", true);
+	createFunction(addr, true);
 	_staticFncs.insert(addr);
 	removeRange(addr, addr + df.size - 1);
 }
