@@ -26,10 +26,9 @@
 #include "retdec/bin2llvmir/utils/global_var.h"
 #include "retdec/bin2llvmir/utils/instruction.h"
 #define debug_enabled false
-#include "retdec/llvm-support/utils.h"
+#include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/bin2llvmir/utils/type.h"
 
-using namespace retdec::llvm_support;
 using namespace retdec::utils;
 using namespace llvm;
 

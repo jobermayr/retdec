@@ -4,10 +4,9 @@
  * @copyright (c) 2017 Avast Software, licensed under the MIT license
  */
 
-#include "retdec/llvm-support/utils.h"
+#include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/bin2llvmir/optimizations/dump_module/dump_module.h"
 
-using namespace retdec::llvm_support;
 using namespace llvm;
 
 namespace retdec {

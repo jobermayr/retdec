@@ -17,7 +17,7 @@
 #include "retdec/ctypes/union_type.h"
 #include "retdec/ctypes/unknown_type.h"
 #include "retdec/ctypes/void_type.h"
-#include "retdec/llvm-support/utils.h"
+#include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/utils/string.h"
 #include "retdec/bin2llvmir/providers/lti.h"
 #include "retdec/bin2llvmir/utils/type.h"

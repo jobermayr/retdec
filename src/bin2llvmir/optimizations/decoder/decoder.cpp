@@ -17,9 +17,8 @@
 #include "retdec/bin2llvmir/optimizations/decoder/decoder.h"
 #include "retdec/bin2llvmir/utils/instruction.h"
 #include "retdec/bin2llvmir/utils/type.h"
-#include "retdec/llvm-support/utils.h"
+#include "retdec/bin2llvmir/utils/utils.h"
 
-using namespace retdec::llvm_support;
 using namespace retdec::utils;
 using namespace retdec::capstone2llvmir;
 using namespace llvm;
@@ -119,6 +118,7 @@ dumpModuleToFile(_module);
 	splitOnTerminatingCalls();
 
 dumpControFlowToJsonModule_manual();
+dumpControFlowToJson(_module, "test-control-flow.json");
 
 dumpModuleToFile(_module);
 

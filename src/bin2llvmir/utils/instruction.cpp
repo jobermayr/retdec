@@ -10,7 +10,7 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/Support/raw_ostream.h>
 
-#include "retdec/llvm-support/utils.h"
+#include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/utils/container.h"
 #include "retdec/utils/string.h"
 #include "retdec/bin2llvmir/analyses/reaching_definitions.h"
@@ -18,7 +18,6 @@
 #include "retdec/bin2llvmir/utils/instruction.h"
 #include "retdec/bin2llvmir/utils/type.h"
 
-using namespace retdec::llvm_support;
 using namespace llvm;
 
 namespace retdec {

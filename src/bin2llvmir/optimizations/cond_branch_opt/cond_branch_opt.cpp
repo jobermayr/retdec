@@ -14,10 +14,9 @@
 #include "retdec/bin2llvmir/optimizations/cond_branch_opt/cond_branch_opt.h"
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
 #define debug_enabled false
-#include "retdec/llvm-support/utils.h"
+#include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/bin2llvmir/utils/type.h"
 
-using namespace retdec::llvm_support;
 using namespace llvm;
 
 namespace retdec {

@@ -1,11 +1,11 @@
 /**
- * @file include/retdec/llvm-support/utils.h
+ * @file include/retdec/bin2llvmir/utils/utils.h
  * @brief LLVM Utility functions.
  * @copyright (c) 2017 Avast Software, licensed under the MIT license
  */
 
-#ifndef RETDEC_LLVM_SUPPORT_UTILS_H
-#define RETDEC_LLVM_SUPPORT_UTILS_H
+#ifndef RETDEC_BIN2LLVMIR_UTILS_UTILS_H
+#define RETDEC_BIN2LLVMIR_UTILS_UTILS_H
 
 #include <iomanip>
 #include <iostream>
@@ -16,7 +16,7 @@
 #include <llvm/Support/raw_ostream.h>
 
 namespace retdec {
-namespace llvm_support {
+namespace bin2llvmir {
 
 /**
  * Print any LLVM object which implements @c print(llvm::raw_string_ostream&)
@@ -39,10 +39,13 @@ std::string llvmObjToString(const llvm::Module* t);
 std::string llvmObjToString(const llvm::Module& t);
 
 void dumpModuleToFile(const llvm::Module* m, const std::string fileName = "");
+void dumpControFlowToJson(
+		llvm::Module* m,
+		const std::string fileName = "control-flow.json");
 
 llvm::Value* skipCasts(llvm::Value* val);
 
-} // namespace llvm_support
+} // namespace bin2llvmir
 } // namespace retdec
 
 #endif

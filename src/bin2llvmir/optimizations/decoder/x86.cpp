@@ -7,7 +7,6 @@
 #include "retdec/bin2llvmir/optimizations/decoder/decoder.h"
 #include "retdec/utils/string.h"
 
-using namespace retdec::llvm_support;
 using namespace retdec::utils;
 using namespace retdec::capstone2llvmir;
 using namespace llvm;

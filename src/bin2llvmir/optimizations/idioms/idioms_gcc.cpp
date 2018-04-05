@@ -9,11 +9,10 @@
 #include <llvm/IR/PatternMatch.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 
-#include "retdec/llvm-support/utils.h"
+#include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/bin2llvmir/optimizations/idioms/idioms_gcc.h"
 #include "retdec/bin2llvmir/providers/config.h"
 
-using namespace retdec::llvm_support;
 using namespace llvm;
 using namespace PatternMatch;
 

@@ -11,7 +11,7 @@
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Module.h>
 
-#include "retdec/llvm-support/utils.h"
+#include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/utils/container.h"
 #include "retdec/bin2llvmir/analyses/reachable_funcs_analysis.h"
 #include "retdec/bin2llvmir/optimizations/unreachable_funcs/unreachable_funcs.h"
@@ -20,7 +20,6 @@
 #define OPTIMIZATION_NAME "unreachable-funcs"
 #define DEBUG_TYPE OPTIMIZATION_NAME
 
-using namespace retdec::llvm_support;
 using namespace retdec::utils;
 using namespace llvm;
 

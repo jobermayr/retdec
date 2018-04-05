@@ -7,12 +7,11 @@
 #include <iostream>
 
 #include "retdec/bin2llvmir/optimizations/decoder/decoder.h"
-#include "retdec/llvm-support/utils.h"
+#include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/utils/container.h"
 #include "retdec/utils/filesystem_path.h"
 #include "retdec/utils/string.h"
 
-using namespace retdec::llvm_support;
 using namespace retdec::stacofin;
 using namespace retdec::utils;
 

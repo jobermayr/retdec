@@ -16,10 +16,9 @@
 #define debug_enabled false
 #include "retdec/utils/string.h"
 #include "retdec/bin2llvmir/optimizations/stack_protect/stack_protect.h"
-#include "retdec/llvm-support/utils.h"
+#include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/bin2llvmir/utils/type.h"
 
-using namespace retdec::llvm_support;
 using namespace retdec::utils;
 using namespace llvm;
 

@@ -6,7 +6,7 @@
 
 #include <iostream>
 
-#include "retdec/llvm-support/utils.h"
+#include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/bin2llvmir/optimizations/class_hierarchy/hierarchy_analysis.h"
 #include "retdec/bin2llvmir/utils/defs.h"
 

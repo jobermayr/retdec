@@ -18,9 +18,8 @@
 #include "retdec/bin2llvmir/optimizations/adapter_methods/adapter_methods.h"
 #include "retdec/bin2llvmir/utils/defs.h"
 #define debug_enabled false
-#include "retdec/llvm-support/utils.h"
+#include "retdec/bin2llvmir/utils/utils.h"
 
-using namespace retdec::llvm_support;
 using namespace llvm;
 using namespace PatternMatch;
 
