@@ -153,6 +153,11 @@ class Decoder : public llvm::ModulePass
 		llvm::CallInst* transformToCall(
 				llvm::CallInst* pseudo,
 				llvm::Function* callee);
+		llvm::CallInst* transformToCondCall(
+				llvm::CallInst* pseudo,
+				llvm::Value* cond,
+				llvm::Function* callee,
+				llvm::BasicBlock* falseBb);
 		llvm::ReturnInst* transformToReturn(llvm::CallInst* pseudo);
 		llvm::BranchInst* transformToBranch(
 				llvm::CallInst* pseudo,
@@ -179,6 +184,13 @@ class Decoder : public llvm::ModulePass
 				ByteData bytes);
 		bool isNopInstruction_x86(cs_insn* insn);
 		void eraseReturnAddrStoreInCall_x86(llvm::CallInst* c);
+
+	// ARM specific.
+	//
+	private:
+		std::size_t decodeJumpTargetDryRun_arm(
+				const JumpTarget& jt,
+				ByteData bytes);
 
 	private:
 		llvm::Module* _module = nullptr;

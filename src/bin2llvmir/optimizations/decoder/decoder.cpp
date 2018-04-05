@@ -297,6 +297,10 @@ std::size_t Decoder::decodeJumpTargetDryRun(
 	{
 		return decodeJumpTargetDryRun_x86(jt, bytes);
 	}
+	else if (_config->getConfig().architecture.isArm())
+	{
+		return decodeJumpTargetDryRun_arm(jt, bytes);
+	}
 
 	// Common dry run.
 	//
@@ -387,9 +391,14 @@ bool Decoder::getJumpTargetsFromInstruction(
 			{
 				transformToCondBranch(pCall, pCall->getOperand(0), tBb, tBbN);
 			}
+			else if (tFnc && tBbN)
+			{
+				transformToCondCall(pCall, pCall->getOperand(0), tFnc, tBbN);
+			}
 			else
 			{
-				assert(false);
+				// TODO: deal with this
+//				assert(false);
 			}
 
 			_jumpTargets.push(
@@ -1292,14 +1301,17 @@ llvm::Function* Decoder::_splitFunctionOn(
 				{
 					if (br->isConditional())
 					{
-if (br->getSuccessor(0)->getParent() != br->getFunction())
-{
-	std::cout << "spit @ " << addr << std::endl;
-	exit(1);
-}
+						// TODO: this is shit hack.
+//						assert(br->getSuccessor(0)->getParent() == br->getFunction());
+//						assert(br->getSuccessor(1)->getParent() == br->getFunction());
 
-						assert(br->getSuccessor(0)->getParent() == br->getFunction());
-						assert(br->getSuccessor(1)->getParent() == br->getFunction());
+						auto* r = ReturnInst::Create(
+								br->getModule()->getContext(),
+								UndefValue::get(br->getFunction()->getReturnType()),
+								br);
+						br->eraseFromParent();
+						restart = true;
+						break;
 					}
 					else
 					{
@@ -1363,8 +1375,17 @@ if (br->getSuccessor(0)->getParent() != br->getFunction())
 				{
 					if (br->isConditional())
 					{
-						assert(br->getSuccessor(0)->getParent() == br->getFunction());
-						assert(br->getSuccessor(1)->getParent() == br->getFunction());
+						// TODO: this is shit hack.
+//						assert(br->getSuccessor(0)->getParent() == br->getFunction());
+//						assert(br->getSuccessor(1)->getParent() == br->getFunction());
+
+						auto* r = ReturnInst::Create(
+								br->getModule()->getContext(),
+								UndefValue::get(br->getFunction()->getReturnType()),
+								br);
+						br->eraseFromParent();
+						restart = true;
+						break;
 					}
 					else
 					{
@@ -1469,15 +1490,41 @@ llvm::CallInst* Decoder::transformToCall(
 		return nullptr;
 	}
 
-	auto* c = CallInst::Create(
-			callee,
-			"");
+	auto* c = CallInst::Create(callee);
 	c->insertAfter(pseudo);
 
 	if (_config->getConfig().architecture.isX86())
 	{
 		eraseReturnAddrStoreInCall_x86(c);
 	}
+
+	return c;
+}
+
+llvm::CallInst* Decoder::transformToCondCall(
+		llvm::CallInst* pseudo,
+		llvm::Value* cond,
+		llvm::Function* callee,
+		llvm::BasicBlock* falseBb)
+{
+	if (callee == nullptr || falseBb == nullptr)
+	{
+		return nullptr;
+	}
+
+	auto* oldBb = pseudo->getParent();
+	auto* newBb = oldBb->splitBasicBlock(pseudo);
+
+	auto* oldTerm = oldBb->getTerminator();
+	BranchInst::Create(newBb, falseBb, cond, oldTerm);
+	oldTerm->eraseFromParent();
+
+	auto* newTerm = newBb->getTerminator();
+	BranchInst::Create(falseBb, newTerm);
+	newTerm->eraseFromParent();
+
+	auto* c = CallInst::Create(callee);
+	c->insertAfter(pseudo);
 
 	return c;
 }

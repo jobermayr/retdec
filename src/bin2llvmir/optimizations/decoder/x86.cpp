@@ -1,5 +1,5 @@
 /**
-* @file src/bin2llvmir/optimizations/decoder/decoder.cpp
+* @file src/bin2llvmir/optimizations/decoder/x86.cpp
 * @brief Decoding methods specific to x86 architecture.
 * @copyright (c) 2017 Avast Software, licensed under the MIT license
 */
