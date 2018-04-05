@@ -19,7 +19,6 @@
 #include "retdec/llvm-support/tests/llvmir_tests.h"
 #include "retdec/llvm-support/utils.h"
 #include "retdec/utils/string.h"
-#include "retdec/bin2llvmir/providers/abi.h"
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
 #include "retdec/bin2llvmir/providers/config.h"
 #include "retdec/bin2llvmir/providers/debugformat.h"
@@ -46,7 +45,6 @@ class LlvmIrTests : public retdec::llvm_support::tests::LlvmIrTests
 		 */
 		void clearAllStaticData()
 		{
-			AbiProvider::clear();
 			ConfigProvider::clear();
 			DebugFormatProvider::clear();
 			DemanglerProvider::clear();

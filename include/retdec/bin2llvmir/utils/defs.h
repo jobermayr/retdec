@@ -21,9 +21,6 @@
 namespace retdec {
 namespace bin2llvmir {
 
-/// Vector of global variables.
-using GlobVarVec = std::vector<llvm::GlobalVariable*>;
-
 /// Set of global variables.
 using GlobVarSet = std::set<llvm::GlobalVariable*>;
 
@@ -51,9 +48,6 @@ using ValSet = std::set<llvm::Value*>;
 /// Unordered set of values.
 using UnorderedValSet = std::unordered_set<llvm::Value*>;
 
-/// Mapping of a value to another value.
-using ValValMap = std::map<llvm::Value*, llvm::Value*>;
-
 /// Vector of functions.
 using FuncVec = std::vector<llvm::Function*>;
 
@@ -71,27 +65,6 @@ using StringVecFuncMap = std::map<std::string, FuncVec>;
 
 /// Unordered set of values.
 using UnorderedTypeSet = std::unordered_set<llvm::Type*>;
-
-class RegisterCouple
-{
-	public:
-		RegisterCouple(
-				llvm::GlobalVariable* reg1 = nullptr,
-				llvm::GlobalVariable* reg2 = nullptr);
-
-		bool hasFirst() const;
-		bool hasSecond() const;
-
-		llvm::GlobalVariable* getFirst() const;
-		llvm::GlobalVariable* getSecond() const;
-
-		void setFirst(llvm::GlobalVariable* reg);
-		void setSecond(llvm::GlobalVariable* reg);
-
-	private:
-		llvm::GlobalVariable* _reg1 = nullptr;
-		llvm::GlobalVariable* _reg2 = nullptr;
-};
 
 #define LOG \
 	if (!debug_enabled) {} \

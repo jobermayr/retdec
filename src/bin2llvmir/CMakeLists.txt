@@ -64,7 +64,6 @@ set(BIN2LLVMIR_SOURCES
 	optimizations/vtable/rtti_gcc.cpp
 	optimizations/vtable/rtti_msvc.cpp
 	optimizations/vtable/vtable.cpp
-	providers/abi.cpp
 	providers/asm_instruction.cpp
 	providers/config.cpp
 	providers/debugformat.cpp
@@ -72,7 +71,6 @@ set(BIN2LLVMIR_SOURCES
 	providers/fileimage.cpp
 	providers/lti.cpp
 	providers/names.cpp
-	utils/defs.cpp
 	utils/global_var.cpp
 	utils/instruction.cpp
 	utils/ir_modifier.cpp

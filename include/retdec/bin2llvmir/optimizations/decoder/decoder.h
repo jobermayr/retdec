@@ -118,7 +118,6 @@ class Decoder : public llvm::ModulePass
 				llvm::Function* f,
 				llvm::BasicBlock* insertAfter = nullptr);
 
-		void dumpControFlowToJson_jsoncpp();
 		void dumpControFlowToJsonModule_manual();
 		void dumpControFlowToJsonFunction_manual(
 				llvm::Function& f,

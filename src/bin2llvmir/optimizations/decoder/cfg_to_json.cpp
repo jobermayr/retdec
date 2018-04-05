@@ -1,7 +1,15 @@
 /**
 * @file src/bin2llvmir/optimizations/decoder/cfg_to_json.cpp
-* @brief Various decoder initializations.
+* @brief Dump control flow to JSON.
 * @copyright (c) 2017 Avast Software, licensed under the MIT license
+*
+* Dump the decoded LLVM module's control flow to file in JSON format that
+* can be diffed with control flow dump from other tools (e.g. IDA, avast
+* disassembler).
+* We create JSON manually to make sure it is formated exactly as expected.
+* When JsonCpp is used the formatting is different than JSON generated in
+* Python. I was unable to force either json library, or python json library,
+* to produce the same formatting as the other library.
 */
 
 #include "retdec/bin2llvmir/optimizations/decoder/decoder.h"
@@ -34,141 +42,6 @@ std::string genJsonLine(const std::string& name, const std::string& val)
 
 namespace retdec {
 namespace bin2llvmir {
-
-//
-//==============================================================================
-// JsonCpp control flow to JSON serialization
-//==============================================================================
-//
-
-/**
- * Dump the decoded LLVM module's control flow to file in JSON format that
- * can be diffed with control flow dump from other tools (e.g. IDA, avast
- * disassembler).
- *
- * \note This is using jsoncpp library to generate JSON representation.
- *       It it much nicer than manual JSON generation, but it is also producing
- *       different formatting than JSON generated in Python. I was unable to
- *       force either json library, or python json library, to produce the same
- *       formatting as the other library.
- *       Python json:
- *           "array": [
- *               "array_elem_1",
- *               ...
- *           ]
- *       JsonCpp:
- *          "array":
- *           [
- *               "array_elem_1",
- *               ...
- *           ]
- */
-void Decoder::dumpControFlowToJson_jsoncpp()
-{
-	Json::Value jsonFncs(Json::arrayValue);
-	for (llvm::Function& f : _module->functions())
-	{
-		Json::Value jsonFnc;
-
-		// There are some temp and utility fncs that do not have addresses.
-		auto start = getFunctionAddress(&f);
-		auto end = getFunctionEndAddress(&f);
-		if (start.isUndefined() || end.isUndefined())
-		{
-			continue;
-		}
-
-		jsonFnc["address"] = start.toHexPrefixString();
-		jsonFnc["address_end"] = end.toHexPrefixString();
-
-		Json::Value jsonBbs(Json::arrayValue);
-		for (llvm::BasicBlock& bb : f)
-		{
-			// There are more BBs in LLVM IR than we created in control-flow
-			// decoding - e.g. BBs inside instructions that behave like
-			// if-then-else created by capstone2llvmir.
-			auto start = getBasicBlockAddress(&bb);
-			auto end = getBasicBlockEndAddress(&bb);
-			if (start.isUndefined() || end.isUndefined())
-			{
-				continue;
-			}
-
-			Json::Value jsonBb;
-
-			jsonBb["address"] = start.toHexPrefixString();
-			jsonBb["address_end"] = end.toHexPrefixString();
-
-			std::set<Address> predsAddrs; // sort addresses
-			for (auto pit = pred_begin(&bb), e = pred_end(&bb); pit != e; ++pit)
-			{
-				// Find BB with address - there should always be some.
-				// Some BBs may not have addresses - e.g. those inside
-				// if-then-else instruction models.
-				auto* pred = *pit;
-				auto start = getBasicBlockAddress(pred);
-				while (start.isUndefined())
-				{
-					pred = pred->getPrevNode();
-					assert(pred);
-					start = getBasicBlockAddress(pred);
-				}
-				predsAddrs.insert(start);
-			}
-			Json::Value jsonPreds(Json::arrayValue);
-			for (auto a : predsAddrs)
-			{
-				jsonPreds.append(a.toHexPrefixString());
-			}
-			jsonBb["preds"] = jsonPreds;
-
-			std::set<Address> succsAddrs; // sort addresses
-			for (auto sit = succ_begin(&bb), e = succ_end(&bb); sit != e; ++sit)
-			{
-				// Find BB with address - there should always be some.
-				// Some BBs may not have addresses - e.g. those inside
-				// if-then-else instruction models.
-				auto* succ = *sit;
-				auto start = getBasicBlockAddress(succ);
-				while (start.isUndefined())
-				{
-					succ = succ->getPrevNode();
-					assert(succ);
-					start = getBasicBlockAddress(succ);
-				}
-				succsAddrs.insert(start);
-			}
-			Json::Value jsonSuccs(Json::arrayValue);
-			for (auto a : succsAddrs)
-			{
-				jsonSuccs.append(a.toHexPrefixString());
-			}
-			jsonBb["succs"] = jsonSuccs;
-
-			jsonBbs.append(jsonBb);
-		}
-		jsonFnc["bbs"] = jsonBbs;
-
-		jsonFnc["code_refs"] = Json::arrayValue;
-
-		jsonFncs.append(jsonFnc);
-	}
-
-	Json::StreamWriterBuilder builder;
-	builder["commentStyle"] = "All";
-	builder["indentation"] = "    ";
-	builder["enableYAMLCompatibility"] = true; // " : " -> ": "
-	std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
-
-	std::ofstream myfile("control-flow.json");
-	writer->write(jsonFncs, &myfile);
-}
-
-//
-//==============================================================================
-// Manual control flow to JSON serialization
-//==============================================================================
-//
 
 void Decoder::dumpControFlowToJsonModule_manual()
 {

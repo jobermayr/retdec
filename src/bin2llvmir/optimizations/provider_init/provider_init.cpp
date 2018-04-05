@@ -10,7 +10,6 @@
 
 #include "retdec/llvm-support/utils.h"
 #include "retdec/bin2llvmir/optimizations/provider_init/provider_init.h"
-#include "retdec/bin2llvmir/providers/abi.h"
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
 #include "retdec/bin2llvmir/providers/config.h"
 #include "retdec/bin2llvmir/providers/debugformat.h"
