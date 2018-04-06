@@ -9,6 +9,8 @@
 
 #include <map>
 
+#include <capstone/capstone.h>
+
 #include "retdec/bin2llvmir/providers/config.h"
 #include "retdec/bin2llvmir/providers/fileimage.h"
 #include "retdec/stacofin/stacofin.h"
@@ -17,45 +19,89 @@
 namespace retdec {
 namespace bin2llvmir {
 
+class StaticCodeFunction
+{
+	public:
+		class Reference
+		{
+			public:
+				Reference(
+						std::size_t o,
+						utils::Address a,
+						const std::string& n,
+						utils::Address t = utils::Address::getUndef,
+						StaticCodeFunction* tf = nullptr,
+						bool k = false);
+
+			public:
+				std::size_t offset = 0;
+				utils::Address address;
+				std::string name;
+
+				utils::Address target;
+				StaticCodeFunction* targetFnc = nullptr;
+				bool ok = false;
+		};
+
+	public:
+		StaticCodeFunction(const stacofin::DetectedFunction& df);
+		bool allRefsOk() const;
+
+	public:
+		utils::Address address;
+		std::size_t size;
+		std::vector<std::string> names;
+		std::string signaturePath;
+
+		std::vector<Reference> references;
+};
+
 class StaticCodeAnalysis
 {
 	public:
 		using DetectedFunctionsMap = typename std::map<
 				utils::Address,
-				stacofin::DetectedFunction>;
+				StaticCodeFunction*>;
 		using DetectedFunctionsMultimap = typename std::multimap<
 				utils::Address,
-				stacofin::DetectedFunction>;
+				StaticCodeFunction>;
 
 	public:
-		StaticCodeAnalysis(Config* c, FileImage* i);
+		StaticCodeAnalysis(Config* c, FileImage* i, csh ce);
+		~StaticCodeAnalysis();
 
 		const DetectedFunctionsMultimap& getAllDetections() const;
 		const DetectedFunctionsMap& getConfirmedDetections() const;
 
 	private:
-		void strictSolve();
-
-		bool checkRef(utils::Address ref, const std::string& name);
+		void solveReferences();
 
 		utils::Address getAddressFromRef(utils::Address ref);
 		utils::Address getAddressFromRef_x86(utils::Address ref);
 
+		void checkRef(StaticCodeFunction::Reference& ref);
+		void checkRef_x86(StaticCodeFunction::Reference& ref);
+
 	private:
 		Config* _config = nullptr;
 		FileImage* _image = nullptr;
+
+		csh _ce;
+		cs_insn* _ceInsn = nullptr;
 
 		stacofin::Finder _codeFinder;
 
 		std::set<std::string> _sigPaths;
 		std::map<utils::Address, std::string> _imports;
 
-//		std::map<utils::Address, utils::Address> _solvedRefs;
-		std::map<utils::Address, std::pair<utils::Address, std::string>> _solvedRefs;
 		DetectedFunctionsMultimap _allDetections;
-		DetectedFunctionsMultimap _worklistDetections;
-		DetectedFunctionsMultimap _rerectedDetections;
 		DetectedFunctionsMap _confirmedDetections;
+
+//		std::map<utils::Address, utils::Address> _solvedRefs;
+//		std::map<utils::Address, std::pair<utils::Address, std::string>> _solvedRefs;
+//		DetectedFunctionsMultimap _allDetections;
+//		DetectedFunctionsMultimap _worklistDetections;
+//		DetectedFunctionsMultimap _rerectedDetections;
 };
 
 } // namespace bin2llvmir

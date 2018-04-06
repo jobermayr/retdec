@@ -304,15 +304,15 @@ void Decoder::initAllowedRangesWithSegments()
  */
 void Decoder::initJumpTargets()
 {
-
-initStaticCode(); // TODO
-
 	initJumpTargetsConfig();
 	initJumpTargetsEntryPoint();
 	initJumpTargetsImports();
 	initJumpTargetsExports();
 	initJumpTargetsDebug();
 	initJumpTargetsSymbols();
+
+initStaticCode(); // TODO
+
 }
 
 void Decoder::initJumpTargetsConfig()
@@ -622,9 +622,7 @@ void Decoder::initConfigFunction()
 
 void Decoder::initStaticCode()
 {
-	StaticCodeAnalysis SCA(_config, _image);
-	auto& detections = SCA.getConfirmedDetections();
-
+	StaticCodeAnalysis SCA(_config, _image, _c2l->getCapstoneEngine());
 	// TODO
 }
 

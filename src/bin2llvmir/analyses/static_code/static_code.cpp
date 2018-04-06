@@ -5,6 +5,7 @@
 */
 
 #include "retdec/bin2llvmir/analyses/static_code/static_code.h"
+#include "retdec/utils/string.h"
 
 // Debug logs enabled/disabled.
 #include "retdec/bin2llvmir/utils/defs.h"
@@ -12,6 +13,12 @@
 
 using namespace retdec::stacofin;
 using namespace retdec::utils;
+
+//
+//==============================================================================
+// Anonymous namespace.
+//==============================================================================
+//
 
 namespace {
 
@@ -349,7 +356,7 @@ std::string dumpDetectedFunctions(
 		FileImage* image)
 {
 	std::stringstream ret;
-	ret << "\t Detected functions:" << "\n";
+	ret << "\t Detected functions (stacofin):" << "\n";
 	for (auto& f : codeFinder.accessDectedFunctions())
 	{
 		ret << "\t\t" << f.address << " @ " << f.names.front()
@@ -374,14 +381,95 @@ std::string dumpDetectedFunctions(
 	return ret.str();
 }
 
+std::string dumpDetectedFunctions(
+		const StaticCodeAnalysis::DetectedFunctionsMultimap& allDetections)
+{
+	std::stringstream ret;
+	ret << "\t Detected functions (bin2llvmir):" << "\n";
+	for (auto& p : allDetections)
+	{
+		auto& f = p.second;
+
+		ret << "\t\t" << (p.second.allRefsOk() ? "[+] " : "[-] ")
+				<< f.address << " @ " << f.names.front()
+				<< ", sz = " << f.size << "\n";
+
+		for (auto& ref : f.references)
+		{
+			ret << "\t\t\t" << (ref.ok ? "[+] " : "[-] ")
+					<< ref.address << " @ " << ref.name
+					<< " -> " << ref.target << "\n";
+		}
+	}
+
+	return ret.str();
+}
+
 } // namespace anonymous
 
 namespace retdec {
 namespace bin2llvmir {
 
-StaticCodeAnalysis::StaticCodeAnalysis(Config* c, FileImage* i) :
+//
+//==============================================================================
+// StaticCodeFunction.
+//==============================================================================
+//
+
+StaticCodeFunction::Reference::Reference(
+		std::size_t o,
+		utils::Address a,
+		const std::string& n,
+		utils::Address t,
+		StaticCodeFunction* tf,
+		bool k)
+		:
+		offset(o),
+		address(a),
+		name(n),
+		target(t),
+		targetFnc(tf),
+		ok(k)
+{
+
+}
+
+StaticCodeFunction::StaticCodeFunction(const stacofin::DetectedFunction& df) :
+		address(df.address),
+		size(df.size),
+		names(df.names),
+		signaturePath(df.signaturePath)
+{
+	for (auto& r : df.references)
+	{
+		references.emplace_back(r.first, r.first + address, r.second);
+	}
+}
+
+bool StaticCodeFunction::allRefsOk() const
+{
+	for (auto& ref : references)
+	{
+		if (!ref.ok)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+//
+//==============================================================================
+// StaticCodeAnalysis
+//==============================================================================
+//
+
+StaticCodeAnalysis::StaticCodeAnalysis(Config* c, FileImage* i, csh ce) :
 		_config(c),
-		_image(i)
+		_image(i),
+		_ce(ce),
+		_ceInsn(cs_malloc(ce))
 {
 	LOG << "\n StaticCodeAnalysis():" << std::endl;
 
@@ -394,13 +482,29 @@ StaticCodeAnalysis::StaticCodeAnalysis(Config* c, FileImage* i) :
 
 	for (auto& f : _codeFinder.accessDectedFunctions())
 	{
-		_allDetections.emplace(f.address, f);
+		_allDetections.emplace(f.address, StaticCodeFunction(f));
 	}
-	_worklistDetections = _allDetections;
 
-	strictSolve();
+	LOG << dumpDetectedFunctions(_allDetections) << std::endl;
+	solveReferences();
+	LOG << dumpDetectedFunctions(_allDetections) << std::endl;
 
 exit(1);
+}
+
+StaticCodeAnalysis::~StaticCodeAnalysis()
+{
+	cs_free(_ceInsn, 1);
+}
+
+void StaticCodeAnalysis::solveReferences()
+{
+	for (auto& p : _allDetections)
+	for (auto& r : p.second.references)
+	{
+		r.target = getAddressFromRef(r.address);
+		checkRef(r);
+	}
 }
 
 const StaticCodeAnalysis::DetectedFunctionsMultimap&
@@ -415,192 +519,92 @@ StaticCodeAnalysis::getConfirmedDetections() const
 	return _confirmedDetections;
 }
 
-void StaticCodeAnalysis::strictSolve()
-{
-	bool changed = true;
-	while (changed && !_worklistDetections.empty())
-	{
-		changed = false;
-
-		for (auto wIt = _worklistDetections.begin(),
-				e = _worklistDetections.end();
-				wIt != e;)
-		{
-			auto& f = wIt->second;
-
-			bool allRefsOk = true;
-			for (auto& p : f.references)
-			{
-				Address refAddr = f.address + p.first;
-				if (_solvedRefs.count(refAddr))
-				{
-					continue;
-				}
-				std::string& refedName = p.second;
-
-				checkRef(refAddr, refedName);
-			}
-
-			if (allRefsOk)
-			{
-				_confirmedDetections.emplace(f.address, f);
-				wIt = _worklistDetections.erase(wIt);
-				changed = true;
-			}
-			else
-			{
-				++wIt;
-			}
-		}
-	}
-
-	changed = true;
-	while (changed && !_worklistDetections.empty())
-	{
-		changed = false;
-
-		for (auto& p : _confirmedDetections)
-		{
-			Address addr = p.first;
-			Address endAddr = addr + p.second.size;
-			for (auto it = _solvedRefs.lower_bound(addr);
-					it != _solvedRefs.end() && it->first < endAddr;
-					++it)
-			{
-				Address& ra = it->second.first;
-				std::string& rn = it->second.second;
-
-				auto fIt = _worklistDetections.equal_range(ra);
-				for (auto it=fIt.first; it!=fIt.second; ++it)
-				{
-					if (hasItem(it->second.names, rn))
-					{
-						_confirmedDetections.emplace(it->first, it->second);
-						_worklistDetections.erase(it);
-						changed = true;
-						break;
-					}
-				}
-			}
-		}
-	}
-
-	LOG << "\tConfirmed functions:" << std::endl;
-	for (auto& p : _confirmedDetections)
-	{
-		LOG << "\t\t" << p.first << " @ " << p.second.names.front() << std::endl;
-	}
-	LOG << "\tRejected functions:" << std::endl;
-	for (auto& p : _rerectedDetections)
-	{
-		LOG << "\t\t" << p.first << " @ " << p.second.names.front() << std::endl;
-	}
-	LOG << "\tWorklist functions:" << std::endl;
-	for (auto& p : _worklistDetections)
-	{
-		LOG << "\t\t" << p.first << " @ " << p.second.names.front() << std::endl;
-	}
-}
-
-bool StaticCodeAnalysis::checkRef(utils::Address ref, const std::string& name)
-{
-	uint64_t val = 0;
-	if (!_image->getImage()->getWord(refAddr, val))
-	{
-		allRefsOk = false;
-		break;
-	}
-
-	Address absAddr = val;
-	Address addrAfterRef = refAddr + _image->getImage()->getBytesPerWord();
-	Address relAddr = addrAfterRef + int32_t(val); // TODO: arch size specific
-
-	auto absCdIt = _confirmedDetections.find(absAddr);
-	auto relCdIt = _confirmedDetections.find(relAddr);
-
-	// Absolute address of detected function.
-	//
-	if (absCdIt != _confirmedDetections.end()
-			&& hasItem(absCdIt->second.names, refedName))
-	{
-		_solvedRefs[refAddr] = std::make_pair(absAddr, refedName);
-		// ok
-	}
-	// Absolute address of imported function.
-	//
-	else if (_imports.count(absAddr)
-			&& _imports[absAddr] == refedName)
-	{
-		_solvedRefs[refAddr] = std::make_pair(absAddr, refedName);
-		// ok
-	}
-	// Absolute address of data in named section.
-	//
-	else if (_image->getImage()->getSegmentFromAddress(absAddr)
-			&& _image->getImage()->getSegmentFromAddress(absAddr)->getName() == refedName)
-	{
-		_solvedRefs[refAddr] = std::make_pair(absAddr, "");
-		// ok
-	}
-	else if (_image->getImage()->getSegmentFromAddress(absAddr)
-			&& _image->getImage()->getSegmentFromAddress(absAddr)->getSecSeg()
-			&& _image->getImage()->getSegmentFromAddress(absAddr)->getSecSeg()->getType() == fileformat::SecSeg::Type::BSS)
-	{
-		_solvedRefs[refAddr] = std::make_pair(absAddr, refedName);
-		// ok
-	}
-	// Image base can be referenced.
-	//
-	else if (absAddr == _image->getImage()->getBaseAddress()
-			&& refedName == "__image_base__")
-	{
-		_solvedRefs[refAddr] = std::make_pair(absAddr, "");
-		// ok
-	}
-	else if (_image->getImage()->getSegmentFromAddress(absAddr)
-			&& _image->getImage()->getSegmentFromAddress(absAddr)->getSecSeg()
-			&& (_image->getImage()->getSegmentFromAddress(absAddr)->getSecSeg()->getType() == fileformat::SecSeg::Type::DATA
-					|| _image->getImage()->getSegmentFromAddress(absAddr)->getSecSeg()->getType() == fileformat::SecSeg::Type::CONST_DATA))
-	{
-		_solvedRefs[refAddr] = std::make_pair(absAddr, refedName);
-		// ok
-	}
-	// Relative address of detected function.
-	//
-	else if (relCdIt != _confirmedDetections.end()
-			&& hasItem(relCdIt->second.names, refedName))
-	{
-		_solvedRefs[refAddr] = std::make_pair(relAddr, refedName);
-		// ok
-	}
-	// Relative address of imported function.
-	//
-	else if (_imports.count(relAddr)
-			&& _imports[relAddr] == refedName)
-	{
-		_solvedRefs[refAddr] = std::make_pair(relAddr, refedName);
-		// ok
-	}
-	// Relative address of data in named section.
-	//
-	else if (_image->getImage()->getSegmentFromAddress(relAddr)
-			&& _image->getImage()->getSegmentFromAddress(relAddr)->getName() == refedName)
-	{
-		_solvedRefs[refAddr] = std::make_pair(relAddr, "");
-		// ok
-	}
-	else if (_image->getConstantDefault(relAddr+2)
-			&& _imports.count(_image->getConstantDefault(relAddr+2)->getZExtValue()))
-	{
-		_solvedRefs[refAddr] = std::make_pair(relAddr, refedName);
-		// ok
-	}
-	else
-	{
-		allRefsOk = false;
-		break;
-	}
-}
+//void StaticCodeAnalysis::strictSolve()
+//{
+//	bool changed = true;
+//	while (changed && !_worklistDetections.empty())
+//	{
+//		changed = false;
+//
+//		for (auto wIt = _worklistDetections.begin(),
+//				e = _worklistDetections.end();
+//				wIt != e;)
+//		{
+//			auto& f = wIt->second;
+//
+//			bool allRefsOk = true;
+//			for (auto& p : f.references)
+//			{
+//				Address refAddr = f.address + p.first;
+//				if (_solvedRefs.count(refAddr))
+//				{
+//					continue;
+//				}
+//				std::string& refedName = p.second;
+//
+//				checkRef(refAddr, refedName);
+//			}
+//
+//			if (allRefsOk)
+//			{
+//				_confirmedDetections.emplace(f.address, f);
+//				wIt = _worklistDetections.erase(wIt);
+//				changed = true;
+//			}
+//			else
+//			{
+//				++wIt;
+//			}
+//		}
+//	}
+//
+//	changed = true;
+//	while (changed && !_worklistDetections.empty())
+//	{
+//		changed = false;
+//
+//		for (auto& p : _confirmedDetections)
+//		{
+//			Address addr = p.first;
+//			Address endAddr = addr + p.second.size;
+//			for (auto it = _solvedRefs.lower_bound(addr);
+//					it != _solvedRefs.end() && it->first < endAddr;
+//					++it)
+//			{
+//				Address& ra = it->second.first;
+//				std::string& rn = it->second.second;
+//
+//				auto fIt = _worklistDetections.equal_range(ra);
+//				for (auto it=fIt.first; it!=fIt.second; ++it)
+//				{
+//					if (hasItem(it->second.names, rn))
+//					{
+//						_confirmedDetections.emplace(it->first, it->second);
+//						_worklistDetections.erase(it);
+//						changed = true;
+//						break;
+//					}
+//				}
+//			}
+//		}
+//	}
+//
+//	LOG << "\tConfirmed functions:" << std::endl;
+//	for (auto& p : _confirmedDetections)
+//	{
+//		LOG << "\t\t" << p.first << " @ " << p.second.names.front() << std::endl;
+//	}
+//	LOG << "\tRejected functions:" << std::endl;
+//	for (auto& p : _rerectedDetections)
+//	{
+//		LOG << "\t\t" << p.first << " @ " << p.second.names.front() << std::endl;
+//	}
+//	LOG << "\tWorklist functions:" << std::endl;
+//	for (auto& p : _worklistDetections)
+//	{
+//		LOG << "\t\t" << p.first << " @ " << p.second.names.front() << std::endl;
+//	}
+//}
 
 utils::Address StaticCodeAnalysis::getAddressFromRef(utils::Address ref)
 {
@@ -615,9 +619,192 @@ utils::Address StaticCodeAnalysis::getAddressFromRef(utils::Address ref)
 	}
 }
 
-utils::Address getAddressFromRef_x86(utils::Address ref)
+utils::Address StaticCodeAnalysis::getAddressFromRef_x86(utils::Address ref)
 {
+	uint64_t val = 0;
+	if (!_image->getImage()->getWord(ref, val))
+	{
+		return Address();
+	}
 
+	Address absAddr = val;
+	Address addrAfterRef = ref + _image->getImage()->getBytesPerWord();
+	Address relAddr = addrAfterRef + int32_t(val);
+
+	auto imgBase = _image->getImage()->getBaseAddress();
+	if (absAddr == imgBase)
+	{
+		return absAddr;
+	}
+	else if (relAddr == imgBase)
+	{
+		return relAddr;
+	}
+
+	bool absOk = _image->getImage()->hasDataOnAddress(absAddr);
+	bool relOk = _image->getImage()->hasDataOnAddress(relAddr);
+
+	if (absOk && !relOk)
+	{
+		return absAddr;
+	}
+	else if (!absOk && relOk)
+	{
+		return relAddr;
+	}
+	else if (absOk && relOk)
+	{
+		// both ok, what now?
+		assert(false);
+		return absAddr;
+	}
+	else
+	{
+		// default
+		return absAddr;
+	}
+
+	return Address();
+}
+
+void StaticCodeAnalysis::checkRef(StaticCodeFunction::Reference& ref)
+{
+	if (ref.target.isUndefined())
+	{
+		return;
+	}
+
+	// Reference to detected function.
+	//
+	auto dIt = _allDetections.equal_range(ref.target);
+	if (dIt.first != dIt.second)
+	{
+		for (auto it = dIt.first, e = dIt.second; it != e; ++it)
+		{
+			if (hasItem(it->second.names, ref.name))
+			{
+				ref.targetFnc = &it->second;
+				ref.ok = true;
+			}
+		}
+
+		return;
+	}
+
+	// Reference to import.
+	//
+	auto fIt = _imports.find(ref.target);
+	if (fIt != _imports.end())
+	{
+		if (utils::contains(fIt->second, ref.name)
+				|| utils::contains(ref.name, fIt->second))
+		{
+			ref.ok = true;
+		}
+
+		return;
+	}
+
+	// Reference to image base.
+	//
+	if (ref.target == _image->getImage()->getBaseAddress()
+			&& ref.name == "__image_base__")
+	{
+		ref.ok = true;
+		return;
+	}
+
+	// Reference into section with reference name equal to section name.
+	//
+	auto* seg = _image->getImage()->getSegmentFromAddress(ref.target);
+	if (seg && seg->getName() == ref.name)
+	{
+		ref.ok = true;
+		return;
+	}
+
+	// Architecture specific ckecks.
+	//
+	if (_config->getConfig().architecture.isX86())
+	{
+		checkRef_x86(ref);
+	}
+	if (ref.ok)
+	{
+		return;
+	}
+
+	// Reference into section with reference name set to some object name.
+	// This must be the last check, because it can hit anything.
+	//
+	auto* sec = seg ? seg->getSecSeg() : nullptr;
+	if (sec
+			&& (sec->getType() == fileformat::SecSeg::Type::DATA
+// Disabled because we can not distinguish between functions and data objects.
+// We would like to hit data objects even in CODE section.
+// But this could also falsely hit missing functions - e.g. we expect
+// statically linked function on some address, but do not find it there,
+// the first check in this list fails, but this will still succeed.
+//					|| sec->getType() == fileformat::SecSeg::Type::CODE
+					|| sec->getType() == fileformat::SecSeg::Type::CODE_DATA
+					|| sec->getType() == fileformat::SecSeg::Type::CONST_DATA
+					|| sec->getType() == fileformat::SecSeg::Type::BSS))
+	{
+		ref.ok = true;
+		return;
+	}
+
+	// Reference to one byte after some section.
+	// e.g. ___RUNTIME_PSEUDO_RELOC_LIST_END__ on x86 after .rdata
+	//
+	if (seg == nullptr
+			&& _image->getImage()->getSegmentFromAddress(ref.target-1))
+	{
+		ref.ok = true;
+		return;
+	}
+}
+
+void StaticCodeAnalysis::checkRef_x86(StaticCodeFunction::Reference& ref)
+{
+	if (ref.target.isUndefined())
+	{
+		return;
+	}
+
+	uint64_t addr = ref.target;
+	auto bytes = _image->getImage()->getRawSegmentData(ref.target);
+	if (cs_disasm_iter(_ce, &bytes.first, &bytes.second, &addr, _ceInsn))
+	{
+		auto& x86 = _ceInsn->detail->x86;
+
+		// Pattern: reference to stub function jumping to import:
+		//     _localeconv     proc near
+		//     FF 25 E0 B1 40 00        jmp ds:__imp__localeconv
+		//     _localeconv     endp
+		//
+		if (_ceInsn->id == X86_INS_JMP
+				&& x86.op_count == 1
+				&& x86.operands[0].type == X86_OP_MEM
+				&& x86.operands[0].mem.segment == X86_REG_INVALID
+				&& x86.operands[0].mem.base == X86_REG_INVALID
+				&& x86.operands[0].mem.index == X86_REG_INVALID
+				&& x86.operands[0].mem.scale == 1
+				&& x86.operands[0].mem.disp)
+		{
+			auto fIt = _imports.find(x86.operands[0].mem.disp);
+			if (fIt != _imports.end())
+			{
+				if (utils::contains(fIt->second, ref.name)
+						|| utils::contains(ref.name, fIt->second))
+				{
+					ref.ok = true;
+				}
+
+				return;
+			}
+		}
+	}
 }
 
 } // namespace bin2llvmir
