@@ -37,9 +37,6 @@ using BBEntrySet = std::unordered_set<BasicBlockEntry*>;
 
 using DefSet = std::unordered_set<Definition*>;
 using UseSet = std::unordered_set<Use*>;
-// TODO: it looks like this is running faster, but it often seqfault
-//using DefSet = llvm::SmallPtrSet<Definition*, 32>;
-//using UseSet = llvm::SmallPtrSet<Use*, 32>;
 
 using DefVector = std::vector<Definition>;
 using UseVector = std::vector<Use>;
@@ -134,6 +131,26 @@ class ReachingDefinitionsAnalysis
 				std::ostream& out,
 				const ReachingDefinitionsAnalysis& rda);
 
+	// TODO: experimental, light, on-demand methods that work without full RDA.
+	// TODO: unit tests.
+	// TODO: merge with defsFromUse()/usesFromDef() to common API.
+	//
+	public:
+		const std::set<llvm::Instruction*>& defsFromUse_onDemand(
+				llvm::Instruction* I) const;
+		const std::set<llvm::Instruction*>& usesFromDef_onDemand(
+				llvm::Instruction* I) const;
+	private:
+		llvm::Instruction* defInBasicBlock(
+				llvm::Value* v,
+				llvm::BasicBlock* bb,
+				llvm::Instruction* start = nullptr) const;
+		bool usesInBasicBlock(
+				llvm::Value* v,
+				llvm::BasicBlock* bb,
+				std::set<llvm::Instruction*>& uses,
+				llvm::Instruction* start = nullptr) const;
+
 	private:
 		void run();
 		const BasicBlockEntry& getBasicBlockEntry(const llvm::Instruction* I) const;
@@ -147,7 +164,6 @@ class ReachingDefinitionsAnalysis
 
 	private:
 		std::map<const llvm::Function*, std::map<const llvm::BasicBlock*, BasicBlockEntry>> bbMap;
-//		std::map<const llvm::BasicBlock*, BasicBlockEntry> bbMap;
 		bool _trackFlagRegs = false;
 		const llvm::GlobalVariable* _specialGlobal = nullptr;
 		bool _run = false;

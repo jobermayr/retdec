@@ -347,7 +347,6 @@ std::ostream& operator<<(std::ostream& out, const ReachingDefinitionsAnalysis& r
 	return out;
 }
 
-
 //
 //=============================================================================
 //  BasicBlockEntry
@@ -530,6 +529,213 @@ bool Use::isUndef() const
 			return true;
 		}
 	}
+	return false;
+}
+
+//
+//=============================================================================
+//  Experimental methods.
+//=============================================================================
+//
+
+const std::set<llvm::Instruction*>& ReachingDefinitionsAnalysis::defsFromUse_onDemand(
+		llvm::Instruction* I) const
+{
+	static std::set<llvm::Instruction*> ret;
+	ret.clear();
+
+	auto* l = dyn_cast<LoadInst>(I);
+	if (l == nullptr)
+	{
+		return ret;
+	}
+	if (!isa<GlobalVariable>(l->getPointerOperand())
+			&& !isa<AllocaInst>(l->getPointerOperand()))
+	{
+		return ret;
+	}
+
+	// Try to find in the same basic block.
+	//
+	if (auto* d = defInBasicBlock(l->getPointerOperand(), l->getParent(), l))
+	{
+		ret.insert(d);
+		return ret;
+	}
+
+	std::set<llvm::BasicBlock*> searchedBbs;
+	std::vector<llvm::BasicBlock*> worklistBbs;
+
+	auto preds = predecessors(l->getParent());
+	std::copy(preds.begin(), preds.end(), std::back_inserter(worklistBbs));
+
+	// Try to find in all predecessing basic blocks.
+	//
+	while (!worklistBbs.empty())
+	{
+		auto* bb = worklistBbs.back();
+		worklistBbs.pop_back();
+
+		searchedBbs.insert(bb);
+
+		if (auto* d = defInBasicBlock(l->getPointerOperand(), bb))
+		{
+			ret.insert(d);
+			// Definition found -> predecessors not added.
+		}
+		else
+		{
+			// No definition found -> add predecessors.
+			for (auto* p : predecessors(bb))
+			{
+				if (searchedBbs.count(p) == 0)
+				{
+					worklistBbs.push_back(p);
+				}
+			}
+		}
+	}
+
+	return ret;
+}
+
+const std::set<llvm::Instruction*>& ReachingDefinitionsAnalysis::usesFromDef_onDemand(
+		llvm::Instruction* I) const
+{
+	static std::set<llvm::Instruction*> ret;
+	ret.clear();
+
+	Value* val = nullptr;
+	if (auto* s = dyn_cast<StoreInst>(I))
+	{
+		val = s->getPointerOperand();
+	}
+	else if (auto* a = dyn_cast<AllocaInst>(I))
+	{
+		val = a;
+	}
+	if (val == nullptr || !(isa<GlobalVariable>(val) || isa<AllocaInst>(val)))
+	{
+		return ret;
+	}
+
+	// Try to find in the same basic block.
+	//
+	if (usesInBasicBlock(val, I->getParent(), ret, I->getNextNode()))
+	{
+		return ret;
+	}
+
+	std::set<llvm::BasicBlock*> searchedBbs;
+	std::vector<llvm::BasicBlock*> worklistBbs;
+
+	auto succs = successors(I->getParent());
+	std::copy(succs.begin(), succs.end(), std::back_inserter(worklistBbs));
+
+	// Try to find in all predecessing basic blocks.
+	//
+	while (!worklistBbs.empty())
+	{
+		auto* bb = worklistBbs.back();
+		worklistBbs.pop_back();
+
+		searchedBbs.insert(bb);
+
+		if (usesInBasicBlock(val, bb, ret))
+		{
+			// BB kills value -> successors not added.
+		}
+		else
+		{
+			// BB does not kill value -> add successors.
+			for (auto* p : successors(bb))
+			{
+				if (searchedBbs.count(p) == 0)
+				{
+					worklistBbs.push_back(p);
+				}
+			}
+		}
+	}
+
+	return ret;
+}
+
+/**
+ * Find the last definition of value \p v in basic block \p bb.
+ * If \p start is defined (not \c nullptr), start the reverse iteration search
+ * from this instruction, otherwise start from the basic block's back.
+ * \return Instruction defining \p v (at most one definition is possible in BB),
+ *         or \c nullptr if definition not found.
+ */
+llvm::Instruction* ReachingDefinitionsAnalysis::defInBasicBlock(
+		llvm::Value* v,
+		llvm::BasicBlock* bb,
+		llvm::Instruction* start) const
+{
+	auto* prev = start;
+	if (prev == nullptr && !bb->empty())
+	{
+		prev = &bb->back();
+	}
+
+	while (prev)
+	{
+		if (auto* s = dyn_cast<StoreInst>(prev))
+		{
+			if (s->getPointerOperand() == v)
+			{
+				return s;
+			}
+		}
+		else if (prev == v) // AllocaInst
+		{
+			return prev;
+		}
+		prev = prev->getPrevNode();
+	}
+
+	return nullptr;
+}
+
+/**
+ * Find all uses of value \p v in basic block \p bb and add them to \p uses.
+ * If \p start is defined (not \c nullptr), start the iteration search from
+ * this instruction, otherwise start from the basic block's front.
+ * \return \c True if the basic block kills the value, \p false otherwise.
+ */
+bool ReachingDefinitionsAnalysis::usesInBasicBlock(
+		llvm::Value* v,
+		llvm::BasicBlock* bb,
+		std::set<llvm::Instruction*>& uses,
+		llvm::Instruction* start) const
+{
+	auto* next = start;
+	if (next == nullptr && !bb->empty())
+	{
+		next = &bb->front();
+	}
+
+	while (next)
+	{
+		if (auto* s = dyn_cast<StoreInst>(next))
+		{
+			if (s->getPointerOperand() == v)
+			{
+				return true;
+			}
+		}
+
+		for (auto& op : next->operands())
+		{
+			if (op == v)
+			{
+				uses.insert(next);
+			}
+		}
+		next = next->getNextNode();
+	}
+
 	return false;
 }
 

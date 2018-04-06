@@ -515,7 +515,7 @@ retdec::utils::Address Decoder::getJumpTarget(
 			return ci->getZExtValue();
 		}
 	}
-	else if (auto* l = dyn_cast<LoadInst>(val))
+	if (auto* l = dyn_cast<LoadInst>(val))
 	{
 		auto* ptr = skipCasts(l->getPointerOperand());
 
@@ -634,6 +634,20 @@ retdec::utils::Address Decoder::getJumpTarget(
 			return Address::getUndef;
 		}
 	}
+
+	if (addr == 0x401293)
+	{
+		std::cout << "\nhere" << std::endl;
+		std::cout << "val = " << llvmObjToString(val) << std::endl;
+
+		ReachingDefinitionsAnalysis RDA;
+		SymbolicTree st(RDA, val);
+
+		std::cout << st << std::endl;
+
+		exit(1);
+	}
+
 	return Address::getUndef;
 }
 

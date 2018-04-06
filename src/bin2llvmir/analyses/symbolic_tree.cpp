@@ -120,16 +120,34 @@ void SymbolicTree::expandNode(
 
 		if (auto* l = dyn_cast<LoadInst>(value))
 		{
-			auto uses = RDA->defsFromUse(I);
-			for (auto* u : uses)
+			if (RDA->wasRun())
 			{
-				ops.emplace_back(
-						RDA,
-						u->def,
-						I,
-						processed,
-						maxUniqueNodes,
-						val2val);
+				auto defs = RDA->defsFromUse(I);
+				for (auto* d : defs)
+				{
+					ops.emplace_back(
+							RDA,
+							d->def,
+							I,
+							processed,
+							maxUniqueNodes,
+							val2val);
+				}
+			}
+			// TODO: use one common RDA interface.
+			else
+			{
+				auto& defs = RDA->defsFromUse_onDemand(I);
+				for (auto* d : defs)
+				{
+					ops.emplace_back(
+							RDA,
+							d,
+							I,
+							processed,
+							maxUniqueNodes,
+							val2val);
+				}
 			}
 
 			if (ops.empty())
