@@ -117,7 +117,7 @@ dumpModuleToFile(_module);
 	decode();
 	splitOnTerminatingCalls();
 
-dumpControFlowToJson(_module, "test-control-flow.json");
+dumpControFlowToJson(_module);
 dumpModuleToFile(_module);
 
 	removePseudoCalls();
