@@ -1,4 +1,5 @@
 set(BIN2LLVMIR_SOURCES
+	analyses/static_code/static_code.cpp
 	analyses/indirectly_called_funcs_analysis.cpp
 	analyses/reachable_funcs_analysis.cpp
 	analyses/reaching_definitions.cpp
@@ -21,7 +22,6 @@ set(BIN2LLVMIR_SOURCES
 	optimizations/decoder/decoder_init.cpp
 	optimizations/decoder/decoder.cpp
 	optimizations/decoder/jump_targets.cpp
-	optimizations/decoder/static_code.cpp
 	optimizations/decoder/x86.cpp
 	optimizations/dsm_generator/dsm_generator.cpp
 	optimizations/dump_module/dump_module.cpp

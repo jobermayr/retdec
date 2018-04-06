@@ -304,10 +304,12 @@ void Decoder::initAllowedRangesWithSegments()
  */
 void Decoder::initJumpTargets()
 {
+
+initStaticCode(); // TODO
+
 	initJumpTargetsConfig();
 	initJumpTargetsEntryPoint();
 	initJumpTargetsImports();
-//	initStaticCode();
 	initJumpTargetsExports();
 	initJumpTargetsDebug();
 	initJumpTargetsSymbols();
@@ -616,6 +618,14 @@ void Decoder::initConfigFunction()
 		cf->setIsExported(_exports.count(start));
 		cf->setIsFromDebug(_debugFncs.count(start));
 	}
+}
+
+void Decoder::initStaticCode()
+{
+	StaticCodeAnalysis SCA(_config, _image);
+	auto& detections = SCA.getConfirmedDetections();
+
+	// TODO
 }
 
 } // namespace bin2llvmir

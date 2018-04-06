@@ -18,6 +18,7 @@
 #include <llvm/Pass.h>
 
 #include "retdec/utils/address.h"
+#include "retdec/bin2llvmir/analyses/static_code/static_code.h"
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
 #include "retdec/bin2llvmir/providers/config.h"
 #include "retdec/bin2llvmir/providers/debugformat.h"
@@ -26,7 +27,6 @@
 #include "retdec/bin2llvmir/optimizations/decoder/jump_targets.h"
 #include "retdec/bin2llvmir/utils/ir_modifier.h"
 #include "retdec/capstone2llvmir/capstone2llvmir.h"
-#include "retdec/stacofin/stacofin.h"
 
 // Debug logs enabled/disabled.
 #include "retdec/bin2llvmir/utils/defs.h"
@@ -72,12 +72,7 @@ class Decoder : public llvm::ModulePass
 		void initJumpTargetsDebug();
 		void initJumpTargetsSymbols();
 		void initConfigFunction();
-
 		void initStaticCode();
-		void addStaticFunction(
-				retdec::utils::Address addr,
-				stacofin::DetectedFunction& df,
-				std::map<retdec::utils::Address, std::pair<retdec::utils::Address, std::string>>& solvedRefs);
 
 		void decode();
 		bool getJumpTarget(JumpTarget& jt);
