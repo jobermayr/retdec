@@ -433,7 +433,7 @@ void dumpControFlowToJson(
 	}
 	json << "\n";
 
-	json << "]";
+	json << "]\n";
 }
 
 } // namespace bin2llvmir

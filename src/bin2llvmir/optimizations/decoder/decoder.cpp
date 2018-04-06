@@ -496,6 +496,9 @@ retdec::utils::Address Decoder::getJumpTarget(
 		llvm::CallInst* branchCall,
 		llvm::Value* val)
 {
+	// TODO: In these cases, target will be always the same -> we can remove
+	// the pseudo call and never compute it again.
+	//
 	if (auto* ci = dyn_cast<ConstantInt>(val))
 	{
 		return ci->getZExtValue();
@@ -515,6 +518,37 @@ retdec::utils::Address Decoder::getJumpTarget(
 			return ci->getZExtValue();
 		}
 	}
+
+	// TODO: In these cases, target may change as more control flow is decoded
+	// -> store pseudo calls and recompute (check) them later.
+	//
+
+	static ReachingDefinitionsAnalysis RDA;
+	SymbolicTree st(RDA, val);
+	st.simplifyNode(_config);
+
+	if (auto* ci = dyn_cast<ConstantInt>(st.value))
+	{
+		return ci->getZExtValue();
+	}
+	else if (isa<LoadInst>(st.value)
+			&& st.ops.size() == 1
+			&& isa<ConstantInt>(st.ops[0].value))
+	{
+		auto* ci = dyn_cast<ConstantInt>(st.ops[0].value);
+		Address addr = ci->getZExtValue();
+		if (_imports.count(addr))
+		{
+			return addr;
+		}
+		else if (auto* ci = _image->getConstantDefault(addr))
+		{
+			return ci->getZExtValue();
+		}
+	}
+
+	// TODO: Switch - use SYmbolic tree.
+	//
 	if (auto* l = dyn_cast<LoadInst>(val))
 	{
 		auto* ptr = skipCasts(l->getPointerOperand());
@@ -633,19 +667,6 @@ retdec::utils::Address Decoder::getJumpTarget(
 
 			return Address::getUndef;
 		}
-	}
-
-	if (addr == 0x401293)
-	{
-		std::cout << "\nhere" << std::endl;
-		std::cout << "val = " << llvmObjToString(val) << std::endl;
-
-		ReachingDefinitionsAnalysis RDA;
-		SymbolicTree st(RDA, val);
-
-		std::cout << st << std::endl;
-
-		exit(1);
 	}
 
 	return Address::getUndef;

@@ -136,9 +136,9 @@ class ReachingDefinitionsAnalysis
 	// TODO: merge with defsFromUse()/usesFromDef() to common API.
 	//
 	public:
-		const std::set<llvm::Instruction*>& defsFromUse_onDemand(
+		std::set<llvm::Instruction*> defsFromUse_onDemand(
 				llvm::Instruction* I) const;
-		const std::set<llvm::Instruction*>& usesFromDef_onDemand(
+		std::set<llvm::Instruction*> usesFromDef_onDemand(
 				llvm::Instruction* I) const;
 	private:
 		llvm::Instruction* defInBasicBlock(

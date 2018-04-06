@@ -538,11 +538,10 @@ bool Use::isUndef() const
 //=============================================================================
 //
 
-const std::set<llvm::Instruction*>& ReachingDefinitionsAnalysis::defsFromUse_onDemand(
+std::set<llvm::Instruction*> ReachingDefinitionsAnalysis::defsFromUse_onDemand(
 		llvm::Instruction* I) const
 {
-	static std::set<llvm::Instruction*> ret;
-	ret.clear();
+	std::set<llvm::Instruction*> ret;
 
 	auto* l = dyn_cast<LoadInst>(I);
 	if (l == nullptr)
@@ -599,11 +598,10 @@ const std::set<llvm::Instruction*>& ReachingDefinitionsAnalysis::defsFromUse_onD
 	return ret;
 }
 
-const std::set<llvm::Instruction*>& ReachingDefinitionsAnalysis::usesFromDef_onDemand(
+std::set<llvm::Instruction*> ReachingDefinitionsAnalysis::usesFromDef_onDemand(
 		llvm::Instruction* I) const
 {
-	static std::set<llvm::Instruction*> ret;
-	ret.clear();
+	std::set<llvm::Instruction*> ret;
 
 	Value* val = nullptr;
 	if (auto* s = dyn_cast<StoreInst>(I))

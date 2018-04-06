@@ -137,7 +137,7 @@ void SymbolicTree::expandNode(
 			// TODO: use one common RDA interface.
 			else
 			{
-				auto& defs = RDA->defsFromUse_onDemand(I);
+				auto defs = RDA->defsFromUse_onDemand(I);
 				for (auto* d : defs)
 				{
 					ops.emplace_back(
