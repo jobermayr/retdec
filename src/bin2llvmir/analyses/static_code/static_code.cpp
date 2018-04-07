@@ -459,6 +459,30 @@ bool StaticCodeFunction::allRefsOk() const
 	return true;
 }
 
+std::size_t StaticCodeFunction::countRefsOk() const
+{
+	std::size_t ret = 0;
+
+	for (auto& ref : references)
+	{
+		ret += ref.ok;
+	}
+
+	return ret;
+}
+
+float StaticCodeFunction::refsOkShare() const
+{
+	return references.empty()
+			? 1.0
+			: float(countRefsOk()) / float(references.size());
+}
+
+std::string StaticCodeFunction::getName() const
+{
+	return names.empty() ? "" : names.front();
+}
+
 //
 //==============================================================================
 // StaticCodeAnalysis
@@ -489,6 +513,30 @@ StaticCodeAnalysis::StaticCodeAnalysis(Config* c, FileImage* i, csh ce) :
 	solveReferences();
 	LOG << dumpDetectedFunctions(_allDetections) << std::endl;
 
+	for (auto& p : _allDetections)
+	{
+		_worklistDetections.insert(&p.second);
+	}
+
+	confirmAllRefsOk();
+	confirmPartialRefsOk();
+
+	LOG << "\t Confirmed detections:" << std::endl;
+	for (auto& p : _confirmedDetections)
+	{
+		LOG << "\t\t" << p.first << " @ " << p.second->getName() << std::endl;
+	}
+	LOG << "\t Rejected detections:" << std::endl;
+	for (auto& p : _rejectedDetections)
+	{
+		LOG << "\t\t" << p.first << " @ " << p.second->getName() << std::endl;
+	}
+	LOG << "\t Worklist detections:" << std::endl;
+	for (auto* f : _worklistDetections)
+	{
+		LOG << "\t\t" << f->address << " @ " << f->getName() << std::endl;
+	}
+
 exit(1);
 }
 
@@ -513,98 +561,11 @@ StaticCodeAnalysis::getAllDetections() const
 	return _allDetections;
 }
 
-const StaticCodeAnalysis::DetectedFunctionsMap&
+const StaticCodeAnalysis::DetectedFunctionsPtrMap&
 StaticCodeAnalysis::getConfirmedDetections() const
 {
 	return _confirmedDetections;
 }
-
-//void StaticCodeAnalysis::strictSolve()
-//{
-//	bool changed = true;
-//	while (changed && !_worklistDetections.empty())
-//	{
-//		changed = false;
-//
-//		for (auto wIt = _worklistDetections.begin(),
-//				e = _worklistDetections.end();
-//				wIt != e;)
-//		{
-//			auto& f = wIt->second;
-//
-//			bool allRefsOk = true;
-//			for (auto& p : f.references)
-//			{
-//				Address refAddr = f.address + p.first;
-//				if (_solvedRefs.count(refAddr))
-//				{
-//					continue;
-//				}
-//				std::string& refedName = p.second;
-//
-//				checkRef(refAddr, refedName);
-//			}
-//
-//			if (allRefsOk)
-//			{
-//				_confirmedDetections.emplace(f.address, f);
-//				wIt = _worklistDetections.erase(wIt);
-//				changed = true;
-//			}
-//			else
-//			{
-//				++wIt;
-//			}
-//		}
-//	}
-//
-//	changed = true;
-//	while (changed && !_worklistDetections.empty())
-//	{
-//		changed = false;
-//
-//		for (auto& p : _confirmedDetections)
-//		{
-//			Address addr = p.first;
-//			Address endAddr = addr + p.second.size;
-//			for (auto it = _solvedRefs.lower_bound(addr);
-//					it != _solvedRefs.end() && it->first < endAddr;
-//					++it)
-//			{
-//				Address& ra = it->second.first;
-//				std::string& rn = it->second.second;
-//
-//				auto fIt = _worklistDetections.equal_range(ra);
-//				for (auto it=fIt.first; it!=fIt.second; ++it)
-//				{
-//					if (hasItem(it->second.names, rn))
-//					{
-//						_confirmedDetections.emplace(it->first, it->second);
-//						_worklistDetections.erase(it);
-//						changed = true;
-//						break;
-//					}
-//				}
-//			}
-//		}
-//	}
-//
-//	LOG << "\tConfirmed functions:" << std::endl;
-//	for (auto& p : _confirmedDetections)
-//	{
-//		LOG << "\t\t" << p.first << " @ " << p.second.names.front() << std::endl;
-//	}
-//	LOG << "\tRejected functions:" << std::endl;
-//	for (auto& p : _rerectedDetections)
-//	{
-//		LOG << "\t\t" << p.first << " @ " << p.second.names.front() << std::endl;
-//	}
-//	LOG << "\tWorklist functions:" << std::endl;
-//	for (auto& p : _worklistDetections)
-//	{
-//		LOG << "\t\t" << p.first << " @ " << p.second.names.front() << std::endl;
-//	}
-//}
 
 utils::Address StaticCodeAnalysis::getAddressFromRef(utils::Address ref)
 {
@@ -673,6 +634,10 @@ void StaticCodeAnalysis::checkRef(StaticCodeFunction::Reference& ref)
 	{
 		return;
 	}
+
+	// TODO: make sure references do not point into detected function body
+	// of the source function. e.g. reference to detected function does
+	// not overlap with the original function.
 
 	// Reference to detected function.
 	//
@@ -802,6 +767,196 @@ void StaticCodeAnalysis::checkRef_x86(StaticCodeFunction::Reference& ref)
 				}
 
 				return;
+			}
+		}
+	}
+}
+
+void StaticCodeAnalysis::confirmAllRefsOk(std::size_t minFncSzWithoutRefs)
+{
+	LOG << "\t" << "confirmAllRefsOk()" << std::endl;
+
+	// Sort all functions with all references OK by number of references.
+	//
+	std::multimap<std::size_t, StaticCodeFunction*> byRefNum;
+	DetectedFunctionsPtrMultimap byAddress;
+	for (auto* f : _worklistDetections)
+	{
+		if (f->allRefsOk())
+		{
+			byRefNum.emplace(f->references.size(), f);
+			byAddress.emplace(f->address, f);
+		}
+	}
+	LOG << "\t\t" << "byRefNum (sz = " << byRefNum.size() << "):" << std::endl;
+	for (auto& p : byRefNum)
+	{
+		LOG << "\t\t\t" << p.first << " @ " << p.second->address
+				<< " " << p.second->getName() << std::endl;
+	}
+
+	// From functions with the most references to those with at least one
+	// reference, confirm function if:
+	//   - No conflicting function at the same address.
+	//   - Conflicting function is shorter or has less references.
+	//   - Function has at least some reference or is not too short.
+	//
+	for (auto it = byRefNum.rbegin(), e = byRefNum.rend(); it != e; ++it)
+	{
+		auto* f = it->second;
+
+		// Function was solved in the meantime.
+		//
+		if (_worklistDetections.count(f) == 0)
+		{
+			continue;
+		}
+
+		// Skip functions without references that are to short.
+		//
+		if (f->references.empty() && f->size < minFncSzWithoutRefs)
+		{
+			continue;
+		}
+
+		// Only one function at this address.
+		//
+		if (byAddress.count(f->address) == 1)
+		{
+			confirmFunction(f);
+		}
+
+		//
+		//
+		bool bestConflicting = true;
+		auto eqr = byAddress.equal_range(f->address);
+		for (auto it = eqr.first; it != eqr.second; ++it)
+		{
+			auto* of = it->second;
+			if (f != of)
+			{
+				if (!(f->size > of->size
+						|| f->references.size() > of->references.size()))
+				{
+					bestConflicting = false;
+					break;
+				}
+			}
+		}
+		if (bestConflicting)
+		{
+			confirmFunction(f);
+		}
+	}
+}
+
+void StaticCodeAnalysis::confirmPartialRefsOk(float okShare)
+{
+	LOG << "\t" << "confirmPartialRefsOk()" << std::endl;
+
+	while (true)
+	{
+		// Find the function with max ok share.
+		//
+		float maxShare = 0.0;
+		StaticCodeFunction* f = nullptr;
+		for (auto* of : _worklistDetections)
+		{
+			if (of->references.empty())
+			{
+				continue;
+			}
+
+			float ms = of->refsOkShare();
+			if (ms > maxShare
+					|| (ms == maxShare && f && of->size > f->size))
+			{
+				maxShare = ms;
+				f = of;
+			}
+		}
+
+		// Check if share ok.
+		//
+		if (f == nullptr || maxShare < okShare)
+		{
+			break;
+		}
+		LOG << "\t\t" << "[" << maxShare << "] " << f->address
+				<< " @ " << f->getName() << std::endl;
+
+		// This can increase ok share in other function by confirming all
+		// (even unsolved) references in this function -> repeat loop.
+		//
+		confirmFunction(f);
+	}
+}
+
+void StaticCodeAnalysis::confirmFunction(StaticCodeFunction* f)
+{
+	LOG << "\t\t" << "confirming " << f->getName() << " @ " << f->address
+			<< std::endl;
+
+	// Confirm the function.
+	//
+	_confirmedDetections.emplace(f->address, f);
+	_worklistDetections.erase(f);
+
+	// Reject all other function at the same address.
+	//
+	auto eqr = _allDetections.equal_range(f->address);
+	for (auto it = eqr.first; it != eqr.second; ++it)
+	{
+		auto* of = &it->second;
+		if (of != f)
+		{
+			_rejectedDetections.emplace(of->address, of);
+			_worklistDetections.erase(of);
+		}
+	}
+
+	// Reject all functions that overlap with the function.
+	//
+	AddressRange range(f->address, f->address + f->size - 1);
+	auto it = _worklistDetections.begin(), e = _worklistDetections.end();
+	while (it != e)
+	{
+		auto* of = *it;
+		if (of != f)
+		{
+			AddressRange oRange(of->address, of->address + of->size - 1);
+			if (range.overlaps(oRange))
+			{
+				_rejectedDetections.emplace(of->address, of);
+				it = _worklistDetections.erase(it);
+				continue;
+			}
+		}
+		++it;
+	}
+
+	// Confirm and make use of all references.
+	//
+	for (auto& r : f->references)
+	{
+		// Confirm all functions referenced from the function.
+		//
+		if (r.targetFnc && _worklistDetections.count(r.targetFnc))
+		{
+			confirmFunction(r.targetFnc);
+		}
+
+		// Confirm this reference in all detected functions.
+		//
+		if (!r.ok)
+		{
+			for (auto& p : _allDetections)
+			for (auto& oref : p.second.references)
+			{
+				if (r.target == oref.target && r.name == oref.name)
+				{
+					oref.ok = true;
+				}
 			}
 		}
 	}

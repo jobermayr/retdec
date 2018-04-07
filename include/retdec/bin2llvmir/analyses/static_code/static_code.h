@@ -46,6 +46,9 @@ class StaticCodeFunction
 	public:
 		StaticCodeFunction(const stacofin::DetectedFunction& df);
 		bool allRefsOk() const;
+		std::size_t countRefsOk() const;
+		float refsOkShare() const;
+		std::string getName() const;
 
 	public:
 		utils::Address address;
@@ -59,19 +62,22 @@ class StaticCodeFunction
 class StaticCodeAnalysis
 {
 	public:
-		using DetectedFunctionsMap = typename std::map<
+		using DetectedFunctionsPtrMap = typename std::map<
 				utils::Address,
 				StaticCodeFunction*>;
 		using DetectedFunctionsMultimap = typename std::multimap<
 				utils::Address,
 				StaticCodeFunction>;
+		using DetectedFunctionsPtrMultimap = typename std::multimap<
+				utils::Address,
+				StaticCodeFunction*>;
 
 	public:
 		StaticCodeAnalysis(Config* c, FileImage* i, csh ce);
 		~StaticCodeAnalysis();
 
 		const DetectedFunctionsMultimap& getAllDetections() const;
-		const DetectedFunctionsMap& getConfirmedDetections() const;
+		const DetectedFunctionsPtrMap& getConfirmedDetections() const;
 
 	private:
 		void solveReferences();
@@ -81,6 +87,10 @@ class StaticCodeAnalysis
 
 		void checkRef(StaticCodeFunction::Reference& ref);
 		void checkRef_x86(StaticCodeFunction::Reference& ref);
+
+		void confirmAllRefsOk(std::size_t minFncSzWithoutRefs = 0x20);
+		void confirmPartialRefsOk(float okShare = 0.5);
+		void confirmFunction(StaticCodeFunction* f);
 
 	private:
 		Config* _config = nullptr;
@@ -95,13 +105,9 @@ class StaticCodeAnalysis
 		std::map<utils::Address, std::string> _imports;
 
 		DetectedFunctionsMultimap _allDetections;
-		DetectedFunctionsMap _confirmedDetections;
-
-//		std::map<utils::Address, utils::Address> _solvedRefs;
-//		std::map<utils::Address, std::pair<utils::Address, std::string>> _solvedRefs;
-//		DetectedFunctionsMultimap _allDetections;
-//		DetectedFunctionsMultimap _worklistDetections;
-//		DetectedFunctionsMultimap _rerectedDetections;
+		DetectedFunctionsPtrMap _confirmedDetections;
+		DetectedFunctionsPtrMultimap _rejectedDetections;
+		std::set<StaticCodeFunction*> _worklistDetections;
 };
 
 } // namespace bin2llvmir
