@@ -296,7 +296,7 @@ std::pair<AddressRangeContainer::iterator,bool> AddressRangeContainer::insert(
 	return insert(AddressRange(s, e));
 }
 
-const AddressRange* AddressRangeContainer::getRange(Address addr)
+const AddressRange* AddressRangeContainer::getRange(Address addr) const
 {
 	if (ranges.empty())
 	{
@@ -319,12 +319,12 @@ const AddressRange* AddressRangeContainer::getRange(Address addr)
 	return (pos->contains(addr)) ? (&(*pos)) : (nullptr);
 }
 
-bool AddressRangeContainer::contains(Address addr)
+bool AddressRangeContainer::contains(Address addr) const
 {
 	return getRange(addr) != nullptr;
 }
 
-bool AddressRangeContainer::containsExact(AddressRange r)
+bool AddressRangeContainer::containsExact(AddressRange r) const
 {
 	auto* rr = getRange(r.getStart());
 	return rr ? *rr == r : false;

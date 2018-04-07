@@ -17,6 +17,7 @@
 #include <llvm/IR/Module.h>
 #include <llvm/Pass.h>
 
+#include "decoder_ranges.h"
 #include "retdec/utils/address.h"
 #include "retdec/bin2llvmir/analyses/static_code/static_code.h"
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
@@ -159,9 +160,6 @@ class Decoder : public llvm::ModulePass
 				llvm::BasicBlock* defaultBb,
 				const std::vector<llvm::BasicBlock*>& cases);
 
-		void removeRange(const retdec::utils::AddressRange& ar);
-		void removeRange(retdec::utils::Address s, retdec::utils::Address e);
-
 	// x86 specifix.
 	//
 	private:
@@ -189,10 +187,8 @@ class Decoder : public llvm::ModulePass
 		std::unique_ptr<capstone2llvmir::Capstone2LlvmIrTranslator> _c2l;
 		cs_insn* _dryCsInsn = nullptr;
 
+		RangesToDecode _ranges;
 		JumpTargets _jumpTargets;
-
-		retdec::utils::AddressRangeContainer _allowedRanges;
-		retdec::utils::AddressRangeContainer _alternativeRanges;
 
 		std::map<retdec::utils::Address, llvm::Function*> _addr2fnc;
 		std::map<llvm::Function*, retdec::utils::Address> _fnc2addr;

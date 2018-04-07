@@ -98,9 +98,9 @@ class AddressRangeContainer
 		void remove(const AddressRange &r);
 		void remove(const Address& s, const Address& e);
 
-		bool contains(Address addr);
-		const AddressRange* getRange(Address addr);
-		bool containsExact(AddressRange r);
+		bool contains(Address addr) const;
+		bool containsExact(AddressRange r) const;
+		const AddressRange* getRange(Address addr) const;
 
 		friend std::ostream& operator<<(
 				std::ostream &out,

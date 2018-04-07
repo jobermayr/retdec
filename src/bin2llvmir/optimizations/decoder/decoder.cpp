@@ -103,14 +103,7 @@ bool Decoder::run()
 	initRanges();
 	initJumpTargets();
 
-dumpModuleToFile(_module);
-
-	LOG << std::endl;
-	LOG << "Allowed ranges:" << std::endl;
-	LOG << _allowedRanges << std::endl;
-	LOG << std::endl;
-	LOG << "Alternative ranges:" << std::endl;
-	LOG << _alternativeRanges << std::endl;
+	LOG << _ranges << std::endl;
 	LOG << _jumpTargets << std::endl;
 
 	decode();
@@ -123,7 +116,6 @@ dumpModuleToFile(_module);
 	initConfigFunction();
 
 dumpModuleToFile(_module);
-//exit(1);
 
 	return false;
 }
@@ -148,10 +140,10 @@ bool Decoder::getJumpTarget(JumpTarget& jt)
 		_jumpTargets.pop();
 		return true;
 	}
-	else if (!_allowedRanges.empty())
+	else if (!_ranges.primaryEmpty())
 	{
 		jt = JumpTarget(
-				_allowedRanges.begin()->getStart(),
+				_ranges.primaryFront().getStart(),
 				JumpTarget::eType::LEFTOVER,
 				CS_MODE_BIG_ENDIAN,
 				Address());
@@ -165,22 +157,24 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 	const Address start = jt.getAddress();
 	if (start.isUndefined())
 	{
-		LOG << "\t\tunknown target address -> skipped" << std::endl;
+		LOG << "\t\t" << "unknown target address -> skip" << std::endl;
 		return;
 	}
 
-	auto* range = _allowedRanges.getRange(start);
+	auto* range = jt.getType() < JumpTarget::eType::LEFTOVER
+			? _ranges.get(start)
+			: _ranges.getPrimary(start);
 	if (range == nullptr)
 	{
-		LOG << "\t\tfound no range -> skipped" << std::endl;
+		LOG << "\t\t" << "found no range -> skip" << std::endl;
 		return;
 	}
-	LOG << "\t\tfound range = " << *range << std::endl;
+	LOG << "\t\t" << "found range = " << *range << std::endl;
 
 	auto bytes = _image->getImage()->getRawSegmentData(start);
 	if (bytes.first == nullptr)
 	{
-		LOG << "\t\tfound no data -> skipped" << std::endl;
+		LOG << "\t\t" << "found no data -> skip" << std::endl;
 		return;
 	}
 
@@ -204,9 +198,9 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 	if (jt.getType() == JumpTarget::eType::LEFTOVER)
 	if (auto skipSz = decodeJumpTargetDryRun(jt, bytes))
 	{
-		AddressRange skipRange(start, start+skipSz-1);
-		LOG << "\t\tdry run failed -> skip range = " << skipRange << std::endl;
-		_allowedRanges.remove(skipRange);
+		AddressRange sr(start, start+skipSz-1);
+		LOG << "\t\t" << "dry run failed -> skip range = " << sr << std::endl;
+		_ranges.remove(sr);
 		return;
 	}
 
@@ -275,7 +269,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 
 	auto end = addr > start ? Address(addr-1) : start;
 	AddressRange decRange(start, end);
-	_allowedRanges.remove(decRange);
+	_ranges.remove(decRange);
 	LOG << "\t\tdecoded range = " << decRange << std::endl;
 }
 
@@ -1649,17 +1643,6 @@ llvm::SwitchInst* Decoder::transformToSwitch(
 	term->eraseFromParent();
 
 	return sw;
-}
-
-void Decoder::removeRange(const retdec::utils::AddressRange& ar)
-{
-	_allowedRanges.remove(ar);
-	_alternativeRanges.remove(ar);
-}
-
-void Decoder::removeRange(retdec::utils::Address s, retdec::utils::Address e)
-{
-	removeRange(AddressRange(s, e));
 }
 
 } // namespace bin2llvmir

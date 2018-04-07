@@ -231,24 +231,24 @@ void Decoder::initAllowedRangesWithSegments()
 				case SecSeg::Type::CODE:
 					LOG << "\t\t" << "code -> allowed ranges"
 							<< std::endl;
-					_allowedRanges.insert(start, end);
+					_ranges.addPrimary(start, end);
 					break;
 				case SecSeg::Type::DATA:
 					LOG << "\t\t" << "data -> alternative ranges"
 							<< std::endl;
-					_alternativeRanges.insert(start, end);
+					_ranges.addAlternative(start, end);
 					break;
 				case SecSeg::Type::CODE_DATA:
 					LOG << "\t\t" << "code/data -> alternative ranges"
 							<< std::endl;
-					_alternativeRanges.insert(start, end);
+					_ranges.addAlternative(start, end);
 					break;
 				case SecSeg::Type::CONST_DATA:
 					if (seg.get() == epSeg)
 					{
 						LOG << "\t\t" << "const data == ep seg "
 								"-> alternative ranges" << std::endl;
-						_alternativeRanges.insert(start, end);
+						_ranges.addAlternative(start, end);
 					}
 					else
 					{
@@ -260,7 +260,7 @@ void Decoder::initAllowedRangesWithSegments()
 				case SecSeg::Type::UNDEFINED_SEC_SEG:
 					LOG << "\t\t" << "undef -> alternative ranges"
 							<< std::endl;
-					_alternativeRanges.insert(start, end);
+					_ranges.addAlternative(start, end);
 					break;
 				case SecSeg::Type::BSS:
 					LOG << "\t\t" << "bss -> skipped" << std::endl;
@@ -280,7 +280,7 @@ void Decoder::initAllowedRangesWithSegments()
 		{
 			LOG << "\t\t" << "no underlying section or segment && ep seg "
 					"-> alternative ranges" << std::endl;
-			_alternativeRanges.insert(start, end);
+			_ranges.addAlternative(start, end);
 		}
 		else
 		{
@@ -297,7 +297,7 @@ void Decoder::initAllowedRangesWithSegments()
 		{
 			if (!r.contains(_config->getConfig().getEntryPoint()))
 			{
-				removeRange(r.getStart(), r.getEnd());
+				_ranges.remove(r.getStart(), r.getEnd());
 			}
 		}
 	}
@@ -590,7 +590,7 @@ void Decoder::initStaticCode()
 
 		// Speed-up decoding, but we will not be able to diff CFG json
 		// with IDA CFG.
-		//removeRange(f->address, f->address + f->size - 1);
+		//_ranges.remove(f->address, f->address + f->size - 1);
 
 		_staticFncs.insert(f->address);
 
