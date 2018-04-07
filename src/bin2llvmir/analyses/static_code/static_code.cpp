@@ -489,9 +489,15 @@ std::string StaticCodeFunction::getName() const
 //==============================================================================
 //
 
-StaticCodeAnalysis::StaticCodeAnalysis(Config* c, FileImage* i, csh ce) :
+StaticCodeAnalysis::StaticCodeAnalysis(
+		Config* c,
+		FileImage* i,
+		NameContainer* ns,
+		csh ce)
+		:
 		_config(c),
 		_image(i),
+		_names(ns),
 		_ce(ce),
 		_ceInsn(cs_malloc(ce))
 {
@@ -901,6 +907,10 @@ void StaticCodeAnalysis::confirmFunction(StaticCodeFunction* f)
 	//
 	_confirmedDetections.emplace(f->address, f);
 	_worklistDetections.erase(f);
+	for (auto& n : f->names)
+	{
+		_names->addNameForAddress(f->address, n, Name::eType::STATIC_CODE);
+	}
 
 	// Reject all other function at the same address.
 	//
@@ -958,6 +968,16 @@ void StaticCodeAnalysis::confirmFunction(StaticCodeFunction* f)
 					oref.ok = true;
 				}
 			}
+		}
+
+		// Use names from references.
+		//
+		if (r.target.isDefined() && !r.name.empty())
+		{
+			_names->addNameForAddress(
+					r.target,
+					r.name,
+					Name::eType::STATIC_CODE);
 		}
 	}
 }

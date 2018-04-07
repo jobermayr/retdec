@@ -622,7 +622,7 @@ void Decoder::initConfigFunction()
 
 void Decoder::initStaticCode()
 {
-	StaticCodeAnalysis SCA(_config, _image, _c2l->getCapstoneEngine());
+	StaticCodeAnalysis SCA(_config, _image, _names, _c2l->getCapstoneEngine());
 	// TODO
 }
 
