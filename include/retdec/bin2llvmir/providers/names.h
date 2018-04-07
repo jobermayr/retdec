@@ -21,10 +21,20 @@ namespace bin2llvmir {
 
 namespace names {
 
-const std::string entryPointName            = "entry_point";
-const std::string generatedImportPrefix     = "imported_function_ord_";
+const std::string entryPointName             = "entry_point";
+const std::string generatedImportPrefix      = "imported_function_ord_";
 const std::string generatedFunctionPrefix    = "function_";
 const std::string generatedFunctionPrefixIDA = "ida_";
+const std::string asm2llvmGv                 = "_asm_program_counter";
+const std::string asm2llvmMd                 = "llvmToAsmGlobalVariableName";
+const std::string pseudoCallFunction         = "__pseudo_call";
+const std::string pseudoReturnFunction       = "__pseudo_return";
+const std::string pseudoBranchFunction       = "__pseudo_branch";
+const std::string pseudoCondBranchFunction   = "__pseudo_cond_branch";
+const std::string pseudoX87dataLoadFunction  = "__frontend_reg_load.fpr";
+const std::string pseudoX87tagLoadFunction   = "__frontend_reg_load.fpu_tag";
+const std::string pseudoX87dataStoreFunction = "__frontend_reg_store.fpr";
+const std::string pseudoX87tagStoreFunction  = "__frontend_reg_store.fpu_tag";
 
 std::string generateFunctionName(retdec::utils::Address a, bool ida = false);
 

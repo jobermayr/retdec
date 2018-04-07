@@ -574,12 +574,10 @@ retdec::utils::Address Decoder::getJumpTarget(
 			Address tableItemAddr = tableAddr->getZExtValue();
 			while (true)
 			{
-				auto* ci = _image->getConstantDefault(tableItemAddr);
+				auto* ci = _image->getImage()->isPointer(tableItemAddr)
+						? _image->getConstantDefault(tableItemAddr)
+						: nullptr;
 				if (ci == nullptr)
-				{
-					break;
-				}
-				if (!_originalAllowedRanges.contains(ci->getZExtValue()))
 				{
 					break;
 				}

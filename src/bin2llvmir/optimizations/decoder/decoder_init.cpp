@@ -80,6 +80,9 @@ void Decoder::initTranslator()
 	_currentMode = basicMode;
 }
 
+/**
+ * Initialize instruction used in dry run disassembly.
+ */
 void Decoder::initDryRunCsInstruction()
 {
 	csh ce = _c2l->getCapstoneEngine();
@@ -107,11 +110,11 @@ void Decoder::initEnvironment()
 void Decoder::initEnvironmentAsm2LlvmMapping()
 {
 	auto* a2lGv = _c2l->getAsm2LlvmMapGlobalVariable();
-	a2lGv->setName(_asm2llvmGv);
+	a2lGv->setName(names::asm2llvmGv);
 
 	_config->setLlvmToAsmGlobalVariable(a2lGv);
 
-	auto* nmd = _module->getOrInsertNamedMetadata(_asm2llvmMd);
+	auto* nmd = _module->getOrInsertNamedMetadata(names::asm2llvmMd);
 	auto* mdString = MDString::get(_module->getContext(), a2lGv->getName());
 	auto* mdn = MDNode::get(_module->getContext(), {mdString});
 	nmd->addOperand(mdn);
@@ -123,27 +126,31 @@ void Decoder::initEnvironmentAsm2LlvmMapping()
 void Decoder::initEnvironmentPseudoFunctions()
 {
 	auto* cf = _c2l->getCallFunction();
-	cf->setName(_callFunction);
+	cf->setName(names::pseudoCallFunction);
 	_config->setLlvmCallPseudoFunction(cf);
 
 	auto* rf = _c2l->getReturnFunction();
-	rf->setName(_returnFunction);
+	rf->setName(names::pseudoReturnFunction);
 	_config->setLlvmReturnPseudoFunction(rf);
 
 	auto* bf = _c2l->getBranchFunction();
-	bf->setName(_branchFunction);
+	bf->setName(names::pseudoBranchFunction);
 	_config->setLlvmBranchPseudoFunction(bf);
 
 	auto* cbf = _c2l->getCondBranchFunction();
-	cbf->setName(_condBranchFunction);
+	cbf->setName(names::pseudoCondBranchFunction);
 	_config->setLlvmCondBranchPseudoFunction(cbf);
 
 	if (auto* c2lX86 = dynamic_cast<Capstone2LlvmIrTranslatorX86*>(_c2l.get()))
 	{
-		c2lX86->getX87DataLoadFunction()->setName(_x87dataLoadFunction);
-		c2lX86->getX87TagLoadFunction()->setName(_x87tagLoadFunction);
-		c2lX86->getX87DataStoreFunction()->setName(_x87dataStoreFunction);
-		c2lX86->getX87TagStoreFunction()->setName(_x87tagStoreFunction);
+		c2lX86->getX87DataLoadFunction()->setName(
+				names::pseudoX87dataLoadFunction);
+		c2lX86->getX87TagLoadFunction()->setName(
+				names::pseudoX87tagLoadFunction);
+		c2lX86->getX87DataStoreFunction()->setName(
+				names::pseudoX87dataStoreFunction);
+		c2lX86->getX87TagStoreFunction()->setName(
+				names::pseudoX87tagStoreFunction);
 	}
 }
 
@@ -179,8 +186,6 @@ void Decoder::initRanges()
 	{
 		initAllowedRangesWithSegments();
 	}
-
-	_originalAllowedRanges = _allowedRanges;
 }
 
 /**
@@ -188,7 +193,7 @@ void Decoder::initRanges()
  */
 void Decoder::initAllowedRangesWithSegments()
 {
-	LOG << "\n initAllowedRangesWithSegments():" << std::endl;
+	LOG << "\n" << "initAllowedRangesWithSegments():" << std::endl;
 
 	auto* epSeg = _image->getImage()->getEpSegment();
 	for (auto& seg : _image->getSegments())
@@ -202,7 +207,7 @@ void Decoder::initAllowedRangesWithSegments()
 
 		if (start == end)
 		{
-			LOG << "\t\tsize == 0 -> skipped" << std::endl;
+			LOG << "\t\t" << "size == 0 -> skipped" << std::endl;
 			continue;
 		}
 
@@ -224,47 +229,47 @@ void Decoder::initAllowedRangesWithSegments()
 			switch (sec->getType())
 			{
 				case SecSeg::Type::CODE:
-					LOG << "\t\tcode section -> allowed ranges"
+					LOG << "\t\t" << "code -> allowed ranges"
 							<< std::endl;
 					_allowedRanges.insert(start, end);
 					break;
 				case SecSeg::Type::DATA:
-					LOG << "\t\tdata section -> alternative ranges"
+					LOG << "\t\t" << "data -> alternative ranges"
 							<< std::endl;
 					_alternativeRanges.insert(start, end);
 					break;
 				case SecSeg::Type::CODE_DATA:
-					LOG << "\t\tcode/data section -> alternative ranges"
+					LOG << "\t\t" << "code/data -> alternative ranges"
 							<< std::endl;
 					_alternativeRanges.insert(start, end);
 					break;
 				case SecSeg::Type::CONST_DATA:
 					if (seg.get() == epSeg)
 					{
-						LOG << "\t\tconst data section == ep seg "
+						LOG << "\t\t" << "const data == ep seg "
 								"-> alternative ranges" << std::endl;
 						_alternativeRanges.insert(start, end);
 					}
 					else
 					{
-						LOG << "\t\tconst data section -> alternative ranges"
+						LOG << "\t\t" << "const data -> alternative ranges"
 								<< std::endl;
 						continue;
 					}
 					break;
 				case SecSeg::Type::UNDEFINED_SEC_SEG:
-					LOG << "\t\tundef section -> alternative ranges"
+					LOG << "\t\t" << "undef -> alternative ranges"
 							<< std::endl;
 					_alternativeRanges.insert(start, end);
 					break;
 				case SecSeg::Type::BSS:
-					LOG << "\t\tbss section -> skipped" << std::endl;
+					LOG << "\t\t" << "bss -> skipped" << std::endl;
 					continue;
 				case SecSeg::Type::DEBUG:
-					LOG << "\t\tdebug section -> skipped" << std::endl;
+					LOG << "\t\t" << "debug -> skipped" << std::endl;
 					continue;
 				case SecSeg::Type::INFO:
-					LOG << "\t\tinfo section -> skipped" << std::endl;
+					LOG << "\t\t" << "info -> skipped" << std::endl;
 					continue;
 				default:
 					assert(false && "unhandled section type");
@@ -273,13 +278,13 @@ void Decoder::initAllowedRangesWithSegments()
 		}
 		else if (seg.get() == epSeg)
 		{
-			LOG << "\t\tno underlying section or segment && ep seg "
+			LOG << "\t\t" << "no underlying section or segment && ep seg "
 					"-> alternative ranges" << std::endl;
 			_alternativeRanges.insert(start, end);
 		}
 		else
 		{
-			LOG << "\t\tno underlying section or segment -> skipped"
+			LOG << "\t\t" << "no underlying section or segment -> skipped"
 					<< std::endl;
 			continue;
 		}
@@ -292,8 +297,7 @@ void Decoder::initAllowedRangesWithSegments()
 		{
 			if (!r.contains(_config->getConfig().getEntryPoint()))
 			{
-				_allowedRanges.remove(r.getStart(), r.getEnd());
-				_alternativeRanges.remove(r.getStart(), r.getEnd());
+				removeRange(r.getStart(), r.getEnd());
 			}
 		}
 	}
@@ -315,7 +319,7 @@ void Decoder::initJumpTargets()
 
 void Decoder::initJumpTargetsConfig()
 {
-	LOG << "\n initJumpTargetsConfig():" << std::endl;
+	LOG << "\n" << "initJumpTargetsConfig():" << std::endl;
 
 	for (auto& p : _config->getConfig().functions)
 	{
@@ -347,13 +351,13 @@ void Decoder::initJumpTargetsConfig()
 
 		createFunction(f.getStart());
 
-		LOG << "\tfunction @ " << f.getStart() << std::endl;
+		LOG << "\t" << "function @ " << f.getStart() << std::endl;
 	}
 }
 
 void Decoder::initJumpTargetsEntryPoint()
 {
-	LOG << "\n initJumpTargetsEntryPoint():" << std::endl;
+	LOG << "\n" << "initJumpTargetsEntryPoint():" << std::endl;
 
 	auto ep = _config->getConfig().getEntryPoint();
 	if (ep.isDefined())
@@ -372,22 +376,22 @@ void Decoder::initJumpTargetsEntryPoint()
 
 		createFunction(ep);
 
-		LOG << "\tentry point @ " << ep << std::endl;
+		LOG << "\t" << "entry point @ " << ep << std::endl;
 	}
 	else
 	{
-		LOG << "\tentry point @ UNDEFINED" << std::endl;
+		LOG << "\t" << "entry point @ UNDEFINED" << std::endl;
 	}
 }
 
 void Decoder::initJumpTargetsImports()
 {
-	LOG << "\n initJumpTargetsImports():" << std::endl;
+	LOG << "\n" << "initJumpTargetsImports():" << std::endl;
 
 	auto* impTbl = _image->getFileFormat()->getImportTable();
 	if (impTbl == nullptr)
 	{
-		LOG << "\tno import table -> skip" << std::endl;
+		LOG << "\t" << "no import table -> skip" << std::endl;
 		return;
 	}
 

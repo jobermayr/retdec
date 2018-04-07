@@ -193,7 +193,6 @@ class Decoder : public llvm::ModulePass
 
 		retdec::utils::AddressRangeContainer _allowedRanges;
 		retdec::utils::AddressRangeContainer _alternativeRanges;
-		retdec::utils::AddressRangeContainer _originalAllowedRanges;
 
 		std::map<retdec::utils::Address, llvm::Function*> _addr2fnc;
 		std::map<llvm::Function*, retdec::utils::Address> _fnc2addr;
@@ -205,18 +204,6 @@ class Decoder : public llvm::ModulePass
 		std::set<retdec::utils::Address> _debugFncs;
 		std::set<retdec::utils::Address> _staticFncs;
 		std::set<llvm::Function*> _terminatingFncs;
-
-	private:
-		const std::string _asm2llvmGv = "_asm_program_counter";
-		const std::string _asm2llvmMd = "llvmToAsmGlobalVariableName";
-		const std::string _callFunction = "__pseudo_call";
-		const std::string _returnFunction = "__pseudo_return";
-		const std::string _branchFunction = "__pseudo_branch";
-		const std::string _condBranchFunction = "__pseudo_cond_branch";
-		const std::string _x87dataLoadFunction = "__frontend_reg_load.fpr";
-		const std::string _x87tagLoadFunction = "__frontend_reg_load.fpu_tag";
-		const std::string _x87dataStoreFunction = "__frontend_reg_store.fpr";
-		const std::string _x87tagStoreFunction = "__frontend_reg_store.fpu_tag";
 };
 
 } // namespace bin2llvmir
