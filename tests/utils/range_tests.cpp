@@ -152,6 +152,32 @@ TEST_F(RangeTests, operatorEqNeq)
 	EXPECT_FALSE(r1 != r1);
 }
 
+TEST_F(RangeTests, overlaps)
+{
+	Range<int> r(10, 20);
+
+	Range<int> fullyBefore(0, 5);
+	Range<int> partlyBefore(0, 15);
+	Range<int> fullyInside(12, 18);
+	Range<int> fullyInsideSmall1(10, 10);
+	Range<int> fullyInsideSmall2(15, 15);
+	Range<int> fullyInsideSmall3(20, 20);
+	Range<int> partyAfter(15, 30);
+	Range<int> fullyAfter(25, 30);
+	Range<int> bedoreAndAfter(0, 30);
+
+	EXPECT_FALSE(r.overlaps(fullyBefore));
+	EXPECT_TRUE(r.overlaps(partlyBefore));
+	EXPECT_TRUE(r.overlaps(fullyInside));
+	EXPECT_TRUE(r.overlaps(fullyInsideSmall1));
+	EXPECT_TRUE(r.overlaps(fullyInsideSmall2));
+	EXPECT_TRUE(r.overlaps(fullyInsideSmall3));
+	EXPECT_TRUE(r.overlaps(partyAfter));
+	EXPECT_FALSE(r.overlaps(fullyAfter));
+	EXPECT_TRUE(r.overlaps(bedoreAndAfter));
+	EXPECT_TRUE(r.overlaps(r));
+}
+
 } // namespace tests
 } // namespace utils
 } // namespace retdec

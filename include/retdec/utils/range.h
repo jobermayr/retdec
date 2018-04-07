@@ -149,6 +149,12 @@ public:
 	bool contains(const Range<RangeType>& o) const { return contains(o.getStart()) && contains(o.getEnd()); }
 
 	/**
+	 * Check whether range overlaps with the given range, i.e. there exists
+	 * some value that which is in both ranges.
+	 */
+	bool overlaps(const Range<RangeType>& o) const { return _start <= o._end && o._start <= _end; }
+
+	/**
 	 * Return whether two ranges are equal. They are equal if their starting
 	 * and ending values are the same.
 	 *
