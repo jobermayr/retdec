@@ -542,8 +542,6 @@ StaticCodeAnalysis::StaticCodeAnalysis(
 	{
 		LOG << "\t\t" << f->address << " @ " << f->getName() << std::endl;
 	}
-
-exit(1);
 }
 
 StaticCodeAnalysis::~StaticCodeAnalysis()

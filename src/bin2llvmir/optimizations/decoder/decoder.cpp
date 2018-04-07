@@ -300,6 +300,10 @@ std::size_t Decoder::decodeJumpTargetDryRun(
 	{
 		return decodeJumpTargetDryRun_arm(jt, bytes);
 	}
+	else
+	{
+		assert(false);
+	}
 
 	// Common dry run.
 	//
@@ -1538,6 +1542,11 @@ llvm::CallInst* Decoder::transformToCall(
 	if (_config->getConfig().architecture.isX86())
 	{
 		eraseReturnAddrStoreInCall_x86(c);
+		if (auto* eax = _module->getNamedGlobal("eax"))
+		{
+			auto* s = new StoreInst(c, eax);
+			s->insertAfter(c);
+		}
 	}
 
 	return c;

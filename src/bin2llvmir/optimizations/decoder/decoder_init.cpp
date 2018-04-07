@@ -305,14 +305,12 @@ void Decoder::initAllowedRangesWithSegments()
 void Decoder::initJumpTargets()
 {
 	initJumpTargetsConfig();
+	initStaticCode();
 	initJumpTargetsEntryPoint();
 	initJumpTargetsImports();
 	initJumpTargetsExports();
 	initJumpTargetsDebug();
 	initJumpTargetsSymbols();
-
-initStaticCode(); // TODO
-
 }
 
 void Decoder::initJumpTargetsConfig()
@@ -560,8 +558,6 @@ void Decoder::initJumpTargetsDebug()
 		}
 		auto& f = p.second;
 
-		LOG << "\tdebug @ " << addr << std::endl;
-
 		cs_mode m = _currentMode;
 		if (_config->isArmOrThumb())
 		{
@@ -622,8 +618,28 @@ void Decoder::initConfigFunction()
 
 void Decoder::initStaticCode()
 {
+	LOG << "\n initStaticCode():" << std::endl;
+
 	StaticCodeAnalysis SCA(_config, _image, _names, _c2l->getCapstoneEngine());
-	// TODO
+	for (auto& p : SCA.getConfirmedDetections())
+	{
+		auto* f = p.second;
+
+		_jumpTargets.push(
+				f->address,
+				JumpTarget::eType::DEBUG,
+				_currentMode,
+				Address::getUndef,
+				f->size);
+		createFunction(f->address);
+
+//		createFunction(f->address, true);
+//		removeRange(f->address, f->address + f->size - 1);
+
+		_staticFncs.insert(f->address);
+
+		LOG << "\tstatic @ " << f->address << std::endl;
+	}
 }
 
 } // namespace bin2llvmir

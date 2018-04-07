@@ -18,7 +18,7 @@ std::size_t Decoder::decodeJumpTargetDryRun_arm(
 		const JumpTarget& jt,
 		ByteData bytes)
 {
-	return false;
+	assert(false);
 
 	static csh ce = _c2l->getCapstoneEngine();
 
