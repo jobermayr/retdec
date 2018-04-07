@@ -111,9 +111,7 @@ dumpModuleToFile(_module);
 	LOG << std::endl;
 	LOG << "Alternative ranges:" << std::endl;
 	LOG << _alternativeRanges << std::endl;
-	LOG << "Jump targets:" << std::endl;
 	LOG << _jumpTargets << std::endl;
-	LOG << std::endl;
 
 	decode();
 	splitOnTerminatingCalls();
@@ -128,6 +126,18 @@ dumpModuleToFile(_module);
 //exit(1);
 
 	return false;
+}
+
+void Decoder::decode()
+{
+	LOG << "\n" << "doDecoding():" << std::endl;
+
+	JumpTarget jt;
+	while (getJumpTarget(jt))
+	{
+		LOG << "\t" << "processing : " << jt << std::endl;
+		decodeJumpTarget(jt);
+	}
 }
 
 bool Decoder::getJumpTarget(JumpTarget& jt)
@@ -148,18 +158,6 @@ bool Decoder::getJumpTarget(JumpTarget& jt)
 		return true;
 	}
 	return false;
-}
-
-void Decoder::decode()
-{
-	LOG << "\n doDecoding()" << std::endl;
-
-	JumpTarget jt;
-	while (getJumpTarget(jt))
-	{
-		LOG << "\tprocessing : " << jt << std::endl;
-		decodeJumpTarget(jt);
-	}
 }
 
 void Decoder::decodeJumpTarget(const JumpTarget& jt)

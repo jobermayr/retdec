@@ -198,6 +198,7 @@ auto JumpTargets::end()
 
 std::ostream& operator<<(std::ostream &out, const JumpTargets& jts)
 {
+	out << "Jump targets:" << std::endl;
 	for (auto& jt : jts._data)
 	{
 		out << jt << std::endl;
