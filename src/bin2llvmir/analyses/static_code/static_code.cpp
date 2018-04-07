@@ -365,16 +365,7 @@ std::string dumpDetectedFunctions(
 		for (auto& p : f.references)
 		{
 			Address refAddr = f.address + p.first;
-
-			ret << "\t\t\t" << refAddr << " @ " << p.second;
-
-			uint64_t val = 0;
-			if (image->getImage()->getWord(refAddr, val))
-			{
-				ret << ", val = " << val;
-			}
-
-			ret << "\n";
+			ret << "\t\t\t" << refAddr << " @ " << p.second << "\n";
 		}
 	}
 
@@ -586,6 +577,10 @@ utils::Address StaticCodeAnalysis::getAddressFromRef(utils::Address ref)
 	{
 		return getAddressFromRef_x86(ref);
 	}
+	else if (_config->isMipsOrPic32())
+	{
+		return getAddressFromRef_mips(ref);
+	}
 	else
 	{
 		assert(false);
@@ -636,6 +631,158 @@ utils::Address StaticCodeAnalysis::getAddressFromRef_x86(utils::Address ref)
 	{
 		// default
 		return absAddr;
+	}
+
+	return Address();
+}
+
+bool isJumpInsn_mips(csh ce, cs_insn* i)
+{
+	// For whatever reason, this does not work very well (at all?).
+	// e.g. jal 0x8905b28 is only in one group: 137 (stdenc)
+	//
+	if (cs_insn_group(ce, i, MIPS_GRP_JUMP)
+			|| cs_insn_group(ce, i, MIPS_GRP_CALL))
+	{
+		return true;
+	}
+
+	switch (i->id)
+	{
+		case MIPS_INS_J:
+		case MIPS_INS_JAL:
+			return true;
+		default:
+			return false;
+	}
+}
+
+bool isLoadStoreInsn_mips(csh ce, cs_insn* i)
+{
+	switch (i->id)
+	{
+		// Load.
+		case MIPS_INS_LB:
+		case MIPS_INS_LBU:
+		case MIPS_INS_LH:
+		case MIPS_INS_LHU:
+		case MIPS_INS_LW:
+		case MIPS_INS_LWU:
+		case MIPS_INS_LD:
+		case MIPS_INS_LDC3:
+		case MIPS_INS_LWC1:
+		case MIPS_INS_LDC1:
+		// Store
+		case MIPS_INS_SB:
+		case MIPS_INS_SH:
+		case MIPS_INS_SW:
+		case MIPS_INS_SD:
+		case MIPS_INS_SDC3:
+		case MIPS_INS_SWC1:
+		case MIPS_INS_SDC1:
+			return true;
+		default:
+			return false;
+	}
+}
+
+bool isAddInsn_mips(csh ce, cs_insn* i)
+{
+	switch (i->id)
+	{
+		case MIPS_INS_ADDI:
+		case MIPS_INS_ADDIU:
+		case MIPS_INS_ADD:
+		case MIPS_INS_ADDU:
+			return true;
+		default:
+			return false;
+	}
+}
+
+/**
+ * On MIPS, reference is an instruction that needs to be disassembled and
+ * inspected for reference target.
+ */
+utils::Address StaticCodeAnalysis::getAddressFromRef_mips(utils::Address ref)
+{
+	uint64_t addr = ref;
+	auto data = _image->getImage()->getRawSegmentData(ref);
+	if (!cs_disasm_iter(_ce, &data.first, &data.second, &addr, _ceInsn))
+	{
+		return Address();
+	}
+	auto& mips = _ceInsn->detail->mips;
+
+	// j target_function
+	// jal target_function
+	//
+	if (isJumpInsn_mips(_ce, _ceInsn)
+			&& mips.op_count == 1
+			&& mips.operands[0].type == MIPS_OP_IMM)
+	{
+		return mips.operands[0].imm;
+	}
+	// lui reg, upper
+	// ...
+	//
+	else if (_ceInsn->id == MIPS_INS_LUI
+			&& mips.op_count == 2
+			&& mips.operands[0].type == MIPS_OP_REG
+			&& mips.operands[1].type == MIPS_OP_IMM)
+	{
+		auto reg = mips.operands[0].reg;
+		unsigned s = _config->getConfig().architecture.getBitSize() / 2;
+		uint64_t upper = uint64_t(mips.operands[1].imm) << s;
+
+		if (!cs_disasm_iter(_ce, &data.first, &data.second, &addr, _ceInsn))
+		{
+			return Address();
+		}
+
+		// Sometimes, the other instruction is not right after the LUI.
+		// Try to disassemble one more.
+		// Maybe, we should check that skipped instruction does not use reg.
+		// Maybe, more than one instruction needs to be skipped.
+		//
+		if (!isLoadStoreInsn_mips(_ce, _ceInsn)
+				&& !isAddInsn_mips(_ce, _ceInsn))
+		{
+			if (!cs_disasm_iter(_ce, &data.first, &data.second, &addr, _ceInsn))
+			{
+				return Address();
+			}
+		}
+
+		// lui $a0, 0x891
+		// lw $a0, 0x7b68($a0)
+		// ==> 0x891 7B68
+		//
+		// lui $at, 0x892
+		// sw $zero, -0x1f14($at)
+		// ==> 0x891 E0EC
+		//
+		if (isLoadStoreInsn_mips(_ce, _ceInsn)
+				&& mips.op_count == 2
+				&& mips.operands[1].type == MIPS_OP_MEM
+				&& mips.operands[1].mem.base == reg)
+		{
+			Address t = upper + mips.operands[1].mem.disp;
+			return t;
+		}
+		// lui $a2, 0x891
+		// addiu $a2, $a2, 0x5ff4
+		// ==> 0x891 5FF4
+		//
+		else if (isAddInsn_mips(_ce, _ceInsn)
+				&& mips.op_count == 3
+				&& mips.operands[1].type == MIPS_OP_REG
+				&& mips.operands[1].reg == reg
+				&& mips.operands[2].type == MIPS_OP_IMM)
+		{
+			Address t = upper +  mips.operands[2].imm;
+			return t;
+		}
 	}
 
 	return Address();
