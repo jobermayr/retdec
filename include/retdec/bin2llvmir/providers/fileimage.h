@@ -74,6 +74,9 @@ class FileImage
 	public:
 		const retdec::fileformat::Symbol* getPreferredSymbol(
 				retdec::utils::Address addr);
+		bool isImportTerminating(
+				const fileformat::ImportTable* impTbl,
+				const fileformat::Import* imp) const;
 
 	public:
 		auto& getSegments() const { return _image->getSegments(); }

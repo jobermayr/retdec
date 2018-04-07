@@ -595,6 +595,17 @@ const retdec::fileformat::Symbol* FileImage::getPreferredSymbol(
 	return ret;
 }
 
+bool FileImage::isImportTerminating(
+		const fileformat::ImportTable* impTbl,
+		const fileformat::Import* imp) const
+{
+	std::string name = imp->getName();
+	auto libN = impTbl->getLibrary(imp->getLibraryIndex());
+
+	return (libN == "msvcrt.dll" && name == "exit")
+			|| (libN == "msvcrt.dll" && name == "abort");
+}
+
 //
 //=============================================================================
 //  FileImageProvider

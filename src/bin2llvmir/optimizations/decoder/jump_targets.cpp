@@ -107,6 +107,9 @@ std::ostream& operator<<(std::ostream &out, const JumpTarget& jt)
 		case JumpTarget::eType::ENTRY_POINT:
 			t = "ENTRY_POINT";
 			break;
+		case JumpTarget::eType::IMPORT:
+			t = "IMPORT";
+			break;
 		case JumpTarget::eType::EXPORT:
 			t = "EXPORT";
 			break;
@@ -118,6 +121,9 @@ std::ostream& operator<<(std::ostream &out, const JumpTarget& jt)
 			break;
 		case JumpTarget::eType::SYMBOL:
 			t = "SYMBOL";
+			break;
+		case JumpTarget::eType::STATIC_CODE:
+			t = "STATIC_CODE";
 			break;
 		case JumpTarget::eType::LEFTOVER:
 			t = "LEFTOVER";

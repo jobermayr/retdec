@@ -395,13 +395,6 @@ void Decoder::initJumpTargetsImports()
 		return;
 	}
 
-	// TODO: ugly hack, in ack.arm.clang-3.2.O0.g.elf there are 2 imports for
-	// printf/scanf/etc. - the first one (by addr) in .plt that is called from
-	// program, second in data from relocation. We need to give the first one
-	// a scanf name, because otherwise LTI fails -> bad type.
-	// Solve somehow better.
-	//
-	std::map<Address, const fileformat::Import&> _imps;
 	for (const auto &imp : *impTbl)
 	{
 		retdec::utils::Address addr = imp.getAddress();
@@ -410,44 +403,33 @@ void Decoder::initJumpTargetsImports()
 			continue;
 		}
 
-		_imps.emplace(addr, imp);
-	}
+		cs_mode m = _currentMode;
+		if (_config->isArmOrThumb())
+		{
+			m = addr % 2 ? CS_MODE_THUMB : CS_MODE_ARM;
+		}
 
-//	for (const auto &imp : *impTbl)
-//	{
-//		retdec::utils::Address addr = imp.getAddress();
-//		if (addr.isUndefined())
-//		{
-//			continue;
-//		}
-	for (auto& p : _imps)
-	{
-		Address addr = p.first;
-		auto& imp = p.second;
+		_jumpTargets.push(
+				addr,
+				JumpTarget::eType::IMPORT,
+				m,
+				Address::getUndef);
 
-		LOG << "\t\timport: " << imp.getName() << " @ " << addr << std::endl;
-
-		auto* f = createFunction(addr, true);
-		_imports.emplace(addr, f->getName());
-
-// TODO: in ack.arm.clang-3.2.O0.g.elf, imports in .plt -> has asm insns that
-// could be decoded.
-//
-removeRange(addr, addr+3);
-
-		std::string name = imp.getName();
-		auto libN = impTbl->getLibrary(imp.getLibraryIndex());
-		if ((libN == "msvcrt.dll" && name == "exit")
-				|| (libN == "msvcrt.dll" && name == "abort"))
+		auto* f = createFunction(addr);
+		_imports.emplace(addr);
+		if (_image->isImportTerminating(impTbl, &imp))
 		{
 			_terminatingFncs.insert(f);
 		}
+
+		LOG << "\t\t" << "import: " << imp.getName() << " @ "
+				<< addr << std::endl;
 	}
 }
 
 void Decoder::initJumpTargetsExports()
 {
-	LOG << "\n initJumpTargetsExports():" << std::endl;
+	LOG << "\n" << "initJumpTargetsExports():" << std::endl;
 
 	if (auto* exTbl = _image->getFileFormat()->getExportTable())
 	{
@@ -474,14 +456,14 @@ void Decoder::initJumpTargetsExports()
 			createFunction(addr);
 			_exports.insert(addr);
 
-			LOG << "\t\texport @ " << addr << std::endl;
+			LOG << "\t\t" << "export @ " << addr << std::endl;
 		}
 	}
 }
 
 void Decoder::initJumpTargetsSymbols()
 {
-	LOG << "\n initJumpTargetsSymbols():" << std::endl;
+	LOG << "\n" << "initJumpTargetsSymbols():" << std::endl;
 
 	for (const auto* t : _image->getFileFormat()->getSymbolTables())
 	for (const auto& s : *t)
@@ -525,7 +507,7 @@ void Decoder::initJumpTargetsSymbols()
 
 			createFunction(addr);
 
-			LOG << "\tsymbol public @ " << addr << std::endl;
+			LOG << "\t" << "symbol public @ " << addr << std::endl;
 		}
 		else
 		{
@@ -538,18 +520,18 @@ void Decoder::initJumpTargetsSymbols()
 
 			createFunction(addr);
 
-			LOG << "\tsymbol @ " << addr << std::endl;
+			LOG << "\t" << "symbol @ " << addr << std::endl;
 		}
 	}
 }
 
 void Decoder::initJumpTargetsDebug()
 {
-	LOG << "\n initJumpTargetsDebug():" << std::endl;
+	LOG << "\n" << "initJumpTargetsDebug():" << std::endl;
 
 	if (_debug)
 	{
-		LOG << "\tno debug info -> skip" << std::endl;
+		LOG << "\t" << "no debug info -> skip" << std::endl;
 		return;
 	}
 
@@ -585,7 +567,34 @@ void Decoder::initJumpTargetsDebug()
 		createFunction(addr);
 		_debugFncs.insert(addr);
 
-		LOG << "\tdebug @ " << addr << std::endl;
+		LOG << "\t" << "debug @ " << addr << std::endl;
+	}
+}
+
+void Decoder::initStaticCode()
+{
+	LOG << "\n" << "initStaticCode():" << std::endl;
+
+	StaticCodeAnalysis SCA(_config, _image, _names, _c2l->getCapstoneEngine());
+	for (auto& p : SCA.getConfirmedDetections())
+	{
+		auto* f = p.second;
+
+		_jumpTargets.push(
+				f->address,
+				JumpTarget::eType::STATIC_CODE,
+				_currentMode,
+				Address::getUndef,
+				f->size);
+		createFunction(f->address);
+
+		// Speed-up decoding, but we will not be able to diff CFG json
+		// with IDA CFG.
+		//removeRange(f->address, f->address + f->size - 1);
+
+		_staticFncs.insert(f->address);
+
+		LOG << "\t" << "static @ " << f->address << std::endl;
 	}
 }
 
@@ -609,40 +618,16 @@ void Decoder::initConfigFunction()
 		if (_imports.count(start))
 		{
 			cf->setIsDynamicallyLinked();
+			f->deleteBody();
 		}
 		else if (_staticFncs.count(start))
 		{
 			cf->setIsStaticallyLinked();
+			f->deleteBody();
 		}
 
 		cf->setIsExported(_exports.count(start));
 		cf->setIsFromDebug(_debugFncs.count(start));
-	}
-}
-
-void Decoder::initStaticCode()
-{
-	LOG << "\n initStaticCode():" << std::endl;
-
-	StaticCodeAnalysis SCA(_config, _image, _names, _c2l->getCapstoneEngine());
-	for (auto& p : SCA.getConfirmedDetections())
-	{
-		auto* f = p.second;
-
-		_jumpTargets.push(
-				f->address,
-				JumpTarget::eType::DEBUG,
-				_currentMode,
-				Address::getUndef,
-				f->size);
-		createFunction(f->address);
-
-//		createFunction(f->address, true);
-//		removeRange(f->address, f->address + f->size - 1);
-
-		_staticFncs.insert(f->address);
-
-		LOG << "\tstatic @ " << f->address << std::endl;
 	}
 }
 

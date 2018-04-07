@@ -38,10 +38,12 @@ class JumpTarget
 			// Jump targets from various other sources.
 			CONFIG,
 			ENTRY_POINT,
+			IMPORT,
 			EXPORT,
 			DEBUG,
 			SYMBOL_PUBLIC,
 			SYMBOL,
+			STATIC_CODE,
 			LEFTOVER,
 			// Default jump target.
 			UNKNOWN,
