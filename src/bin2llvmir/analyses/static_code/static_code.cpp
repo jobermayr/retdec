@@ -530,17 +530,26 @@ StaticCodeAnalysis::StaticCodeAnalysis(
 	LOG << "\t Confirmed detections:" << std::endl;
 	for (auto& p : _confirmedDetections)
 	{
-		LOG << "\t\t" << p.first << " @ " << p.second->getName() << std::endl;
+//		LOG << "\t\t" << p.first << " @ " << p.second->getName() << std::endl;
+		LOG << "        " << "assert self.out_config.is_statically_linked('"
+				<< p.second->getName() << "', " << p.first << ")"
+				<< std::endl;
 	}
 	LOG << "\t Rejected detections:" << std::endl;
 	for (auto& p : _rejectedDetections)
 	{
-		LOG << "\t\t" << p.first << " @ " << p.second->getName() << std::endl;
+//		LOG << "\t\t" << p.first << " @ " << p.second->getName() << std::endl;
+		LOG << "        " << "assert not self.out_config.is_statically_linked('"
+				<< p.second->getName() << "', " << p.first << ")"
+				<< std::endl;
 	}
 	LOG << "\t Worklist detections:" << std::endl;
 	for (auto* f : _worklistDetections)
 	{
-		LOG << "\t\t" << f->address << " @ " << f->getName() << std::endl;
+//		LOG << "\t\t" << f->address << " @ " << f->getName() << std::endl;
+		LOG << "        " << "assert not self.out_config.is_statically_linked('"
+				<< f->getName() << "', " << f->address << ")"
+				<< std::endl;
 	}
 }
 

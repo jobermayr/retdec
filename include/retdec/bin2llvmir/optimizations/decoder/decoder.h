@@ -56,6 +56,7 @@ class Decoder : public llvm::ModulePass
 		bool runCatcher();
 		bool run();
 
+	private:
 		void initTranslator();
 		void initDryRunCsInstruction();
 		void initEnvironment();
@@ -74,6 +75,7 @@ class Decoder : public llvm::ModulePass
 		void initConfigFunction();
 		void initStaticCode();
 
+	private:
 		void decode();
 		bool getJumpTarget(JumpTarget& jt);
 		void decodeJumpTarget(const JumpTarget& jt);
@@ -166,7 +168,6 @@ class Decoder : public llvm::ModulePass
 		std::size_t decodeJumpTargetDryRun_x86(
 				const JumpTarget& jt,
 				ByteData bytes);
-		bool isNopInstruction_x86(cs_insn* insn);
 		void eraseReturnAddrStoreInCall_x86(llvm::CallInst* c);
 
 	// ARM specific.
@@ -186,12 +187,13 @@ class Decoder : public llvm::ModulePass
 
 		cs_mode _currentMode = CS_MODE_LITTLE_ENDIAN;
 		std::unique_ptr<capstone2llvmir::Capstone2LlvmIrTranslator> _c2l;
+		cs_insn* _dryCsInsn = nullptr;
+
+		JumpTargets _jumpTargets;
 
 		retdec::utils::AddressRangeContainer _allowedRanges;
 		retdec::utils::AddressRangeContainer _alternativeRanges;
 		retdec::utils::AddressRangeContainer _originalAllowedRanges;
-
-		JumpTargets _jumpTargets;
 
 		std::map<retdec::utils::Address, llvm::Function*> _addr2fnc;
 		std::map<llvm::Function*, retdec::utils::Address> _fnc2addr;
@@ -203,8 +205,6 @@ class Decoder : public llvm::ModulePass
 		std::set<retdec::utils::Address> _debugFncs;
 		std::set<retdec::utils::Address> _staticFncs;
 		std::set<llvm::Function*> _terminatingFncs;
-
-		cs_insn* _dryCsInsn = nullptr;
 
 	private:
 		const std::string _asm2llvmGv = "_asm_program_counter";

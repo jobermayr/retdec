@@ -70,6 +70,7 @@ set(BIN2LLVMIR_SOURCES
 	providers/fileimage.cpp
 	providers/lti.cpp
 	providers/names.cpp
+	utils/capstone.cpp
 	utils/global_var.cpp
 	utils/instruction.cpp
 	utils/ir_modifier.cpp

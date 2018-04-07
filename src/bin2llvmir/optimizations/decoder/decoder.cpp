@@ -15,6 +15,7 @@
 #include "retdec/bin2llvmir/analyses/reaching_definitions.h"
 #include "retdec/bin2llvmir/analyses/symbolic_tree.h"
 #include "retdec/bin2llvmir/optimizations/decoder/decoder.h"
+#include "retdec/bin2llvmir/utils/capstone.h"
 #include "retdec/bin2llvmir/utils/instruction.h"
 #include "retdec/bin2llvmir/utils/type.h"
 #include "retdec/bin2llvmir/utils/utils.h"
@@ -994,7 +995,7 @@ bool Decoder::isNopInstruction(cs_insn* insn)
 {
 	if (_config->getConfig().architecture.isX86())
 	{
-		return isNopInstruction_x86(insn);
+		return capstone_utils::isNopInstruction_x86(insn);
 	}
 
 	return false;
