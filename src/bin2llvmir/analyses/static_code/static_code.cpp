@@ -515,6 +515,8 @@ StaticCodeAnalysis::StaticCodeAnalysis(
 		_worklistDetections.insert(&p.second);
 	}
 
+
+	confirmWithoutRefs();
 	confirmAllRefsOk();
 	confirmPartialRefsOk();
 
@@ -840,9 +842,11 @@ void StaticCodeAnalysis::checkRef(StaticCodeFunction::Reference& ref)
 	}
 
 	// Reference into section with reference name equal to section name.
+	// PIC32 may reference a function which is not detected as statically
+	// linked, but which has its own section named '.text.<refName>'
 	//
 	auto* seg = _image->getImage()->getSegmentFromAddress(ref.target);
-	if (seg && seg->getName() == ref.name)
+	if (seg && utils::contains(seg->getName(), ref.name))
 	{
 		ref.ok = true;
 		return;
@@ -927,6 +931,37 @@ void StaticCodeAnalysis::checkRef_x86(StaticCodeFunction::Reference& ref)
 				}
 
 				return;
+			}
+		}
+	}
+}
+
+/**
+ * Sometimes, we don't need references to solve detections.
+ * e.g. on PIC32 detected function '_scanf_cdnopuxX' is in section
+ * `.text._scanf_cdnopuxX`.
+ */
+void StaticCodeAnalysis::confirmWithoutRefs()
+{
+	LOG << "\t" << "confirmWithoutRefs()" << std::endl;
+
+	auto worklistCopy = _worklistDetections;
+	for (auto* f : worklistCopy)
+	{
+		if (_worklistDetections.count(f) == 0)
+		{
+			continue;
+		}
+
+		if (auto* s = _image->getImage()->getSegmentFromAddress(f->address))
+		{
+			for (auto& n : f->names)
+			{
+				if (s->getName() == (".text." + n))
+				{
+					confirmFunction(f);
+					break;
+				}
 			}
 		}
 	}

@@ -90,6 +90,7 @@ class StaticCodeAnalysis
 		void checkRef(StaticCodeFunction::Reference& ref);
 		void checkRef_x86(StaticCodeFunction::Reference& ref);
 
+		void confirmWithoutRefs();
 		void confirmAllRefsOk(std::size_t minFncSzWithoutRefs = 0x20);
 		void confirmPartialRefsOk(float okShare = 0.5);
 		void confirmFunction(StaticCodeFunction* f);
