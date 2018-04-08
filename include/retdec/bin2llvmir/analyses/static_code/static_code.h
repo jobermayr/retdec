@@ -74,7 +74,12 @@ class StaticCodeAnalysis
 				StaticCodeFunction*>;
 
 	public:
-		StaticCodeAnalysis(Config* c, FileImage* i, NameContainer* ns, csh ce);
+		StaticCodeAnalysis(
+				Config* c,
+				FileImage* i,
+				NameContainer* ns,
+				csh ce,
+				cs_mode md);
 		~StaticCodeAnalysis();
 
 		const DetectedFunctionsMultimap& getAllDetections() const;
@@ -86,6 +91,7 @@ class StaticCodeAnalysis
 		utils::Address getAddressFromRef(utils::Address ref);
 		utils::Address getAddressFromRef_x86(utils::Address ref);
 		utils::Address getAddressFromRef_mips(utils::Address ref);
+		utils::Address getAddressFromRef_arm(utils::Address ref);
 
 		void checkRef(StaticCodeFunction::Reference& ref);
 		void checkRef_x86(StaticCodeFunction::Reference& ref);
@@ -101,6 +107,7 @@ class StaticCodeAnalysis
 		NameContainer* _names = nullptr;
 
 		csh _ce;
+		cs_mode _ceMode;
 		cs_insn* _ceInsn = nullptr;
 
 		stacofin::Finder _codeFinder;

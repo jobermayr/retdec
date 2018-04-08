@@ -124,7 +124,7 @@ std::string Address::toHexPrefixString() const
 std::ostream& operator<<(std::ostream &out, const Address &a)
 {
 	if (a.isDefined())
-		return out << std::hex << a.address;
+		return out << a.toHexPrefixString();
 	else
 		return out << "UNDEFINED";
 }

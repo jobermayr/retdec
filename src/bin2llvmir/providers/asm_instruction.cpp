@@ -652,7 +652,7 @@ std::string AsmInstruction::getBasicBlockLableName(
 		const std::string& labelPrefix) const
 {
 	std::stringstream ret;
-	ret << labelPrefix << getAddress();
+	ret << labelPrefix << getAddress().toHexString();
 	return ret.str();
 }
 

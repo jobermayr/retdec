@@ -575,7 +575,12 @@ void Decoder::initStaticCode()
 {
 	LOG << "\n" << "initStaticCode():" << std::endl;
 
-	StaticCodeAnalysis SCA(_config, _image, _names, _c2l->getCapstoneEngine());
+	StaticCodeAnalysis SCA(
+			_config,
+			_image,
+			_names,
+			_c2l->getCapstoneEngine(),
+			_currentMode);
 	for (auto& p : SCA.getConfirmedDetections())
 	{
 		auto* f = p.second;

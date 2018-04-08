@@ -360,7 +360,8 @@ std::string dumpDetectedFunctions(
 	for (auto& f : codeFinder.accessDectedFunctions())
 	{
 		ret << "\t\t" << f.address << " @ " << f.names.front()
-				<< ", sz = " << f.size << "\n";
+				<< ", sz = " << f.size << ", from = " << f.signaturePath
+				<< "\n";
 
 		for (auto& p : f.references)
 		{
@@ -484,12 +485,14 @@ StaticCodeAnalysis::StaticCodeAnalysis(
 		Config* c,
 		FileImage* i,
 		NameContainer* ns,
-		csh ce)
+		csh ce,
+		cs_mode md)
 		:
 		_config(c),
 		_image(i),
 		_names(ns),
 		_ce(ce),
+		_ceMode(md),
 		_ceInsn(cs_malloc(ce))
 {
 	LOG << "\n StaticCodeAnalysis():" << std::endl;
@@ -554,10 +557,34 @@ StaticCodeAnalysis::~StaticCodeAnalysis()
 void StaticCodeAnalysis::solveReferences()
 {
 	for (auto& p : _allDetections)
-	for (auto& r : p.second.references)
 	{
-		r.target = getAddressFromRef(r.address);
-		checkRef(r);
+		bool modeSwitch = false;
+		std::string& sigPath = p.second.signaturePath;
+		if (_config->isArmOrThumb()
+				&& utils::containsCaseInsensitive(sigPath, "thumb"))
+		{
+			if (cs_option(_ce, CS_OPT_MODE, CS_MODE_THUMB) != CS_ERR_OK)
+			{
+				assert(false);
+				return;
+			}
+			modeSwitch = true;
+		}
+
+		for (auto& r : p.second.references)
+		{
+			r.target = getAddressFromRef(r.address);
+			checkRef(r);
+		}
+
+		if (modeSwitch)
+		{
+			if (cs_option(_ce, CS_OPT_MODE, _ceMode) != CS_ERR_OK)
+			{
+				assert(false);
+				return;
+			}
+		}
 	}
 }
 
@@ -582,6 +609,10 @@ utils::Address StaticCodeAnalysis::getAddressFromRef(utils::Address ref)
 	else if (_config->isMipsOrPic32())
 	{
 		return getAddressFromRef_mips(ref);
+	}
+	else if (_config->getConfig().architecture.isArm())
+	{
+		return getAddressFromRef_arm(ref);
 	}
 	else
 	{
@@ -785,6 +816,86 @@ utils::Address StaticCodeAnalysis::getAddressFromRef_mips(utils::Address ref)
 			Address t = upper +  mips.operands[2].imm;
 			return t;
 		}
+	}
+
+	return Address();
+}
+
+/**
+ * On ARM, reference may be an instruction that needs to be disassembled and
+ * inspected for reference target,
+ * or
+ * a word after the function that just needs to be read (it should point
+ * somewhere to the loaded image, but that is checked later).
+ */
+utils::Address StaticCodeAnalysis::getAddressFromRef_arm(utils::Address ref)
+{
+	auto* ci = _image->getConstantDefault(ref);
+
+	// If word reference looks ok, use it.
+	//
+	if (ci && ci->getZExtValue() == _image->getImage()->getBaseAddress())
+	{
+		return ci->getZExtValue();
+	}
+	else if (ci && _allDetections.count(ci->getZExtValue()))
+	{
+		return ci->getZExtValue();
+	}
+	else if (ci
+			&& ci->getZExtValue() % 2
+			&& _allDetections.count(ci->getZExtValue() - 1))
+	{
+		return ci->getZExtValue() - 1;
+	}
+
+	// Try to disassemble the reference data into instruction.
+	//
+	uint64_t addr = ref;
+	auto data = _image->getImage()->getRawSegmentData(ref);
+	if (cs_disasm_iter(_ce, &data.first, &data.second, &addr, _ceInsn))
+	{
+		auto& arm = _ceInsn->detail->arm;
+
+		bool isBr = cs_insn_group(_ce, _ceInsn, ARM_GRP_JUMP)
+				|| cs_insn_group(_ce, _ceInsn, ARM_GRP_CALL)
+				|| cs_insn_group(_ce, _ceInsn, ARM_GRP_BRANCH_RELATIVE);
+
+		if (isBr
+				&& arm.op_count == 1
+				&& arm.operands[0].type == ARM_OP_IMM
+				&& _image->getImage()->hasDataOnAddress(arm.operands[0].imm))
+		{
+			auto val = arm.operands[0].imm;
+			val = val%2 ? val-1 : val;
+			return val;
+		}
+		// bx lr
+		//
+		else if (isBr
+				&& arm.op_count == 1
+				&& arm.operands[0].type == ARM_OP_REG)
+		{
+			return Address();
+		}
+		// mov pc, lr (return)
+		//
+		else if (_ceInsn->id == ARM_INS_MOV
+				&& arm.op_count == 2
+				&& arm.operands[0].type == ARM_OP_REG
+				&& arm.operands[0].reg == ARM_REG_PC
+				&& arm.operands[1].type == ARM_OP_REG
+				&& arm.operands[1].reg == ARM_REG_LR)
+		{
+			return Address();
+		}
+	}
+
+	// If we get here and reference word exists, always use reference.
+	//
+	if (ci)
+	{
+		return ci->getZExtValue();
 	}
 
 	return Address();
