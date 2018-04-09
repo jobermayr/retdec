@@ -130,10 +130,15 @@ llvm::BasicBlock* Decoder::createBasicBlock(
 	IRBuilder<> irb(b);
 	irb.CreateRet(UndefValue::get(f->getReturnType()));
 
-	_addr2bb[a] = b;
-	_bb2addr[b] = a;
+	addBasicBlock(a, b);
 
 	return b;
+}
+
+void Decoder::addBasicBlock(utils::Address a, llvm::BasicBlock* b)
+{
+	_addr2bb[a] = b;
+	_bb2addr[b] = a;
 }
 
 } // namespace bin2llvmir

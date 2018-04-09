@@ -94,16 +94,6 @@ class Decoder : public llvm::ModulePass
 				llvm::CallInst* branchCall,
 				llvm::Value* val);
 
-		void splitOnTerminatingCalls();
-
-		llvm::Function* _splitFunctionOn(
-				utils::Address addr,
-				const std::string& fncName = "");
-		llvm::Function* _splitFunctionOn(
-				utils::Address addr,
-				llvm::BasicBlock* bb,
-				const std::string& fncName = "");
-
 		void getOrCreateTarget(
 				utils::Address addr,
 				bool isCall,
@@ -113,6 +103,66 @@ class Decoder : public llvm::ModulePass
 
 		void removePseudoCalls();
 
+	// Basic block related methods.
+	//
+	private:
+		utils::Address getBasicBlockAddress(llvm::BasicBlock* b);
+		utils::Address getBasicBlockEndAddress(llvm::BasicBlock* b);
+		utils::Address getBasicBlockAddressAfter(utils::Address a);
+		llvm::BasicBlock* getBasicBlockAtAddress(utils::Address a);
+		llvm::BasicBlock* getBasicBlockBeforeAddress(utils::Address a);
+		llvm::BasicBlock* getBasicBlockAfterAddress(utils::Address a);
+		llvm::BasicBlock* getBasicBlockContainingAddress(utils::Address a);
+		llvm::BasicBlock* createBasicBlock(
+				utils::Address a,
+				llvm::Function* f,
+				llvm::BasicBlock* insertAfter = nullptr);
+		void addBasicBlock(utils::Address a, llvm::BasicBlock* b);
+
+		std::map<utils::Address, llvm::BasicBlock*> _addr2bb;
+		std::map<llvm::BasicBlock*, utils::Address> _bb2addr;
+
+	// Function related methods.
+	//
+	private:
+		utils::Address getFunctionAddress(llvm::Function* f);
+		utils::Address getFunctionEndAddress(llvm::Function* f);
+		utils::Address getFunctionAddressAfter(utils::Address a);
+		llvm::Function* getFunctionAtAddress(utils::Address a);
+		llvm::Function* getFunctionBeforeAddress(utils::Address a);
+		llvm::Function* getFunctionAfterAddress(utils::Address a);
+		llvm::Function* getFunctionContainingAddress(utils::Address a);
+		llvm::Function* createFunction(
+				utils::Address a,
+				bool declaration = false);
+
+		std::map<utils::Address, llvm::Function*> _addr2fnc;
+		std::map<llvm::Function*, utils::Address> _fnc2addr;
+
+	// Pattern recognition methods.
+	//
+	private:
+		bool patternsRecognize();
+		bool patternTerminatingCalls();
+
+	// x86 specifix.
+	//
+	private:
+		std::size_t decodeJumpTargetDryRun_x86(
+				const JumpTarget& jt,
+				ByteData bytes);
+		void eraseReturnAddrStoreInCall_x86(llvm::CallInst* c);
+
+	// ARM specific.
+	//
+	private:
+		std::size_t decodeJumpTargetDryRun_arm(
+				const JumpTarget& jt,
+				ByteData bytes);
+
+	// IR modifications.
+	//
+	private:
 		llvm::CallInst* transformToCall(
 				llvm::CallInst* pseudo,
 				llvm::Function* callee);
@@ -136,55 +186,13 @@ class Decoder : public llvm::ModulePass
 				llvm::BasicBlock* defaultBb,
 				const std::vector<llvm::BasicBlock*>& cases);
 
-	// Basic block related methods.
-	//
-	private:
-		utils::Address getBasicBlockAddress(llvm::BasicBlock* b);
-		utils::Address getBasicBlockEndAddress(llvm::BasicBlock* b);
-		utils::Address getBasicBlockAddressAfter(utils::Address a);
-		llvm::BasicBlock* getBasicBlockAtAddress(utils::Address a);
-		llvm::BasicBlock* getBasicBlockBeforeAddress(utils::Address a);
-		llvm::BasicBlock* getBasicBlockAfterAddress(utils::Address a);
-		llvm::BasicBlock* getBasicBlockContainingAddress(utils::Address a);
-		llvm::BasicBlock* createBasicBlock(
-				utils::Address a,
-				llvm::Function* f,
-				llvm::BasicBlock* insertAfter = nullptr);
-
-		std::map<utils::Address, llvm::BasicBlock*> _addr2bb;
-		std::map<llvm::BasicBlock*, utils::Address> _bb2addr;
-
-	// Function related methods.
-	//
-	private:
-		utils::Address getFunctionAddress(llvm::Function* f);
-		utils::Address getFunctionEndAddress(llvm::Function* f);
-		utils::Address getFunctionAddressAfter(utils::Address a);
-		llvm::Function* getFunctionAtAddress(utils::Address a);
-		llvm::Function* getFunctionBeforeAddress(utils::Address a);
-		llvm::Function* getFunctionAfterAddress(utils::Address a);
-		llvm::Function* getFunctionContainingAddress(utils::Address a);
-		llvm::Function* createFunction(
-				utils::Address a,
-				bool declaration = false);
-
-		std::map<utils::Address, llvm::Function*> _addr2fnc;
-		std::map<llvm::Function*, utils::Address> _fnc2addr;
-
-	// x86 specifix.
-	//
-	private:
-		std::size_t decodeJumpTargetDryRun_x86(
-				const JumpTarget& jt,
-				ByteData bytes);
-		void eraseReturnAddrStoreInCall_x86(llvm::CallInst* c);
-
-	// ARM specific.
-	//
-	private:
-		std::size_t decodeJumpTargetDryRun_arm(
-				const JumpTarget& jt,
-				ByteData bytes);
+		llvm::Function* _splitFunctionOn(
+				utils::Address addr,
+				const std::string& fncName = "");
+		llvm::Function* _splitFunctionOn(
+				utils::Address addr,
+				llvm::BasicBlock* bb,
+				const std::string& fncName = "");
 
 	// Data.
 	//

@@ -1,0 +1,379 @@
+/**
+* @file src/bin2llvmir/optimizations/decoder/ir_modifications.cpp
+* @brief Decode input binary into LLVM IR.
+* @copyright (c) 2017 Avast Software, licensed under the MIT license
+*/
+
+#include "retdec/bin2llvmir/optimizations/decoder/decoder.h"
+
+using namespace retdec::utils;
+using namespace llvm;
+
+namespace retdec {
+namespace bin2llvmir {
+
+llvm::CallInst* Decoder::transformToCall(
+		llvm::CallInst* pseudo,
+		llvm::Function* callee)
+{
+	if (callee == nullptr)
+	{
+		return nullptr;
+	}
+
+	auto* c = CallInst::Create(callee);
+	c->insertAfter(pseudo);
+
+	if (_config->getConfig().architecture.isX86())
+	{
+		eraseReturnAddrStoreInCall_x86(c);
+		if (auto* eax = _module->getNamedGlobal("eax"))
+		{
+			auto* s = new StoreInst(c, eax);
+			s->insertAfter(c);
+		}
+	}
+
+	return c;
+}
+
+llvm::CallInst* Decoder::transformToCondCall(
+		llvm::CallInst* pseudo,
+		llvm::Value* cond,
+		llvm::Function* callee,
+		llvm::BasicBlock* falseBb)
+{
+	if (callee == nullptr || falseBb == nullptr)
+	{
+		return nullptr;
+	}
+
+	auto* oldBb = pseudo->getParent();
+	auto* newBb = oldBb->splitBasicBlock(pseudo);
+
+	auto* oldTerm = oldBb->getTerminator();
+	BranchInst::Create(newBb, falseBb, cond, oldTerm);
+	oldTerm->eraseFromParent();
+
+	auto* newTerm = newBb->getTerminator();
+	BranchInst::Create(falseBb, newTerm);
+	newTerm->eraseFromParent();
+
+	auto* c = CallInst::Create(callee);
+	c->insertAfter(pseudo);
+
+	return c;
+}
+
+llvm::ReturnInst* Decoder::transformToReturn(llvm::CallInst* pseudo)
+{
+	auto* term = pseudo->getParent()->getTerminator();
+	auto* r = ReturnInst::Create(
+			pseudo->getModule()->getContext(),
+			UndefValue::get(pseudo->getFunction()->getReturnType()),
+			term);
+	term->eraseFromParent();
+
+	return r;
+}
+
+llvm::BranchInst* Decoder::transformToBranch(
+		llvm::CallInst* pseudo,
+		llvm::BasicBlock* branchee)
+{
+	if (branchee == nullptr)
+	{
+		return nullptr;
+	}
+
+	auto* term = pseudo->getParent()->getTerminator();
+	auto* br = BranchInst::Create(branchee, term);
+	term->eraseFromParent();
+
+	return br;
+}
+
+llvm::BranchInst* Decoder::transformToCondBranch(
+		llvm::CallInst* pseudo,
+		llvm::Value* cond,
+		llvm::BasicBlock* trueBb,
+		llvm::BasicBlock* falseBb)
+{
+	auto* term = pseudo->getParent()->getTerminator();
+	auto* br = BranchInst::Create(trueBb, falseBb, cond, term);
+	term->eraseFromParent();
+
+	return br;
+}
+
+llvm::SwitchInst* Decoder::transformToSwitch(
+		llvm::CallInst* pseudo,
+		llvm::Value* val,
+		llvm::BasicBlock* defaultBb,
+		const std::vector<llvm::BasicBlock*>& cases)
+{
+	unsigned numCases = 0;
+	for (auto* c : cases)
+	{
+		if (c != defaultBb)
+		{
+			++numCases;
+		}
+	}
+
+	auto* term = pseudo->getParent()->getTerminator();
+	auto* intType = cast<IntegerType>(val->getType());
+	auto* sw = SwitchInst::Create(val, defaultBb, numCases, term);
+	unsigned cntr = 0;
+	for (auto& c : cases)
+	{
+		if (c != defaultBb)
+		{
+			sw->addCase(ConstantInt::get(intType, cntr), c);
+		}
+		++cntr;
+	}
+
+	term->eraseFromParent();
+
+	return sw;
+}
+
+llvm::Function* Decoder::_splitFunctionOn(
+		utils::Address addr,
+		const std::string& fncName)
+{
+	std::string name = fncName.empty()
+			? names::generateFunctionName(addr, _config->getConfig().isIda())
+			: fncName;
+
+	if (auto* bb = getBasicBlockAtAddress(addr))
+	{
+		return _splitFunctionOn(addr, bb, name);
+	}
+	else if (auto ai = AsmInstruction(_module, addr))
+	{
+		auto* oldBb = ai.getBasicBlock();
+		auto* newBb = ai.makeStart();
+
+		ReturnInst::Create(
+				oldBb->getModule()->getContext(),
+				UndefValue::get(oldBb->getParent()->getReturnType()),
+				oldBb->getTerminator());
+		oldBb->getTerminator()->eraseFromParent();
+
+		_addr2bb[addr] = newBb;
+		_bb2addr[newBb] = addr;
+		newBb->setName("bb_" + addr.toHexString());
+
+		return _splitFunctionOn(addr, newBb, name);
+	}
+	else if (auto* before = getBasicBlockBeforeAddress(addr))
+	{
+		auto* newBb = createBasicBlock(addr, before->getParent(), before);
+
+		_addr2bb[addr] = newBb;
+		_bb2addr[newBb] = addr;
+
+		return _splitFunctionOn(addr, newBb, name);
+	}
+	else
+	{
+		return createFunction(addr);
+	}
+}
+
+llvm::Function* Decoder::_splitFunctionOn(
+		utils::Address addr,
+		llvm::BasicBlock* bb,
+		const std::string& fncName)
+{
+	if (bb->getPrevNode() == nullptr)
+	{
+		return bb->getParent();
+	}
+
+	std::string name = fncName.empty()
+			? names::generateFunctionName(addr, _config->getConfig().isIda())
+			: fncName;
+
+	Function* oldFnc = bb->getParent();
+
+	Function* newFnc = Function::Create(
+			FunctionType::get(oldFnc->getReturnType(), false),
+			oldFnc->getLinkage(),
+			name);
+	oldFnc->getParent()->getFunctionList().insertAfter(
+			oldFnc->getIterator(),
+			newFnc);
+
+	_addr2fnc[addr] = newFnc;
+	_fnc2addr[newFnc] = addr;
+
+	newFnc->getBasicBlockList().splice(
+			newFnc->begin(),
+			oldFnc->getBasicBlockList(),
+			bb->getIterator(),
+			oldFnc->getBasicBlockList().end());
+
+	bool restart = true;
+	while (restart)
+	{
+		restart = false;
+		for (BasicBlock& b : *oldFnc)
+		{
+			for (Instruction& i : b)
+			{
+				if (BranchInst* br = dyn_cast<BranchInst>(&i))
+				{
+					if (br->isConditional())
+					{
+						// TODO: this is shit hack.
+//						assert(br->getSuccessor(0)->getParent() == br->getFunction());
+//						assert(br->getSuccessor(1)->getParent() == br->getFunction());
+
+						if (br->getSuccessor(0)->getParent() != br->getFunction()
+								|| br->getSuccessor(1)->getParent() != br->getFunction())
+						{
+							auto* r = ReturnInst::Create(
+									br->getModule()->getContext(),
+									UndefValue::get(br->getFunction()->getReturnType()),
+									br);
+							br->eraseFromParent();
+							restart = true;
+							break;
+						}
+					}
+					else
+					{
+						BasicBlock* succ = br->getSuccessor(0);
+						if (succ->getParent() != br->getFunction())
+						{
+							// Succ is first in function -> call function.
+							if (succ->getPrevNode() == nullptr)
+							{
+								CallInst::Create(succ->getParent(), "", br);
+								ReturnInst::Create(
+										br->getModule()->getContext(),
+										UndefValue::get(br->getFunction()->getReturnType()),
+										br);
+								br->eraseFromParent();
+								break;
+							}
+							else
+							{
+								Address target = getBasicBlockAddress(succ);
+								assert(target.isDefined());
+								auto* nf = _splitFunctionOn(target, succ);
+
+								CallInst::Create(nf, "", br);
+								ReturnInst::Create(
+										br->getModule()->getContext(),
+										UndefValue::get(br->getFunction()->getReturnType()),
+										br);
+								br->eraseFromParent();
+								restart = true;
+								break;
+							}
+						}
+					}
+				}
+				else if (SwitchInst* sw = dyn_cast<SwitchInst>(&i))
+				{
+					for (unsigned j = 0, e = sw->getNumSuccessors(); j != e; ++j)
+					{
+						assert(sw->getSuccessor(j)->getParent() == sw->getFunction());
+					}
+				}
+			}
+
+			if (restart)
+			{
+				break;
+			}
+		}
+	}
+
+	restart = true;
+	while (restart)
+	{
+		restart = false;
+		for (BasicBlock& b : *newFnc)
+		{
+			for (Instruction& i : b)
+			{
+				if (BranchInst* br = dyn_cast<BranchInst>(&i))
+				{
+					if (br->isConditional())
+					{
+						// TODO: this is shit hack.
+//						assert(br->getSuccessor(0)->getParent() == br->getFunction());
+//						assert(br->getSuccessor(1)->getParent() == br->getFunction());
+
+						if (br->getSuccessor(0)->getParent() != br->getFunction()
+								|| br->getSuccessor(1)->getParent() != br->getFunction())
+						{
+							auto* r = ReturnInst::Create(
+									br->getModule()->getContext(),
+									UndefValue::get(br->getFunction()->getReturnType()),
+									br);
+							br->eraseFromParent();
+							restart = true;
+							break;
+						}
+					}
+					else
+					{
+						BasicBlock* succ = br->getSuccessor(0);
+						if (succ->getParent() != br->getFunction())
+						{
+							// Succ is first in function -> call function.
+							if (succ->getPrevNode() == nullptr)
+							{
+								CallInst::Create(succ->getParent(), "", br);
+								ReturnInst::Create(
+										br->getModule()->getContext(),
+										UndefValue::get(br->getFunction()->getReturnType()),
+										br);
+								br->eraseFromParent();
+								break;
+							}
+							else
+							{
+								Address target = getBasicBlockAddress(succ);
+								assert(target.isDefined());
+								auto* nf = _splitFunctionOn(target, succ);
+
+								CallInst::Create(nf, "", br);
+								ReturnInst::Create(
+										br->getModule()->getContext(),
+										UndefValue::get(br->getFunction()->getReturnType()),
+										br);
+								br->eraseFromParent();
+								restart = true;
+								break;
+							}
+						}
+					}
+				}
+				else if (SwitchInst* sw = dyn_cast<SwitchInst>(&i))
+				{
+					for (unsigned j = 0, e = sw->getNumSuccessors(); j != e; ++j)
+					{
+						assert(sw->getSuccessor(j)->getParent() == sw->getFunction());
+					}
+				}
+			}
+
+			if (restart)
+			{
+				break;
+			}
+		}
+	}
+
+	return newFnc;
+}
+
+} // namespace bin2llvmir
+} // namespace retdec
