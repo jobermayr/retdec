@@ -87,49 +87,25 @@ class Decoder : public llvm::ModulePass
 				ByteData bytes);
 
 		bool getJumpTargetsFromInstruction(
-				retdec::utils::Address addr,
+				utils::Address addr,
 				capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& tr);
-		retdec::utils::Address getJumpTarget(
-				retdec::utils::Address addr,
+		utils::Address getJumpTarget(
+				utils::Address addr,
 				llvm::CallInst* branchCall,
 				llvm::Value* val);
-
-		retdec::utils::Address getFunctionAddress(llvm::Function* f);
-		retdec::utils::Address getFunctionEndAddress(llvm::Function* f);
-		retdec::utils::Address getFunctionAddressAfter(retdec::utils::Address a);
-		llvm::Function* getFunctionAtAddress(retdec::utils::Address a);
-		llvm::Function* getFunctionBeforeAddress(retdec::utils::Address a);
-		llvm::Function* getFunctionAfterAddress(retdec::utils::Address a);
-		llvm::Function* getFunctionContainingAddress(retdec::utils::Address a);
-		llvm::Function* createFunction(
-				retdec::utils::Address a,
-				bool declaration = false);
-
-		retdec::utils::Address getBasicBlockAddress(llvm::BasicBlock* b);
-		retdec::utils::Address getBasicBlockEndAddress(llvm::BasicBlock* b);
-		retdec::utils::Address getBasicBlockAddressAfter(retdec::utils::Address a);
-		llvm::BasicBlock* getBasicBlockAtAddress(retdec::utils::Address a);
-		llvm::BasicBlock* getBasicBlockBeforeAddress(retdec::utils::Address a);
-		llvm::BasicBlock* getBasicBlockAfterAddress(retdec::utils::Address a);
-		llvm::BasicBlock* getBasicBlockContainingAddress(retdec::utils::Address a);
-		llvm::BasicBlock* createBasicBlock(
-				retdec::utils::Address a,
-				const std::string& name,
-				llvm::Function* f,
-				llvm::BasicBlock* insertAfter = nullptr);
 
 		void splitOnTerminatingCalls();
 
 		llvm::Function* _splitFunctionOn(
-				retdec::utils::Address addr,
+				utils::Address addr,
 				const std::string& fncName = "");
 		llvm::Function* _splitFunctionOn(
-				retdec::utils::Address addr,
+				utils::Address addr,
 				llvm::BasicBlock* bb,
 				const std::string& fncName = "");
 
 		void getOrCreateTarget(
-				retdec::utils::Address addr,
+				utils::Address addr,
 				bool isCall,
 				llvm::BasicBlock*& tBb,
 				llvm::Function*& tFnc,
@@ -159,6 +135,41 @@ class Decoder : public llvm::ModulePass
 				llvm::Value* val,
 				llvm::BasicBlock* defaultBb,
 				const std::vector<llvm::BasicBlock*>& cases);
+
+	// Basic block related methods.
+	//
+	private:
+		utils::Address getBasicBlockAddress(llvm::BasicBlock* b);
+		utils::Address getBasicBlockEndAddress(llvm::BasicBlock* b);
+		utils::Address getBasicBlockAddressAfter(utils::Address a);
+		llvm::BasicBlock* getBasicBlockAtAddress(utils::Address a);
+		llvm::BasicBlock* getBasicBlockBeforeAddress(utils::Address a);
+		llvm::BasicBlock* getBasicBlockAfterAddress(utils::Address a);
+		llvm::BasicBlock* getBasicBlockContainingAddress(utils::Address a);
+		llvm::BasicBlock* createBasicBlock(
+				utils::Address a,
+				llvm::Function* f,
+				llvm::BasicBlock* insertAfter = nullptr);
+
+		std::map<utils::Address, llvm::BasicBlock*> _addr2bb;
+		std::map<llvm::BasicBlock*, utils::Address> _bb2addr;
+
+	// Function related methods.
+	//
+	private:
+		utils::Address getFunctionAddress(llvm::Function* f);
+		utils::Address getFunctionEndAddress(llvm::Function* f);
+		utils::Address getFunctionAddressAfter(utils::Address a);
+		llvm::Function* getFunctionAtAddress(utils::Address a);
+		llvm::Function* getFunctionBeforeAddress(utils::Address a);
+		llvm::Function* getFunctionAfterAddress(utils::Address a);
+		llvm::Function* getFunctionContainingAddress(utils::Address a);
+		llvm::Function* createFunction(
+				utils::Address a,
+				bool declaration = false);
+
+		std::map<utils::Address, llvm::Function*> _addr2fnc;
+		std::map<llvm::Function*, utils::Address> _fnc2addr;
 
 	// x86 specifix.
 	//
@@ -192,15 +203,10 @@ class Decoder : public llvm::ModulePass
 		RangesToDecode _ranges;
 		JumpTargets _jumpTargets;
 
-		std::map<retdec::utils::Address, llvm::Function*> _addr2fnc;
-		std::map<llvm::Function*, retdec::utils::Address> _fnc2addr;
-		std::map<retdec::utils::Address, llvm::BasicBlock*> _addr2bb;
-		std::map<llvm::BasicBlock*, retdec::utils::Address> _bb2addr;
-
-		std::set<retdec::utils::Address> _imports;
-		std::set<retdec::utils::Address> _exports;
-		std::set<retdec::utils::Address> _debugFncs;
-		std::set<retdec::utils::Address> _staticFncs;
+		std::set<utils::Address> _imports;
+		std::set<utils::Address> _exports;
+		std::set<utils::Address> _debugFncs;
+		std::set<utils::Address> _staticFncs;
 		std::set<llvm::Function*> _terminatingFncs;
 };
 

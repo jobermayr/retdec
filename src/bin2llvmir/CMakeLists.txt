@@ -19,9 +19,11 @@ set(BIN2LLVMIR_SOURCES
 	optimizations/ctor_dtor/ctor_dtor.cpp
 	optimizations/data_references/data_references.cpp
 	optimizations/decoder/arm.cpp
+	optimizations/decoder/bbs.cpp
 	optimizations/decoder/decoder_ranges.cpp
 	optimizations/decoder/decoder_init.cpp
 	optimizations/decoder/decoder.cpp
+	optimizations/decoder/functions.cpp
 	optimizations/decoder/jump_targets.cpp
 	optimizations/decoder/x86.cpp
 	optimizations/dsm_generator/dsm_generator.cpp

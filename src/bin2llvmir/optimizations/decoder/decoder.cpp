@@ -8,7 +8,7 @@
 
 #include <llvm/IR/Dominators.h>
 #include <llvm/IR/PatternMatch.h>
-#include <llvm/Analysis/PostDominators.h>
+//#include <llvm/Analysis/PostDominators.h>
 
 #include "retdec/utils/conversion.h"
 #include "retdec/utils/string.h"
@@ -307,7 +307,7 @@ std::size_t Decoder::decodeJumpTargetDryRun(
  * @return @c True if this instruction ends basic block, @c false otherwise.
  */
 bool Decoder::getJumpTargetsFromInstruction(
-		retdec::utils::Address addr,
+		utils::Address addr,
 		capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& tr)
 {
 	cs_mode m = _currentMode;
@@ -421,7 +421,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 }
 
 void Decoder::getOrCreateTarget(
-		retdec::utils::Address addr,
+		utils::Address addr,
 		bool isCall,
 		llvm::BasicBlock*& tBb,
 		llvm::Function*& tFnc,
@@ -462,11 +462,7 @@ void Decoder::getOrCreateTarget(
 		}
 		else if (auto* bb = getBasicBlockBeforeAddress(addr))
 		{
-			tBb = createBasicBlock(
-					addr,
-					"",
-					bb->getParent(),
-					bb);
+			tBb = createBasicBlock(addr, bb->getParent(), bb);
 		}
 		else
 		{
@@ -488,8 +484,8 @@ void Decoder::getOrCreateTarget(
 	}
 }
 
-retdec::utils::Address Decoder::getJumpTarget(
-		retdec::utils::Address addr,
+utils::Address Decoder::getJumpTarget(
+		utils::Address addr,
 		llvm::CallInst* branchCall,
 		llvm::Value* val)
 {
@@ -665,314 +661,6 @@ retdec::utils::Address Decoder::getJumpTarget(
 	}
 
 	return Address::getUndef;
-}
-
-//
-//==============================================================================
-// Function helper methods.
-//==============================================================================
-//
-
-/**
- * \return Start address for function \p f.
- */
-retdec::utils::Address Decoder::getFunctionAddress(llvm::Function* f)
-{
-	auto fIt = _fnc2addr.find(f);
-	return fIt != _fnc2addr.end() ? fIt->second : Address();
-}
-
-/**
- * \return End address for function \p f.
- * \note End address is one byte beyond the function, i.e. <start, end).
- */
-retdec::utils::Address Decoder::getFunctionEndAddress(llvm::Function* f)
-{
-	if (f == nullptr)
-	{
-		Address();
-	}
-
-	if (f->empty() || f->back().empty())
-	{
-		return getFunctionAddress(f);
-	}
-
-	AsmInstruction ai(&f->back().back());
-	return ai.isValid() ? ai.getEndAddress() : getFunctionAddress(f);
-}
-
-retdec::utils::Address Decoder::getFunctionAddressAfter(
-		retdec::utils::Address a)
-{
-	auto it = _addr2fnc.upper_bound(a);
-	return it != _addr2fnc.end() ? it->first : Address();
-}
-
-/**
- * \return Function exactly at address \p a.
- */
-llvm::Function* Decoder::getFunctionAtAddress(retdec::utils::Address a)
-{
-	auto fIt = _addr2fnc.find(a);
-	return fIt != _addr2fnc.end() ? fIt->second : nullptr;
-}
-
-/**
- * \return The first function before or at address \p a.
- */
-llvm::Function* Decoder::getFunctionBeforeAddress(retdec::utils::Address a)
-{
-	if (_addr2fnc.empty())
-	{
-		return nullptr;
-	}
-
-	// Iterator to the first element whose key goes after a.
-	auto it = _addr2fnc.upper_bound(a);
-
-	// The first function is after a -> no function before a.
-	if (it == _addr2fnc.begin())
-	{
-		return nullptr;
-	}
-	// No function after a -> the last function before a.
-	else if (it == _addr2fnc.end())
-	{
-		return _addr2fnc.rbegin()->second;
-	}
-	// Function after a exists -> the one before it is before a.
-	else
-	{
-		--it;
-		return it->second;
-	}
-}
-
-llvm::Function* Decoder::getFunctionAfterAddress(retdec::utils::Address a)
-{
-	auto it = _addr2fnc.upper_bound(a);
-	return it != _addr2fnc.end() ? it->second : nullptr;
-}
-
-/**
- * \return Function that contains the address \p a. I.e. \p a is between
- * function's start and end address.
- */
-llvm::Function* Decoder::getFunctionContainingAddress(retdec::utils::Address a)
-{
-	if (auto* f = getFunctionBeforeAddress(a))
-	{
-		Address end = getFunctionEndAddress(f);
-		return a.isDefined() && end.isDefined() && a < end ? f : nullptr;
-	}
-	return nullptr;
-}
-
-/**
- * Create function at address \p a.
- * \return Created function.
- */
-llvm::Function* Decoder::createFunction(
-		retdec::utils::Address a,
-		bool declaration)
-{
-	auto existing = _addr2fnc.find(a);
-	if (existing != _addr2fnc.end())
-	{
-		return existing->second;
-	}
-
-	std::string n;
-	if (n.empty())
-	{
-		n = _names->getPreferredNameForAddress(a);
-	}
-	if (n.empty())
-	{
-		n = names::generateFunctionName(a, _config->getConfig().isIda());
-	}
-
-	Function* f = nullptr;
-	auto& fl = _module->getFunctionList();
-
-	if (fl.empty())
-	{
-		f = Function::Create(
-				FunctionType::get(
-						getDefaultType(_module),
-						false),
-				GlobalValue::ExternalLinkage,
-				n,
-				_module);
-	}
-	else
-	{
-		f = Function::Create(
-				FunctionType::get(
-						getDefaultType(_module),
-						false),
-				GlobalValue::ExternalLinkage,
-				n);
-	}
-
-	Function* before = getFunctionBeforeAddress(a);
-	if (before)
-	{
-		fl.insertAfter(before->getIterator(), f);
-	}
-	else
-	{
-		fl.insert(fl.begin(), f);
-	}
-
-	if (!declaration)
-	{
-		createBasicBlock(a, "", f);
-	}
-
-	assert(a.isDefined());
-	assert(_addr2fnc.count(a) == 0);
-
-	_addr2fnc[a] = f;
-	_fnc2addr[f] = a;
-
-	return f;
-}
-
-//
-//==============================================================================
-// Basic block helper methods.
-//==============================================================================
-//
-
-/**
- * \return Start address for basic block \p f.
- */
-retdec::utils::Address Decoder::getBasicBlockAddress(llvm::BasicBlock* b)
-{
-	auto fIt = _bb2addr.find(b);
-	return fIt != _bb2addr.end() ? fIt->second : Address();
-}
-
-/**
- * \return End address for basic block \p b - the end address of the last
- *         instruction in the basic block.
- */
-retdec::utils::Address Decoder::getBasicBlockEndAddress(llvm::BasicBlock* b)
-{
-	if (b == nullptr)
-	{
-		Address();
-	}
-
-	if (b->empty())
-	{
-		return getBasicBlockAddress(b);
-	}
-
-	AsmInstruction ai(&b->back());
-	return ai.isValid() ? ai.getEndAddress() : getBasicBlockAddress(b);
-}
-
-retdec::utils::Address Decoder::getBasicBlockAddressAfter(
-		retdec::utils::Address a)
-{
-	auto it = _addr2bb.upper_bound(a);
-	return it != _addr2bb.end() ? it->first : Address();
-}
-
-/**
- * \return basic block exactly at address \p a.
- */
-llvm::BasicBlock* Decoder::getBasicBlockAtAddress(retdec::utils::Address a)
-{
-	auto fIt = _addr2bb.find(a);
-	return fIt != _addr2bb.end() ? fIt->second : nullptr;
-}
-
-/**
- * \return The first basic block before or at address \p a.
- */
-llvm::BasicBlock* Decoder::getBasicBlockBeforeAddress(
-		retdec::utils::Address a)
-{
-	if (_addr2bb.empty())
-	{
-		return nullptr;
-	}
-
-	// Iterator to the first element whose key goes after a.
-	auto it = _addr2bb.upper_bound(a);
-
-	// The first BB is after a -> no BB before a.
-	if (it == _addr2bb.begin())
-	{
-		return nullptr;
-	}
-	// No BB after a -> the last BB before a.
-	else if (it == _addr2bb.end())
-	{
-		return _addr2bb.rbegin()->second;
-	}
-	// BB after a exists -> the one before it is before a.
-	else
-	{
-		--it;
-		return it->second;
-	}
-}
-
-llvm::BasicBlock* Decoder::getBasicBlockAfterAddress(retdec::utils::Address a)
-{
-	auto it = _addr2bb.upper_bound(a);
-	return it != _addr2bb.end() ? it->second : nullptr;
-}
-
-/**
- * \return Basic block that contains the address \p a. I.e. \p a is between
- * basic blocks's start and end address.
- */
-llvm::BasicBlock* Decoder::getBasicBlockContainingAddress(
-		retdec::utils::Address a)
-{
-	auto* f = getBasicBlockBeforeAddress(a);
-	Address end = getBasicBlockEndAddress(f);
-	return a.isDefined() && end.isDefined() && a < end ? f : nullptr;
-}
-
-/**
- * Create basic block at address \p a with name \p name in function \p f right
- * after basic block \p insertAfter.
- * \return Created function.
- */
-llvm::BasicBlock* Decoder::createBasicBlock(
-		retdec::utils::Address a,
-		const std::string& name,
-		llvm::Function* f,
-		llvm::BasicBlock* insertAfter)
-{
-	std::string n = name.empty() ? "bb_" + a.toHexString() : name;
-
-	auto* next = insertAfter ? insertAfter->getNextNode() : nullptr;
-	while (!(next == nullptr || _bb2addr.count(next)))
-	{
-		next = next->getNextNode();
-	}
-
-	auto* b = BasicBlock::Create(
-			_module->getContext(),
-			n,
-			f,
-			next);
-
-	IRBuilder<> irb(b);
-	irb.CreateRet(UndefValue::get(f->getReturnType()));
-
-	_addr2bb[a] = b;
-	_bb2addr[b] = a;
-
-	return b;
 }
 
 //
@@ -1230,7 +918,7 @@ void Decoder::splitOnTerminatingCalls()
 }
 
 llvm::Function* Decoder::_splitFunctionOn(
-		retdec::utils::Address addr,
+		utils::Address addr,
 		const std::string& fncName)
 {
 	std::string name = fncName.empty()
@@ -1260,11 +948,7 @@ llvm::Function* Decoder::_splitFunctionOn(
 	}
 	else if (auto* before = getBasicBlockBeforeAddress(addr))
 	{
-		auto* newBb = createBasicBlock(
-				addr,
-				"",
-				before->getParent(),
-				before);
+		auto* newBb = createBasicBlock(addr, before->getParent(), before);
 
 		_addr2bb[addr] = newBb;
 		_bb2addr[newBb] = addr;
@@ -1278,7 +962,7 @@ llvm::Function* Decoder::_splitFunctionOn(
 }
 
 llvm::Function* Decoder::_splitFunctionOn(
-		retdec::utils::Address addr,
+		utils::Address addr,
 		llvm::BasicBlock* bb,
 		const std::string& fncName)
 {

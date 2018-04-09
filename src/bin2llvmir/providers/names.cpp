@@ -20,11 +20,16 @@ namespace bin2llvmir {
 
 namespace names {
 
-std::string generateFunctionName(retdec::utils::Address a, bool ida)
+std::string generateFunctionName(utils::Address a, bool ida)
 {
 	return ida
 			? generatedFunctionPrefixIDA + a.toHexString()
 			: generatedFunctionPrefix + a.toHexString();
+}
+
+std::string generateBasicBlockName(utils::Address a)
+{
+	return generatedBasicBlockPrefix + a.toHexString();
 }
 
 } // namespace names
