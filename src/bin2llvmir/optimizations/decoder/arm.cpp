@@ -5,6 +5,7 @@
 */
 
 #include "retdec/bin2llvmir/optimizations/decoder/decoder.h"
+#include "retdec/bin2llvmir/utils/capstone.h"
 #include "retdec/utils/string.h"
 
 using namespace retdec::utils;
@@ -29,7 +30,9 @@ std::size_t Decoder::decodeJumpTargetDryRun_arm(
 	{
 		if (jt.getType() == JumpTarget::eType::LEFTOVER
 				&& (first || nops > 0)
-				&& isNopInstruction(_dryCsInsn))
+				&& capstone_utils::isNopInstruction(
+						_config->getConfig().architecture,
+						_dryCsInsn))
 		{
 			nops += _dryCsInsn->size;
 		}

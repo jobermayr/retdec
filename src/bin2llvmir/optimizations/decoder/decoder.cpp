@@ -981,16 +981,6 @@ llvm::BasicBlock* Decoder::createBasicBlock(
 //==============================================================================
 //
 
-bool Decoder::isNopInstruction(cs_insn* insn)
-{
-	if (_config->getConfig().architecture.isX86())
-	{
-		return capstone_utils::isNopInstruction_x86(insn);
-	}
-
-	return false;
-}
-
 void Decoder::splitOnTerminatingCalls()
 {
 	LOG << "\n splitOnTerminatingCalls():" << std::endl;
@@ -1124,7 +1114,9 @@ void Decoder::splitOnTerminatingCalls()
 		AsmInstruction ai(newBb);
 		while (ai.isValid() && ai.getBasicBlock() == newBb)
 		{
-			if (isNopInstruction(ai.getCapstoneInsn()))
+			if (capstone_utils::isNopInstruction(
+					_config->getConfig().architecture,
+					ai.getCapstoneInsn()))
 			{
 				lastNop = ai;
 				ai = ai.getNext();

@@ -57,6 +57,8 @@ class Decoder : public llvm::ModulePass
 		bool runCatcher();
 		bool run();
 
+	// Initializations.
+	//
 	private:
 		void initTranslator();
 		void initDryRunCsInstruction();
@@ -116,8 +118,6 @@ class Decoder : public llvm::ModulePass
 				llvm::Function* f,
 				llvm::BasicBlock* insertAfter = nullptr);
 
-		bool isNopInstruction(cs_insn* insn);
-
 		void splitOnTerminatingCalls();
 
 		llvm::Function* _splitFunctionOn(
@@ -175,6 +175,8 @@ class Decoder : public llvm::ModulePass
 				const JumpTarget& jt,
 				ByteData bytes);
 
+	// Data.
+	//
 	private:
 		llvm::Module* _module = nullptr;
 		Config* _config = nullptr;

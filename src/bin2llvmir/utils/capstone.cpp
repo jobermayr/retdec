@@ -10,6 +10,19 @@ namespace retdec {
 namespace bin2llvmir {
 namespace capstone_utils {
 
+bool isNopInstruction(const config::Architecture& arch, cs_insn* insn)
+{
+	if (arch.isX86())
+	{
+		return isNopInstruction_x86(insn);
+	}
+	else
+	{
+		assert(false);
+		return false;
+	}
+}
+
 bool isNopInstruction_x86(cs_insn* insn)
 {
 	cs_x86& insn86 = insn->detail->x86;

@@ -9,10 +9,13 @@
 
 #include <capstone/capstone.h>
 
+#include "retdec/config/config.h"
+
 namespace retdec {
 namespace bin2llvmir {
 namespace capstone_utils {
 
+bool isNopInstruction(const config::Architecture& arch, cs_insn* insn);
 bool isNopInstruction_x86(cs_insn* insn);
 
 } // namespace capstone_utils
