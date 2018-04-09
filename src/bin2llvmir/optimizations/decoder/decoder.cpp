@@ -209,6 +209,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 	{
 		if (jt.getType() != JumpTarget::eType::LEFTOVER)
 		{
+			LOG << "\t\t" << "found no bb for jt -> skip" << std::endl;
 			assert(false);
 			return;
 		}
@@ -222,6 +223,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		}
 		else
 		{
+			LOG << "\t\t" << "no bb for fnc -> skip" << std::endl;
 			assert(false);
 			return;
 		}
@@ -234,7 +236,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 	bool bbEnd = false;
 	do
 	{
-		LOG << "\t\t\t translating = " << addr << std::endl;
+		LOG << "\t\t\t" << "translating = " << addr << std::endl;
 
 		oldAddr = addr;
 		auto res = _c2l->translateOne(bytes.first, bytes.second, addr, irb);
@@ -247,17 +249,13 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 					auto* br = irb.CreateBr(bb);
 					assert(br->getNextNode() == br->getParent()->getTerminator());
 					br->getNextNode()->eraseFromParent();
-					LOG << "\t\ttranslation ended -> reached BB @ " << addr
-							<< std::endl;
-				}
-				else
-				{
-					// TODO: ???
+					LOG << "\t\t" << "translation ended -> reached BB @ "
+							<< addr << std::endl;
 				}
 			}
 			else
 			{
-				LOG << "\t\ttranslation failed" << std::endl;
+				LOG << "\t\t" << "translation failed" << std::endl;
 			}
 			break;
 		}
@@ -268,9 +266,8 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 	while (!bbEnd);
 
 	auto end = addr > start ? Address(addr-1) : start;
-	AddressRange decRange(start, end);
-	_ranges.remove(decRange);
-	LOG << "\t\tdecoded range = " << decRange << std::endl;
+	_ranges.remove(start, end);
+	LOG << "\t\tdecoded range = " << AddressRange(start, end) << std::endl;
 }
 
 /**
@@ -310,7 +307,6 @@ bool Decoder::getJumpTargetsFromInstruction(
 		utils::Address addr,
 		capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& tr)
 {
-	cs_mode m = _currentMode;
 	auto nextAddr = addr + tr.size;
 	CallInst* pCall = tr.branchCall;
 
@@ -330,7 +326,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 			_jumpTargets.push(
 					t,
 					JumpTarget::eType::CONTROL_FLOW_CALL_TARGET,
-					m,
+					_currentMode,
 					addr);
 			LOG << "\t\t" << "call @ " << addr << " -> " << t << std::endl;
 		}
@@ -361,7 +357,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 			_jumpTargets.push(
 					t,
 					JumpTarget::eType::CONTROL_FLOW_BR_TRUE,
-					m,
+					_currentMode,
 					addr);
 			LOG << "\t\t" << "br @ " << addr << " -> "	<< t << std::endl;
 		}
@@ -400,7 +396,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 			_jumpTargets.push(
 					t,
 					JumpTarget::eType::CONTROL_FLOW_BR_TRUE,
-					m,
+					_currentMode,
 					addr);
 			LOG << "\t\t" << "cond br @ " << addr << " -> (true) "
 					<< t << std::endl;
@@ -408,7 +404,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 			_jumpTargets.push(
 					nextAddr,
 					JumpTarget::eType::CONTROL_FLOW_BR_FALSE,
-					m,
+					_currentMode,
 					addr);
 			LOG << "\t\t" << "cond br @ " << addr << " -> (false) "
 					<< nextAddr << std::endl;
@@ -420,102 +416,11 @@ bool Decoder::getJumpTargetsFromInstruction(
 	return false;
 }
 
-void Decoder::getOrCreateTarget(
-		utils::Address addr,
-		bool isCall,
-		llvm::BasicBlock*& tBb,
-		llvm::Function*& tFnc,
-		llvm::Instruction* fromI) // = nullptr
-{
-	tBb = nullptr;
-	tFnc = nullptr;
-
-	if (isCall)
-	{
-		if (auto* f = getFunctionAtAddress(addr))
-		{
-			tFnc = f;
-		}
-		else
-		{
-			tFnc = _splitFunctionOn(addr);
-		}
-	}
-	else if (fromI == nullptr)
-	{
-		if (auto* bb = getBasicBlockAtAddress(addr))
-		{
-			tBb = bb;
-		}
-		else if (auto ai = AsmInstruction(_module, addr))
-		{
-			tBb = ai.makeStart();
-			tBb->setName("bb_" + ai.getAddress().toHexString());
-
-			_addr2bb[addr] = tBb;
-			_bb2addr[tBb] = addr;
-		}
-		// Function without BBs (e.g. import declarations).
-		else if (auto* targetFnc = getFunctionAtAddress(addr))
-		{
-			tFnc = targetFnc;
-		}
-		else if (auto* bb = getBasicBlockBeforeAddress(addr))
-		{
-			tBb = createBasicBlock(addr, bb->getParent(), bb);
-		}
-		else
-		{
-			auto* newFnc = createFunction(addr);
-			tBb = &newFnc->front();
-		}
-	}
-	else
-	{
-		auto* fromFnc = fromI->getFunction();
-
-		getOrCreateTarget(addr, false, tBb, tFnc);
-
-		if (tBb && tBb->getParent() != fromFnc)
-		{
-			tBb = nullptr;
-			tFnc = _splitFunctionOn(addr);
-		}
-	}
-}
-
 utils::Address Decoder::getJumpTarget(
 		utils::Address addr,
 		llvm::CallInst* branchCall,
 		llvm::Value* val)
 {
-	// TODO: In these cases, target will be always the same -> we can remove
-	// the pseudo call and never compute it again.
-	//
-	if (auto* ci = dyn_cast<ConstantInt>(val))
-	{
-		return ci->getZExtValue();
-	}
-	else if (isa<LoadInst>(val)
-			&& isa<ConstantInt>(skipCasts(cast<LoadInst>(val)->getOperand(0))))
-	{
-		auto* ci = cast<ConstantInt>(
-				skipCasts(cast<LoadInst>(val)->getOperand(0)));
-		Address addr = ci->getZExtValue();
-		if (_imports.count(addr))
-		{
-			return addr;
-		}
-		else if (auto* ci = _image->getConstantDefault(addr))
-		{
-			return ci->getZExtValue();
-		}
-	}
-
-	// TODO: In these cases, target may change as more control flow is decoded
-	// -> store pseudo calls and recompute (check) them later.
-	//
-
 	static ReachingDefinitionsAnalysis RDA;
 	SymbolicTree st(RDA, val);
 	st.simplifyNode(_config);
@@ -524,7 +429,8 @@ utils::Address Decoder::getJumpTarget(
 	{
 		return ci->getZExtValue();
 	}
-	else if (isa<LoadInst>(st.value)
+
+	if (isa<LoadInst>(st.value)
 			&& st.ops.size() == 1
 			&& isa<ConstantInt>(st.ops[0].value))
 	{
@@ -655,12 +561,74 @@ utils::Address Decoder::getJumpTarget(
 						addr);
 				LOG << "\t\t" << "switch -> (default) " << defAddr << std::endl;
 			}
-
-			return Address::getUndef;
 		}
 	}
 
 	return Address::getUndef;
+}
+
+void Decoder::getOrCreateTarget(
+		utils::Address addr,
+		bool isCall,
+		llvm::BasicBlock*& tBb,
+		llvm::Function*& tFnc,
+		llvm::Instruction* fromI) // = nullptr
+{
+	tBb = nullptr;
+	tFnc = nullptr;
+
+	if (isCall)
+	{
+		if (auto* f = getFunctionAtAddress(addr))
+		{
+			tFnc = f;
+		}
+		else
+		{
+			tFnc = _splitFunctionOn(addr);
+		}
+	}
+	else if (fromI == nullptr)
+	{
+		if (auto* bb = getBasicBlockAtAddress(addr))
+		{
+			tBb = bb;
+		}
+		else if (auto ai = AsmInstruction(_module, addr))
+		{
+			tBb = ai.makeStart();
+			tBb->setName("bb_" + ai.getAddress().toHexString());
+
+			_addr2bb[addr] = tBb;
+			_bb2addr[tBb] = addr;
+		}
+		// Function without BBs (e.g. import declarations).
+		else if (auto* targetFnc = getFunctionAtAddress(addr))
+		{
+			tFnc = targetFnc;
+		}
+		else if (auto* bb = getBasicBlockBeforeAddress(addr))
+		{
+			tBb = createBasicBlock(addr, bb->getParent(), bb);
+		}
+		else
+		{
+			auto* newFnc = createFunction(addr);
+			tBb = &newFnc->front();
+		}
+	}
+	else
+	{
+		auto* fromFnc = fromI->getFunction();
+
+		getOrCreateTarget(addr, false, tBb, tFnc);
+
+		if (tBb && tBb->getParent() != fromFnc)
+		{
+			tBb = nullptr;
+			tFnc = _splitFunctionOn(addr);
+		}
+	}
 }
 
 void Decoder::removePseudoCalls()
