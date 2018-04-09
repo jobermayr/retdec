@@ -20,6 +20,7 @@
 #include "decoder_ranges.h"
 #include "retdec/utils/address.h"
 #include "retdec/bin2llvmir/analyses/static_code/static_code.h"
+#include "retdec/bin2llvmir/analyses/symbolic_tree.h"
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
 #include "retdec/bin2llvmir/providers/config.h"
 #include "retdec/bin2llvmir/providers/debugformat.h"
@@ -93,6 +94,11 @@ class Decoder : public llvm::ModulePass
 				utils::Address addr,
 				llvm::CallInst* branchCall,
 				llvm::Value* val);
+		bool getJumpTargetSwitch(
+				utils::Address addr,
+				llvm::CallInst* branchCall,
+				llvm::Value* val,
+				SymbolicTree& st);
 
 		void getOrCreateTarget(
 				utils::Address addr,

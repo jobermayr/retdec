@@ -8,12 +8,10 @@
 
 #include <llvm/IR/Dominators.h>
 #include <llvm/IR/PatternMatch.h>
-//#include <llvm/Analysis/PostDominators.h>
 
 #include "retdec/utils/conversion.h"
 #include "retdec/utils/string.h"
 #include "retdec/bin2llvmir/analyses/reaching_definitions.h"
-#include "retdec/bin2llvmir/analyses/symbolic_tree.h"
 #include "retdec/bin2llvmir/optimizations/decoder/decoder.h"
 #include "retdec/bin2llvmir/utils/capstone.h"
 #include "retdec/bin2llvmir/utils/instruction.h"
@@ -446,125 +444,161 @@ utils::Address Decoder::getJumpTarget(
 		}
 	}
 
-	// TODO: Switch - use SYmbolic tree.
+	// Try to recognize switch pattern.
+	// getJumpTargetSwitch() doesn't return target to the caller, it takes care
+	// of everything - pseudo to switch transform, jump target creation, ...
+	// We just need to return from this function if it succeeds.
 	//
-	if (auto* l = dyn_cast<LoadInst>(val))
+	if (getJumpTargetSwitch(addr, branchCall, val, st))
 	{
-		auto* ptr = skipCasts(l->getPointerOperand());
-
-		ConstantInt* tableAddr = nullptr;
-		ConstantInt* itemSz = nullptr;
-		Instruction* idxLoad = nullptr;
-
-		if (match(
-				ptr,
-				m_Add(
-						m_ConstantInt(tableAddr),
-						m_Mul(
-								m_Instruction(idxLoad),
-								m_ConstantInt(itemSz)))))
-		{
-			std::vector<Address> cases;
-			Address tableItemAddr = tableAddr->getZExtValue();
-			while (true)
-			{
-				auto* ci = _image->getImage()->isPointer(tableItemAddr)
-						? _image->getConstantDefault(tableItemAddr)
-						: nullptr;
-				if (ci == nullptr)
-				{
-					break;
-				}
-
-				Address item = ci->getZExtValue();
-				tableItemAddr += 4;
-
-				cases.push_back(item);
-			}
-
-			Address falseAddr;
-			Address trueAddr;
-			Address defAddr;
-
-			// One addr is this JT, second is already in worlist -> this is
-			// true (processed after false), second is false -> cond br on
-			// success jumps to this -> second is default label.
-			//
-			auto* thisBb = branchCall->getParent();
-			Address thisBbAddr = getBasicBlockAddress(thisBb);
-			for (auto* p : predecessors(thisBb))
-			{
-				auto* br = dyn_cast<BranchInst>(p->getTerminator());
-				if (br && br->isConditional())
-				{
-					falseAddr = getBasicBlockAddress(br->getSuccessor(1));
-					trueAddr = getBasicBlockAddress(br->getSuccessor(0));
-
-					if (thisBbAddr == falseAddr)
-					{
-						defAddr = trueAddr;
-					}
-					else if (thisBbAddr == trueAddr)
-					{
-						defAddr = falseAddr;
-					}
-
-					break;
-				}
-			}
-
-			if (!cases.empty() && defAddr.isDefined())
-			{
-				std::vector<BasicBlock*> casesBbs;
-				for (auto c : cases)
-				{
-					BasicBlock* tBb = nullptr;
-					Function* tFnc = nullptr;
-					getOrCreateTarget(c, false, tBb, tFnc, branchCall);
-					if (tBb && tBb->getParent() == branchCall->getFunction())
-					{
-						casesBbs.push_back(tBb);
-					}
-					else
-					{
-						assert(false);
-						return Address::getUndef;
-					}
-				}
-
-				Function* tFnc = nullptr;
-				BasicBlock* defBb = nullptr;
-				getOrCreateTarget(defAddr, false, defBb, tFnc, branchCall);
-				if (defBb == nullptr
-						|| defBb->getParent() != branchCall->getFunction())
-				{
-					assert(false);
-					return Address::getUndef;
-				}
-
-				transformToSwitch(branchCall, idxLoad, defBb, casesBbs);
-
-				for (auto c : cases)
-				{
-					_jumpTargets.push(
-							c,
-							JumpTarget::eType::CONTROL_FLOW_SWITCH_CASE,
-							_currentMode,
-							addr);
-					LOG << "\t\t" << "switch -> (case) " << c << std::endl;
-				}
-
-				_jumpTargets.push(
-						defAddr,
-						JumpTarget::eType::CONTROL_FLOW_SWITCH_CASE,
-						_currentMode,
-						addr);
-				LOG << "\t\t" << "switch -> (default) " << defAddr << std::endl;
-			}
-		}
+		return Address::getUndef;
 	}
 
 	return Address::getUndef;
+}
+
+/**
+ * \return \c True if switch recognized, \c false otherwise.
+ *
+ * TODO:
+ * - check that all labels can be created before creating them? what if some
+ *   creation fails?
+ * - remove jump table range from ranges to decode.
+ * - store jump table starts for all switches, so when we resolve them at the
+ *   end, end switch size was not determined, we can recognize one switch
+ *   used labels from subsequent switch table.
+ * - use SymbolicTree.
+ * - implement jump table size finding.
+ */
+bool Decoder::getJumpTargetSwitch(
+		utils::Address addr,
+		llvm::CallInst* branchCall,
+		llvm::Value* val,
+		SymbolicTree& st)
+{
+	auto* l = dyn_cast<LoadInst>(val);
+	if (l == nullptr)
+	{
+		return false;
+	}
+
+	auto* ptr = skipCasts(l->getPointerOperand());
+
+	ConstantInt* tableAddr = nullptr;
+	ConstantInt* itemSz = nullptr;
+	Instruction* idxLoad = nullptr;
+
+	if (!match(
+			ptr,
+			m_Add(
+					m_ConstantInt(tableAddr),
+					m_Mul(
+							m_Instruction(idxLoad),
+							m_ConstantInt(itemSz)))))
+	{
+		return false;
+	}
+
+	std::vector<Address> cases;
+	Address tableItemAddr = tableAddr->getZExtValue();
+	while (true)
+	{
+		auto* ci = _image->getImage()->isPointer(tableItemAddr)
+				? _image->getConstantDefault(tableItemAddr)
+				: nullptr;
+		if (ci == nullptr)
+		{
+			break;
+		}
+
+		Address item = ci->getZExtValue();
+		tableItemAddr += 4;
+
+		cases.push_back(item);
+	}
+
+	Address falseAddr;
+	Address trueAddr;
+	Address defAddr;
+
+	// One addr is this JT, second is already in worlist -> this is
+	// true (processed after false), second is false -> cond br on
+	// success jumps to this -> second is default label.
+	//
+	auto* thisBb = branchCall->getParent();
+	Address thisBbAddr = getBasicBlockAddress(thisBb);
+	for (auto* p : predecessors(thisBb))
+	{
+		auto* br = dyn_cast<BranchInst>(p->getTerminator());
+		if (br && br->isConditional())
+		{
+			falseAddr = getBasicBlockAddress(br->getSuccessor(1));
+			trueAddr = getBasicBlockAddress(br->getSuccessor(0));
+
+			if (thisBbAddr == falseAddr)
+			{
+				defAddr = trueAddr;
+			}
+			else if (thisBbAddr == trueAddr)
+			{
+				defAddr = falseAddr;
+			}
+
+			break;
+		}
+	}
+
+	if (cases.empty() || defAddr.isUndefined())
+	{
+		return false;
+	}
+
+	std::vector<BasicBlock*> casesBbs;
+	for (auto c : cases)
+	{
+		BasicBlock* tBb = nullptr;
+		Function* tFnc = nullptr;
+		getOrCreateTarget(c, false, tBb, tFnc, branchCall);
+		if (tBb && tBb->getParent() == branchCall->getFunction())
+		{
+			casesBbs.push_back(tBb);
+		}
+		else
+		{
+			assert(false);
+			return false;
+		}
+	}
+
+	Function* tFnc = nullptr;
+	BasicBlock* defBb = nullptr;
+	getOrCreateTarget(defAddr, false, defBb, tFnc, branchCall);
+	if (defBb == nullptr
+			|| defBb->getParent() != branchCall->getFunction())
+	{
+		assert(false);
+		return false;
+	}
+
+	transformToSwitch(branchCall, idxLoad, defBb, casesBbs);
+
+	for (auto c : cases)
+	{
+		_jumpTargets.push(
+				c,
+				JumpTarget::eType::CONTROL_FLOW_SWITCH_CASE,
+				_currentMode,
+				addr);
+		LOG << "\t\t" << "switch -> (case) " << c << std::endl;
+	}
+
+	_jumpTargets.push(
+			defAddr,
+			JumpTarget::eType::CONTROL_FLOW_SWITCH_CASE,
+			_currentMode,
+			addr);
+	LOG << "\t\t" << "switch -> (default) " << defAddr << std::endl;
+	return true;
 }
 
 void Decoder::getOrCreateTarget(
@@ -597,10 +631,8 @@ void Decoder::getOrCreateTarget(
 		else if (auto ai = AsmInstruction(_module, addr))
 		{
 			tBb = ai.makeStart();
-			tBb->setName("bb_" + ai.getAddress().toHexString());
-
-			_addr2bb[addr] = tBb;
-			_bb2addr[tBb] = addr;
+			tBb->setName(names::generateBasicBlockName(ai.getAddress()));
+			addBasicBlock(addr, tBb);
 		}
 		// Function without BBs (e.g. import declarations).
 		else if (auto* targetFnc = getFunctionAtAddress(addr))
