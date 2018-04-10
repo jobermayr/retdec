@@ -12,11 +12,11 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Operator.h>
 
-#include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/utils/string.h"
 #include "retdec/bin2llvmir/analyses/symbolic_tree.h"
 #include "retdec/bin2llvmir/providers/config.h"
 #include "retdec/bin2llvmir/utils/defs.h"
+#include "retdec/bin2llvmir/utils/utils.h"
 
 using namespace llvm;
 
@@ -28,9 +28,18 @@ namespace bin2llvmir {
 SymbolicTree::SymbolicTree(
 		ReachingDefinitionsAnalysis& rda,
 		llvm::Value* v,
+		unsigned maxNodeLevel)
+		:
+		SymbolicTree(rda, v, nullptr, maxNodeLevel)
+{
+
+}
+
+SymbolicTree::SymbolicTree(
+		ReachingDefinitionsAnalysis& rda,
+		llvm::Value* v,
 		std::map<llvm::Value*, llvm::Value*>* val2val,
-		unsigned maxUniqueNodes,
-		bool debug)
+		unsigned maxNodeLevel)
 		:
 		value(v)
 {
@@ -47,8 +56,13 @@ SymbolicTree::SymbolicTree(
 		}
 	}
 
+	if (getLevel() == maxNodeLevel)
+	{
+		return;
+	}
+
 	std::unordered_set<Value*> processed;
-	expandNode(&rda, val2val, maxUniqueNodes, processed);
+	expandNode(&rda, val2val, maxNodeLevel, processed);
 	propagateFlags();
 }
 
@@ -57,11 +71,13 @@ SymbolicTree::SymbolicTree(
 		llvm::Value* v,
 		llvm::Value* u,
 		std::unordered_set<llvm::Value*>& processed,
-		unsigned maxUniqueNodes,
+		unsigned nodeLevel,
+		unsigned maxNodeLevel,
 		std::map<llvm::Value*, llvm::Value*>* val2val)
 		:
 		value(v),
-		user(u)
+		user(u),
+		_level(nodeLevel)
 {
 	assert(value != nullptr);
 
@@ -76,15 +92,18 @@ SymbolicTree::SymbolicTree(
 		}
 	}
 
-	if (processed.size() < maxUniqueNodes)
+	if (getLevel() == maxNodeLevel)
 	{
-		expandNode(rda, val2val, maxUniqueNodes, processed);
-	}
-	else
-	{
-		_failed = true;
+		//_failed = true; // ???
 		return;
 	}
+
+	expandNode(rda, val2val, maxNodeLevel, processed);
+}
+
+unsigned SymbolicTree::getLevel() const
+{
+	return _level;
 }
 
 SymbolicTree& SymbolicTree::operator=(SymbolicTree&& other)
@@ -104,7 +123,7 @@ SymbolicTree& SymbolicTree::operator=(SymbolicTree&& other)
 void SymbolicTree::expandNode(
 		ReachingDefinitionsAnalysis* RDA,
 		std::map<llvm::Value*, llvm::Value*>* val2val,
-		unsigned maxUniqueNodes,
+		unsigned maxNodeLevel,
 		std::unordered_set<llvm::Value*>& processed)
 {
 	auto fIt = processed.find(value);
@@ -130,7 +149,8 @@ void SymbolicTree::expandNode(
 							d->def,
 							I,
 							processed,
-							maxUniqueNodes,
+							getLevel() + 1,
+							maxNodeLevel,
 							val2val);
 				}
 			}
@@ -145,7 +165,8 @@ void SymbolicTree::expandNode(
 							d,
 							I,
 							processed,
-							maxUniqueNodes,
+							getLevel() + 1,
+							maxNodeLevel,
 							val2val);
 				}
 			}
@@ -157,7 +178,8 @@ void SymbolicTree::expandNode(
 						l->getPointerOperand(),
 						l,
 						processed,
-						maxUniqueNodes,
+						getLevel() + 1,
+						maxNodeLevel,
 						val2val);
 			}
 		}
@@ -168,7 +190,8 @@ void SymbolicTree::expandNode(
 					I->getOperand(0),
 					I,
 					processed,
-					maxUniqueNodes,
+					getLevel() + 1,
+					maxNodeLevel,
 					val2val);
 		}
 		else if (isa<AllocaInst>(value) || isa<CallInst>(value))
@@ -184,7 +207,8 @@ void SymbolicTree::expandNode(
 						U->getOperand(i),
 						U,
 						processed,
-						maxUniqueNodes,
+						getLevel() + 1,
+						maxNodeLevel,
 						val2val);
 			}
 		}
@@ -282,6 +306,7 @@ void SymbolicTree::simplifyNode(Config* config)
 {
 	simplifyNodeLoadStore();
 	_simplifyNode(config);
+	fixLevel();
 }
 
 //>|   %371 = load i32, i32* @gp, align 4
@@ -658,6 +683,23 @@ std::vector<SymbolicTree*> SymbolicTree::getPostOrder() const
 	return ret;
 }
 
+/**
+ * @return Tree nodes linearized using a level-order traversal.
+ */
+std::vector<SymbolicTree*> SymbolicTree::getLevelOrder() const
+{
+	std::vector<SymbolicTree*> ret;
+	_getPreOrder(ret);
+
+	std::stable_sort(ret.begin(), ret.end(),
+			[](const SymbolicTree* a, const SymbolicTree* b) -> bool
+			{
+				return a->getLevel() < b->getLevel();
+			});
+
+	return ret;
+}
+
 void SymbolicTree::_getPreOrder(std::vector<SymbolicTree*>& res) const
 {
 	res.emplace_back(const_cast<SymbolicTree*>(this));
@@ -674,6 +716,22 @@ void SymbolicTree::_getPostOrder(std::vector<SymbolicTree*>& res) const
 		o._getPostOrder(res);
 	}
 	res.emplace_back(const_cast<SymbolicTree*>(this));
+}
+
+void SymbolicTree::fixLevel(unsigned level)
+{
+	if (level == 0)
+	{
+		level = _level;
+	}
+	else
+	{
+		_level = level;
+	}
+	for (auto &o : ops)
+	{
+		o.fixLevel(level + 1);
+	}
 }
 
 } // namespace bin2llvmir

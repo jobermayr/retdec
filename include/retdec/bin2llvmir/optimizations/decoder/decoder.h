@@ -19,6 +19,7 @@
 
 #include "decoder_ranges.h"
 #include "retdec/utils/address.h"
+#include "retdec/bin2llvmir/analyses/reaching_definitions.h"
 #include "retdec/bin2llvmir/analyses/static_code/static_code.h"
 #include "retdec/bin2llvmir/analyses/symbolic_tree.h"
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
@@ -210,6 +211,8 @@ class Decoder : public llvm::ModulePass
 		NameContainer* _names = nullptr;
 		Llvm2CapstoneMap* _llvm2capstone = nullptr;
 
+		ReachingDefinitionsAnalysis _RDA;
+
 		cs_mode _currentMode = CS_MODE_LITTLE_ENDIAN;
 		std::unique_ptr<capstone2llvmir::Capstone2LlvmIrTranslator> _c2l;
 		cs_insn* _dryCsInsn = nullptr;
@@ -222,6 +225,10 @@ class Decoder : public llvm::ModulePass
 		std::set<utils::Address> _debugFncs;
 		std::set<utils::Address> _staticFncs;
 		std::set<llvm::Function*> _terminatingFncs;
+		/// Start of all recognized jump tables.
+		/// TODO: use this to check that one table does not use labels from
+		// another.
+		std::map<utils::Address, llvm::SwitchInst*> _switchTableStarts;
 };
 
 } // namespace bin2llvmir

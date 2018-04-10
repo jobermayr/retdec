@@ -32,16 +32,12 @@ class SymbolicTree
 		SymbolicTree(
 				ReachingDefinitionsAnalysis& rda,
 				llvm::Value* v,
-				std::map<llvm::Value*, llvm::Value*>* val2val = nullptr,
-				unsigned maxUniqueNodes = 80,
-				bool debug = false);
+				unsigned maxNodeLevel = 8);
 		SymbolicTree(
-				ReachingDefinitionsAnalysis* rda,
+				ReachingDefinitionsAnalysis& rda,
 				llvm::Value* v,
-				llvm::Value* u,
-				std::unordered_set<llvm::Value*>& processed,
-				unsigned maxUniqueNodes,
-				std::map<llvm::Value*, llvm::Value*>* v2v = nullptr);
+				std::map<llvm::Value*, llvm::Value*>* val2val,
+				unsigned maxNodeLevel = 5);
 
 		SymbolicTree(const SymbolicTree& other) = default;
 		SymbolicTree(SymbolicTree&& other) = default;
@@ -49,6 +45,9 @@ class SymbolicTree
 		friend std::ostream& operator<<(
 				std::ostream& out,
 				const SymbolicTree& s);
+		std::string print(unsigned indent = 0) const;
+
+		unsigned getLevel() const;
 
 		bool isConstructedSuccessfully() const;
 		bool isVal2ValMapUsed() const;
@@ -57,23 +56,38 @@ class SymbolicTree
 		void removeStackLoads(Config* config);
 
 		void simplifyNode(Config* config);
-		void _simplifyNode(Config* config);
-		void simplifyNodeLoadStore();
 
 		void solveMemoryLoads(FileImage* image);
 		SymbolicTree* getMaxIntValue();
-		std::string print(unsigned indent = 0) const;
 
 		std::vector<SymbolicTree*> getPreOrder() const;
 		std::vector<SymbolicTree*> getPostOrder() const;
+		std::vector<SymbolicTree*> getLevelOrder() const;
 
+	// This is a private constructor, do not use it. It is made public only
+	// so it can be used in std::vector<>::emplace_back().
+	//
+	public:
+		SymbolicTree(
+				ReachingDefinitionsAnalysis* rda,
+				llvm::Value* v,
+				llvm::Value* u,
+				std::unordered_set<llvm::Value*>& processed,
+				unsigned nodeLevel,
+				unsigned maxNodeLevel,
+				std::map<llvm::Value*, llvm::Value*>* v2v = nullptr);
 	private:
+
 		void expandNode(
 				ReachingDefinitionsAnalysis* RDA,
 				std::map<llvm::Value*, llvm::Value*>* val2val,
-				unsigned maxUniqueNodes,
+				unsigned maxNodeLevel,
 				std::unordered_set<llvm::Value*>& processed);
 		void propagateFlags();
+
+		void _simplifyNode(Config* config);
+		void simplifyNodeLoadStore();
+		void fixLevel(unsigned level = 0);
 
 		void _getPreOrder(std::vector<SymbolicTree*>& res) const;
 		void _getPostOrder(std::vector<SymbolicTree*>& res) const;
@@ -86,6 +100,7 @@ class SymbolicTree
 	private:
 		bool _failed = false;
 		bool _val2valUsed = false;
+		unsigned _level = 1;
 };
 
 } // namespace bin2llvmir

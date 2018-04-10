@@ -11,7 +11,6 @@
 
 #include "retdec/utils/conversion.h"
 #include "retdec/utils/string.h"
-#include "retdec/bin2llvmir/analyses/reaching_definitions.h"
 #include "retdec/bin2llvmir/optimizations/decoder/decoder.h"
 #include "retdec/bin2llvmir/utils/capstone.h"
 #include "retdec/bin2llvmir/utils/instruction.h"
@@ -398,15 +397,15 @@ bool Decoder::getJumpTargetsFromInstruction(
 					addr);
 			LOG << "\t\t" << "cond br @ " << addr << " -> (true) "
 					<< t << std::endl;
-
-			_jumpTargets.push(
-					nextAddr,
-					JumpTarget::eType::CONTROL_FLOW_BR_FALSE,
-					_currentMode,
-					addr);
-			LOG << "\t\t" << "cond br @ " << addr << " -> (false) "
-					<< nextAddr << std::endl;
 		}
+
+		_jumpTargets.push(
+				nextAddr,
+				JumpTarget::eType::CONTROL_FLOW_BR_FALSE,
+				_currentMode,
+				addr);
+		LOG << "\t\t" << "cond br @ " << addr << " -> (false) "
+				<< nextAddr << std::endl;
 
 		return true;
 	}
@@ -419,8 +418,7 @@ utils::Address Decoder::getJumpTarget(
 		llvm::CallInst* branchCall,
 		llvm::Value* val)
 {
-	static ReachingDefinitionsAnalysis RDA;
-	SymbolicTree st(RDA, val);
+	SymbolicTree st(_RDA, val, nullptr, 16);
 	st.simplifyNode(_config);
 
 	if (auto* ci = dyn_cast<ConstantInt>(st.value))
@@ -463,12 +461,6 @@ utils::Address Decoder::getJumpTarget(
  * TODO:
  * - check that all labels can be created before creating them? what if some
  *   creation fails?
- * - remove jump table range from ranges to decode.
- * - store jump table starts for all switches, so when we resolve them at the
- *   end, end switch size was not determined, we can recognize one switch
- *   used labels from subsequent switch table.
- * - use SymbolicTree.
- * - implement jump table size finding.
  */
 bool Decoder::getJumpTargetSwitch(
 		utils::Address addr,
@@ -476,31 +468,125 @@ bool Decoder::getJumpTargetSwitch(
 		llvm::Value* val,
 		SymbolicTree& st)
 {
-	auto* l = dyn_cast<LoadInst>(val);
-	if (l == nullptr)
+	unsigned archByteSz =  _config->getConfig().architecture.getByteSize();
+
+	// Pattern:
+	//>|   %55 = load i32, i32* %54
+	//		>|   %53 = add i32 Addr, %52
+	//				>|   %52 = mul i32 %51, 4
+	//						>| idx
+	//						>| i32 4
+	//				>| i32 tableAddr
+	if (!(isa<LoadInst>(st.value) // load
+			&& st.ops.size() == 1
+			&& isa<AddOperator>(st.ops[0].value) // add
+			&& st.ops[0].ops.size() == 2
+			&& isa<MulOperator>(st.ops[0].ops[0].value) // mul
+			&& st.ops[0].ops[0].ops.size() == 2
+			&& isa<Instruction>(st.ops[0].ops[0].ops[0].value) // idx
+			&& isa<ConstantInt>(st.ops[0].ops[0].ops[1].value)
+			&& cast<ConstantInt>(st.ops[0].ops[0].ops[1].value)->getZExtValue()
+					== archByteSz // arch size
+			&& isa<ConstantInt>(st.ops[0].ops[1].value))) // table address
 	{
 		return false;
 	}
+	Address tableAddr = cast<ConstantInt>(st.ops[0].ops[1].value)->getZExtValue();
+	Instruction* idx = cast<Instruction>(st.ops[0].ops[0].ops[0].value);
 
-	auto* ptr = skipCasts(l->getPointerOperand());
+	LOG << "\t\t" << "switch @ " << addr << std::endl;
+	LOG << "\t\t\t" << "table addr @ " << tableAddr << std::endl;
 
-	ConstantInt* tableAddr = nullptr;
-	ConstantInt* itemSz = nullptr;
-	Instruction* idxLoad = nullptr;
-
-	if (!match(
-			ptr,
-			m_Add(
-					m_ConstantInt(tableAddr),
-					m_Mul(
-							m_Instruction(idxLoad),
-							m_ConstantInt(itemSz)))))
+	// Default target.
+	//
+	Address defAddr;
+	BranchInst* brToSwitch = nullptr;
+	auto* thisBb = branchCall->getParent();
+	Address thisBbAddr = getBasicBlockAddress(thisBb);
+	for (auto* p : predecessors(thisBb))
 	{
+		auto* br = dyn_cast<BranchInst>(p->getTerminator());
+		if (br && br->isConditional())
+		{
+			brToSwitch = br;
+
+			Address falseAddr = getBasicBlockAddress(br->getSuccessor(1));
+			Address trueAddr = getBasicBlockAddress(br->getSuccessor(0));
+
+			// Branching over this BB -> true branching to default case.
+			if (thisBbAddr == falseAddr)
+			{
+				defAddr = trueAddr;
+			}
+			// Branching to this BB -> false branching to default case.
+			else if (thisBbAddr == trueAddr)
+			{
+				defAddr = falseAddr;
+			}
+
+			break;
+		}
+	}
+	if (defAddr.isUndefined() || brToSwitch == nullptr)
+	{
+		LOG << "\t\t\t" << "no default target -> skip" << std::endl;
+		// TODO: detected labels still should become jump targets.
+		// problem, we don't know the jump target type -> they can be functions,
+		// not just branch targets.
+		// e.g. 04023A3 @ call ds:___CTOR_LIST__[ebx*4]
 		return false;
 	}
+	else
+	{
+		LOG << "\t\t\t" << "default label @ " << defAddr << std::endl;
+	}
 
+	// Jump table size.
+	// maybe we could check that compared value is indeed index value.
+	//
+	unsigned tableSize = 0;
+	SymbolicTree stCond(_RDA, brToSwitch->getCondition());
+	stCond.simplifyNode(_config);
+	auto levelOrd = stCond.getLevelOrder();
+	for (SymbolicTree* n : levelOrd)
+	{
+		//>|   %331 = or i1 %329, %330
+		//		>|   %317 = icmp ult i8 %312, 90
+		//				>|   %296 = sub i32 %295, 32
+		//				>| i8 90
+		//		>|   %322 = icmp eq i8 %313, 0
+		//				>|   %313 = sub i8 %312, 90
+		//						>|   %312 = trunc i32 %311 to i8
+		//						>| i8 90
+		//				>| i8 0
+		if (isa<BinaryOperator>(n->value)
+				&& cast<BinaryOperator>(n->value)->getOpcode()
+						== Instruction::Or
+				&& n->ops.size() == 2
+				&& isa<ICmpInst>(n->ops[0].value)
+				&& cast<ICmpInst>(n->ops[0].value)->getPredicate()
+						== ICmpInst::ICMP_ULT
+				&& n->ops[0].ops.size() == 2
+				&& isa<ConstantInt>(n->ops[0].ops[1].value)
+				&& isa<ICmpInst>(n->ops[1].value)
+				&& cast<ICmpInst>(n->ops[1].value)->getPredicate()
+						== ICmpInst::ICMP_EQ
+				&& n->ops[1].ops.size() == 2
+				&& isa<ConstantInt>(n->ops[1].ops[1].value)
+				&& cast<ConstantInt>(n->ops[1].ops[1].value)->isZero())
+		{
+			auto* ci = cast<ConstantInt>(n->ops[0].ops[1].value);
+			tableSize = ci->getZExtValue() + 1;
+			LOG << "\t\t\t" << "table size = " << tableSize << std::endl;
+			break;
+		}
+	}
+
+	// Get targets from jump table.
+	//
+	LOG << "\t\t\t" << "table labels:" << std::endl;
 	std::vector<Address> cases;
-	Address tableItemAddr = tableAddr->getZExtValue();
+	Address tableItemAddr = tableAddr;
 	while (true)
 	{
 		auto* ci = _image->getImage()->isPointer(tableItemAddr)
@@ -512,47 +598,25 @@ bool Decoder::getJumpTargetSwitch(
 		}
 
 		Address item = ci->getZExtValue();
-		tableItemAddr += 4;
+		LOG << "\t\t\t\t" << item << " @ " << tableItemAddr << std::endl;
 
+		tableItemAddr += archByteSz;
 		cases.push_back(item);
-	}
 
-	Address falseAddr;
-	Address trueAddr;
-	Address defAddr;
-
-	// One addr is this JT, second is already in worlist -> this is
-	// true (processed after false), second is false -> cond br on
-	// success jumps to this -> second is default label.
-	//
-	auto* thisBb = branchCall->getParent();
-	Address thisBbAddr = getBasicBlockAddress(thisBb);
-	for (auto* p : predecessors(thisBb))
-	{
-		auto* br = dyn_cast<BranchInst>(p->getTerminator());
-		if (br && br->isConditional())
+		if (tableSize > 0 && cases.size() == tableSize)
 		{
-			falseAddr = getBasicBlockAddress(br->getSuccessor(1));
-			trueAddr = getBasicBlockAddress(br->getSuccessor(0));
-
-			if (thisBbAddr == falseAddr)
-			{
-				defAddr = trueAddr;
-			}
-			else if (thisBbAddr == trueAddr)
-			{
-				defAddr = falseAddr;
-			}
-
 			break;
 		}
 	}
-
-	if (cases.empty() || defAddr.isUndefined())
+	if (cases.empty())
 	{
+		LOG << "\t\t\t" << "no targets @ " << tableAddr << " -> skip"
+				<< std::endl;
 		return false;
 	}
+	Address tableAddrEnd = tableItemAddr;
 
+	//
 	std::vector<BasicBlock*> casesBbs;
 	for (auto c : cases)
 	{
@@ -580,7 +644,7 @@ bool Decoder::getJumpTargetSwitch(
 		return false;
 	}
 
-	transformToSwitch(branchCall, idxLoad, defBb, casesBbs);
+	auto* sw = transformToSwitch(branchCall, idx, defBb, casesBbs);
 
 	for (auto c : cases)
 	{
@@ -598,6 +662,11 @@ bool Decoder::getJumpTargetSwitch(
 			_currentMode,
 			addr);
 	LOG << "\t\t" << "switch -> (default) " << defAddr << std::endl;
+
+	_ranges.remove(tableAddr, tableAddrEnd - 1);
+
+	_switchTableStarts.emplace(tableAddr, sw);
+
 	return true;
 }
 

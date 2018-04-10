@@ -238,7 +238,7 @@ bool StackAnalysis::handleInstruction(
 {
 	LOG << "@ " << AsmInstruction::getInstructionAddress(inst) << std::endl;
 
-	SymbolicTree root(RDA, val, &val2val, 100);
+	SymbolicTree root(RDA, val, &val2val);
 
 	if (!root.isConstructedSuccessfully())
 	{
