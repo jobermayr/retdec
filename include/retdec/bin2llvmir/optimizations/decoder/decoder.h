@@ -226,6 +226,14 @@ class Decoder : public llvm::ModulePass
 		/// Start of all recognized jump tables.
 		/// TODO: use this to check that one table does not use labels from
 		/// another.
+		/// TODO: maybe we should also remove/fix cond branches to default
+		/// labels before switches (this was done in the original cfg
+		/// implementation. However, if we do it too soon, it will cause
+		/// diff problems when comparing to IDA cfg dumps). We could do it
+		/// after.
+		/// Btw, we already have diff problem because default label is added to
+		/// switch -> it has one more succ then cond branch in IDA (if default
+		/// label is not in jump table).
 		std::map<utils::Address, std::set<llvm::SwitchInst*>> _switchTableStarts;
 
 		std::map<llvm::CallInst*, llvm::Instruction*> _pseudoCalls;
