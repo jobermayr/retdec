@@ -5,6 +5,7 @@
 */
 
 #include "retdec/bin2llvmir/optimizations/decoder/decoder.h"
+#include "retdec/bin2llvmir/utils/type.h"
 
 using namespace retdec::utils;
 using namespace llvm;
@@ -16,22 +17,20 @@ llvm::CallInst* Decoder::transformToCall(
 		llvm::CallInst* pseudo,
 		llvm::Function* callee)
 {
-	if (callee == nullptr)
-	{
-		return nullptr;
-	}
-
 	auto* c = CallInst::Create(callee);
 	c->insertAfter(pseudo);
+
+	if (auto* retObj = getCallReturnObject())
+	{
+		auto* cc = cast<Instruction>(
+				convertValueToTypeAfter(c, retObj->getValueType(), c));
+		auto* s = new StoreInst(cc, retObj);
+		s->insertAfter(cc);
+	}
 
 	if (_config->getConfig().architecture.isX86())
 	{
 		eraseReturnAddrStoreInCall_x86(c);
-		if (auto* eax = _module->getNamedGlobal("eax"))
-		{
-			auto* s = new StoreInst(c, eax);
-			s->insertAfter(c);
-		}
 	}
 
 	return c;
@@ -43,11 +42,6 @@ llvm::CallInst* Decoder::transformToCondCall(
 		llvm::Function* callee,
 		llvm::BasicBlock* falseBb)
 {
-	if (callee == nullptr || falseBb == nullptr)
-	{
-		return nullptr;
-	}
-
 	auto* oldBb = pseudo->getParent();
 	auto* newBb = oldBb->splitBasicBlock(pseudo);
 
@@ -81,11 +75,6 @@ llvm::BranchInst* Decoder::transformToBranch(
 		llvm::CallInst* pseudo,
 		llvm::BasicBlock* branchee)
 {
-	if (branchee == nullptr)
-	{
-		return nullptr;
-	}
-
 	auto* term = pseudo->getParent()->getTerminator();
 	auto* br = BranchInst::Create(branchee, term);
 	term->eraseFromParent();
@@ -361,6 +350,20 @@ llvm::Function* Decoder::_splitFunctionOn(
 	}
 
 	return newFnc;
+}
+
+/**
+ * TODO: This will be replaced by a proper ABI provider.
+ */
+llvm::GlobalVariable* Decoder::getCallReturnObject()
+{
+	if (_config->getConfig().architecture.isX86())
+	{
+		return _module->getNamedGlobal("eax");
+	}
+
+	assert(false);
+	return nullptr;
 }
 
 } // namespace bin2llvmir

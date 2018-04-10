@@ -197,6 +197,7 @@ class Decoder : public llvm::ModulePass
 		llvm::Function* _splitFunctionOn(
 				utils::Address addr,
 				llvm::BasicBlock* bb);
+		llvm::GlobalVariable* getCallReturnObject();
 
 	// Data.
 	//
