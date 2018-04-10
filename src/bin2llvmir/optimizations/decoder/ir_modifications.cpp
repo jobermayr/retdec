@@ -28,10 +28,8 @@ llvm::CallInst* Decoder::transformToCall(
 		s->insertAfter(cc);
 	}
 
-	if (_config->getConfig().architecture.isX86())
-	{
-		eraseReturnAddrStoreInCall_x86(c);
-	}
+	pseudo->removeFromParent();
+	_pseudoCalls.emplace(pseudo, c);
 
 	return c;
 }
@@ -44,6 +42,7 @@ llvm::CallInst* Decoder::transformToCondCall(
 {
 	auto* oldBb = pseudo->getParent();
 	auto* newBb = oldBb->splitBasicBlock(pseudo);
+	// We do NOT want to name or give address to this block.
 
 	auto* oldTerm = oldBb->getTerminator();
 	BranchInst::Create(newBb, falseBb, cond, oldTerm);
@@ -55,6 +54,9 @@ llvm::CallInst* Decoder::transformToCondCall(
 
 	auto* c = CallInst::Create(callee);
 	c->insertAfter(pseudo);
+
+	pseudo->removeFromParent();
+	_pseudoCalls.emplace(pseudo, c);
 
 	return c;
 }
@@ -68,6 +70,9 @@ llvm::ReturnInst* Decoder::transformToReturn(llvm::CallInst* pseudo)
 			term);
 	term->eraseFromParent();
 
+	pseudo->removeFromParent();
+	_pseudoCalls.emplace(pseudo, r);
+
 	return r;
 }
 
@@ -78,6 +83,9 @@ llvm::BranchInst* Decoder::transformToBranch(
 	auto* term = pseudo->getParent()->getTerminator();
 	auto* br = BranchInst::Create(branchee, term);
 	term->eraseFromParent();
+
+	pseudo->removeFromParent();
+	_pseudoCalls.emplace(pseudo, br);
 
 	return br;
 }
@@ -91,6 +99,9 @@ llvm::BranchInst* Decoder::transformToCondBranch(
 	auto* term = pseudo->getParent()->getTerminator();
 	auto* br = BranchInst::Create(trueBb, falseBb, cond, term);
 	term->eraseFromParent();
+
+	pseudo->removeFromParent();
+	_pseudoCalls.emplace(pseudo, br);
 
 	return br;
 }
@@ -122,8 +133,10 @@ llvm::SwitchInst* Decoder::transformToSwitch(
 		}
 		++cntr;
 	}
-
 	term->eraseFromParent();
+
+	pseudo->removeFromParent();
+	_pseudoCalls.emplace(pseudo, sw);
 
 	return sw;
 }

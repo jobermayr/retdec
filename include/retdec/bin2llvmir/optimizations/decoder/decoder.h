@@ -108,7 +108,8 @@ class Decoder : public llvm::ModulePass
 				llvm::Function*& tFnc,
 				llvm::Instruction* fromI = nullptr);
 
-		void removePseudoCalls();
+		void resolvePseudoCalls();
+		void finalizePseudoCalls();
 
 	// Basic block related methods.
 	//
@@ -158,7 +159,6 @@ class Decoder : public llvm::ModulePass
 		std::size_t decodeJumpTargetDryRun_x86(
 				const JumpTarget& jt,
 				ByteData bytes);
-		void eraseReturnAddrStoreInCall_x86(llvm::CallInst* c);
 
 	// ARM specific.
 	//
@@ -227,6 +227,8 @@ class Decoder : public llvm::ModulePass
 		/// TODO: use this to check that one table does not use labels from
 		/// another.
 		std::map<utils::Address, std::set<llvm::SwitchInst*>> _switchTableStarts;
+
+		std::map<llvm::CallInst*, llvm::Instruction*> _pseudoCalls;
 };
 
 } // namespace bin2llvmir

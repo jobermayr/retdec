@@ -109,7 +109,8 @@ bool Decoder::run()
 dumpControFlowToJson(_module);
 dumpModuleToFile(_module);
 
-	removePseudoCalls();
+	resolvePseudoCalls();
+	finalizePseudoCalls();
 	initConfigFunction();
 
 dumpModuleToFile(_module);
@@ -738,42 +739,56 @@ void Decoder::getOrCreateTarget(
 	}
 }
 
-void Decoder::removePseudoCalls()
+void Decoder::resolvePseudoCalls()
 {
-	for (Function& f : _module->functions())
-	for (BasicBlock& bb : f)
-	for (auto it = bb.begin(), e = bb.end(); it != e; )
-	{
-		CallInst* call = dyn_cast<CallInst>(&(*it));
-		++it;
+	// TODO: fix point algorithm that tries to re-solve all solved and unsolved
+	// pseudo calls?
+	// - the same result -> ok, nothing
+	// - no result -> revert transformation
+	// - new result -> new transformation
+	// This will not be easy. Can fixpoint even be reached? Reverts, etc. are
+	// hard and ugly.
+}
 
-		if (call &&
-				(_c2l->isCallFunctionCall(call)
-				|| _c2l->isBranchFunctionCall(call)
-				|| _c2l->isCondBranchFunctionCall(call)
-				|| _c2l->isReturnFunctionCall(call)))
+void Decoder::finalizePseudoCalls()
+{
+	for (auto& p : _pseudoCalls)
+	{
+		CallInst* pseudo = p.first;
+		Instruction* real = p.second;
+
+		if (real == nullptr)
 		{
-			// Remove operand of return - it would create stack store, that
-			// would screw up the param/return analysis.
-			// Similar thing is done in other place for x86 calls.
-			// TODO: Better implementation - remove all instructions that became
-			// unused once pseudo call is removed -> make some special general
-			// method for this.
-			//
-			Instruction* op = nullptr;
-			if (_c2l->isReturnFunctionCall(call)
-					&& call->getNumOperands() >= 1)
+			// Pseudo call could not be resolved.
+			// Leave it be? Replace it with something more descriptive?
+			// Replace calls with pointer calls?
+			assert(false);
+			continue;
+		}
+
+		delete pseudo;
+
+		Instruction* it = real;
+		while (it && !AsmInstruction::isLlvmToAsmInstruction(it))
+		{
+			auto* i = it;
+			it = it->getPrevNode();
+
+			if (_config->getConfig().architecture.isX86()
+					&& (_c2l->isCallFunctionCall(pseudo)
+							|| _c2l->isReturnFunctionCall(pseudo)))
+			if (auto* st = dyn_cast<StoreInst>(i))
 			{
-				if (auto* i = dyn_cast<Instruction>(call->getOperand(0)))
+				if (_config->isStackPointerRegister(st->getPointerOperand())
+						|| isa<ConstantInt>(st->getValueOperand()))
 				{
-					op = i;
+					st->eraseFromParent();
 				}
 			}
 
-			call->eraseFromParent();
-			if (op)
+			if (!i->getType()->isVoidTy() && i->use_empty())
 			{
-				op->eraseFromParent();
+				i->eraseFromParent();
 			}
 		}
 	}
