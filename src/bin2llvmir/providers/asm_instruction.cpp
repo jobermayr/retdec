@@ -11,6 +11,7 @@
 #include "retdec/utils/container.h"
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
 #include "retdec/bin2llvmir/providers/config.h"
+#include "retdec/bin2llvmir/providers/names.h"
 #include "retdec/bin2llvmir/utils/type.h"
 
 using namespace llvm;
@@ -564,7 +565,7 @@ llvm::TerminatorInst* AsmInstruction::makeTerminal()
 		{
 			next.getBasicBlock()->splitBasicBlock(
 					next.getLlvmToAsmInstruction(),
-					next.getBasicBlockLableName());
+					names::generateBasicBlockName(next.getAddress()));
 			auto* b = dyn_cast_or_null<TerminatorInst>(back());
 			assert(b);
 			return b;
@@ -593,7 +594,7 @@ llvm::TerminatorInst* AsmInstruction::makeTerminal()
  * If it already is first, nothing is modified and an existing BB is returned.
  * If it is not first yet, split BB on it to create a new BB
  */
-llvm::BasicBlock* AsmInstruction::makeStart()
+llvm::BasicBlock* AsmInstruction::makeStart(const std::string& name)
 {
 	// No previous node -> first in BB.
 	//
@@ -604,7 +605,7 @@ llvm::BasicBlock* AsmInstruction::makeStart()
 
 	return getBasicBlock()->splitBasicBlock(
 			_llvmToAsmInstr,
-			getBasicBlockLableName());
+			name.empty() ? names::generateBasicBlockName(getAddress()) : name);
 }
 
 /**
@@ -646,14 +647,6 @@ std::vector<llvm::BasicBlock*> AsmInstruction::getBasicBlocks()
 		}
 	}
 	return ret;
-}
-
-std::string AsmInstruction::getBasicBlockLableName(
-		const std::string& labelPrefix) const
-{
-	std::stringstream ret;
-	ret << labelPrefix << getAddress().toHexString();
-	return ret.str();
 }
 
 /**

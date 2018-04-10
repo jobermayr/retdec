@@ -21,6 +21,7 @@
 #include "retdec/utils/time.h"
 #include "retdec/bin2llvmir/analyses/reaching_definitions.h"
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
+#include "retdec/bin2llvmir/providers/names.h"
 #include "retdec/bin2llvmir/utils/instruction.h"
 #define debug_enabled false
 #include "retdec/bin2llvmir/utils/utils.h"
@@ -415,7 +416,7 @@ std::string BasicBlockEntry::getName() const
 	std::stringstream out;
 	std::string name = bb->getName().str();
 	if (name.empty())
-		out << "bb_" << id;
+		out << names::generatedBasicBlockPrefix << id;
 	else
 		out << name;
 	return out.str();

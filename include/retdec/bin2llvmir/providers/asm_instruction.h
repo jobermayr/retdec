@@ -285,14 +285,12 @@ class AsmInstruction
 		bool instructionsCanBeErased();
 		bool eraseInstructions();
 		llvm::TerminatorInst* makeTerminal();
-		llvm::BasicBlock* makeStart();
+		llvm::BasicBlock* makeStart(const std::string& name = "");
 
 		llvm::BasicBlock* getBasicBlock() const;
 		llvm::Function* getFunction() const;
 		std::vector<llvm::Instruction*> getInstructions();
 		std::vector<llvm::BasicBlock*> getBasicBlocks();
-		std::string getBasicBlockLableName(
-				const std::string& labelPrefix = "dec_label_pc_") const;
 
 		bool empty();
 		llvm::Instruction* front();

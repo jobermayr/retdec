@@ -193,13 +193,10 @@ class Decoder : public llvm::ModulePass
 				llvm::BasicBlock* defaultBb,
 				const std::vector<llvm::BasicBlock*>& cases);
 
+		llvm::Function* _splitFunctionOn(utils::Address addr);
 		llvm::Function* _splitFunctionOn(
 				utils::Address addr,
-				const std::string& fncName = "");
-		llvm::Function* _splitFunctionOn(
-				utils::Address addr,
-				llvm::BasicBlock* bb,
-				const std::string& fncName = "");
+				llvm::BasicBlock* bb);
 
 	// Data.
 	//

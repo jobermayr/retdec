@@ -139,22 +139,17 @@ llvm::SwitchInst* Decoder::transformToSwitch(
 	return sw;
 }
 
-llvm::Function* Decoder::_splitFunctionOn(
-		utils::Address addr,
-		const std::string& fncName)
+llvm::Function* Decoder::_splitFunctionOn(utils::Address addr)
 {
-	std::string name = fncName.empty()
-			? names::generateFunctionName(addr, _config->getConfig().isIda())
-			: fncName;
-
 	if (auto* bb = getBasicBlockAtAddress(addr))
 	{
-		return _splitFunctionOn(addr, bb, name);
+		return _splitFunctionOn(addr, bb);
 	}
 	else if (auto ai = AsmInstruction(_module, addr))
 	{
 		auto* oldBb = ai.getBasicBlock();
-		auto* newBb = ai.makeStart();
+		auto* newBb = ai.makeStart(names::generateBasicBlockName(addr));
+		addBasicBlock(addr, newBb);
 
 		ReturnInst::Create(
 				oldBb->getModule()->getContext(),
@@ -162,20 +157,12 @@ llvm::Function* Decoder::_splitFunctionOn(
 				oldBb->getTerminator());
 		oldBb->getTerminator()->eraseFromParent();
 
-		_addr2bb[addr] = newBb;
-		_bb2addr[newBb] = addr;
-		newBb->setName("bb_" + addr.toHexString());
-
-		return _splitFunctionOn(addr, newBb, name);
+		return _splitFunctionOn(addr, newBb);
 	}
 	else if (auto* before = getBasicBlockBeforeAddress(addr))
 	{
 		auto* newBb = createBasicBlock(addr, before->getParent(), before);
-
-		_addr2bb[addr] = newBb;
-		_bb2addr[newBb] = addr;
-
-		return _splitFunctionOn(addr, newBb, name);
+		return _splitFunctionOn(addr, newBb);
 	}
 	else
 	{
@@ -185,17 +172,18 @@ llvm::Function* Decoder::_splitFunctionOn(
 
 llvm::Function* Decoder::_splitFunctionOn(
 		utils::Address addr,
-		llvm::BasicBlock* bb,
-		const std::string& fncName)
+		llvm::BasicBlock* bb)
 {
 	if (bb->getPrevNode() == nullptr)
 	{
 		return bb->getParent();
 	}
 
-	std::string name = fncName.empty()
-			? names::generateFunctionName(addr, _config->getConfig().isIda())
-			: fncName;
+	std::string name = _names->getPreferredNameForAddress(addr);
+	if (name.empty())
+	{
+		names::generateFunctionName(addr, _config->getConfig().isIda());
+	}
 
 	Function* oldFnc = bb->getParent();
 

@@ -14,6 +14,7 @@
 #include <llvm/Support/Casting.h>
 
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
+#include "retdec/bin2llvmir/providers/names.h"
 #include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/utils/address.h"
 #include "retdec/utils/string.h"
@@ -152,7 +153,8 @@ retdec::utils::Address getBasicBlockAddressFromName(llvm::BasicBlock* b)
 	std::string n = b->getName();
 
 	unsigned long long a = 0;
-	int ret = std::sscanf(n.c_str(), "bb_%llx", &a);
+	std::string pattern = names::generatedBasicBlockPrefix+"%llx";
+	int ret = std::sscanf(n.c_str(), pattern.c_str(), &a);
 	return ret == 1 ? Address(a) : Address();
 }
 
@@ -164,7 +166,7 @@ retdec::utils::Address getBasicBlockAddress(llvm::BasicBlock* b)
 	}
 
 	std::string n = b->getName();
-	if (!retdec::utils::startsWith(n, "bb_"))
+	if (!retdec::utils::startsWith(n, names::generatedBasicBlockPrefix))
 	{
 		return Address();
 	}

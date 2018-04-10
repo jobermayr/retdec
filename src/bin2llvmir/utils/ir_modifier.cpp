@@ -11,6 +11,7 @@
 #include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/utils/string.h"
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
+#include "retdec/bin2llvmir/providers/names.h"
 #include "retdec/bin2llvmir/utils/instruction.h"
 #include "retdec/bin2llvmir/utils/ir_modifier.h"
 #include "retdec/bin2llvmir/utils/type.h"
@@ -85,7 +86,7 @@ IrModifier::FunctionPair IrModifier::splitFunctionOn(
 	auto* ncf = _config->insertFunction(fnc, start, cf->getEnd());
 	cf->setEnd(start-1);
 
-	std::string bbName = retdec::utils::appendHexRet("dec_label_pc", start);
+	std::string bbName = names::generateBasicBlockName(start);
 	fnc->front().setName(bbName);
 
 //==============================================================================
