@@ -6,6 +6,7 @@
 
 #include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/bin2llvmir/optimizations/dump_module/dump_module.h"
+#include "retdec/bin2llvmir/providers/config.h"
 
 using namespace llvm;
 
@@ -29,7 +30,8 @@ DumpModule::DumpModule() :
 
 bool DumpModule::runOnModule(Module& M)
 {
-	dumpModuleToFile(&M);
+	auto* c = ConfigProvider::getConfig(&M);
+	dumpModuleToFile(&M, c->getOutputDirectory());
 	return false;
 }
 

@@ -576,6 +576,12 @@ llvm::GlobalVariable* Config::getGlobalDummy()
 	return _globalDummy;
 }
 
+utils::FilesystemPath Config::getOutputDirectory()
+{
+	FilesystemPath fsp(getConfig().parameters.getOutputFile());
+	return fsp.getParentPath();
+}
+
 void Config::setLlvmCallPseudoFunction(llvm::Function* f)
 {
 	_callFunction = f;

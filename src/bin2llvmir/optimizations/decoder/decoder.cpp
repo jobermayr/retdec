@@ -106,14 +106,14 @@ bool Decoder::run()
 	decode();
 	patternsRecognize();
 
-dumpControFlowToJson(_module);
-dumpModuleToFile(_module);
+dumpControFlowToJson(_module, _config->getOutputDirectory());
+dumpModuleToFile(_module, _config->getOutputDirectory());
 
 	resolvePseudoCalls();
 	finalizePseudoCalls();
 	initConfigFunction();
 
-dumpModuleToFile(_module);
+dumpModuleToFile(_module, _config->getOutputDirectory());
 
 	return false;
 }

@@ -15,6 +15,8 @@
 #include <llvm/IR/Module.h>
 #include <llvm/Support/raw_ostream.h>
 
+#include "retdec/utils/filesystem_path.h"
+
 namespace retdec {
 namespace bin2llvmir {
 
@@ -38,9 +40,13 @@ std::string llvmObjToString(const T* t)
 std::string llvmObjToString(const llvm::Module* t);
 std::string llvmObjToString(const llvm::Module& t);
 
-void dumpModuleToFile(const llvm::Module* m, const std::string fileName = "");
+void dumpModuleToFile(
+		const llvm::Module* m,
+		utils::FilesystemPath dirName,
+		const std::string fileName = "");
 void dumpControFlowToJson(
 		llvm::Module* m,
+		utils::FilesystemPath dirName,
 		const std::string& fileName = "control-flow.json");
 
 llvm::Value* skipCasts(llvm::Value* val);

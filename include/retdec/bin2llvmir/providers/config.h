@@ -13,6 +13,7 @@
 #include <llvm/IR/Module.h>
 
 #include "retdec/utils/address.h"
+#include "retdec/utils/filesystem_path.h"
 
 namespace retdec {
 namespace bin2llvmir {
@@ -157,6 +158,7 @@ class Config
 		bool isMipsOrPic32() const;
 		bool isArmOrThumb() const;
 		llvm::GlobalVariable* getGlobalDummy();
+		utils::FilesystemPath getOutputDirectory();
 
 	private:
 		llvm::Module* _module = nullptr;
