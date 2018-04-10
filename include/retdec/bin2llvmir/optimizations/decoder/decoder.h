@@ -227,8 +227,8 @@ class Decoder : public llvm::ModulePass
 		std::set<llvm::Function*> _terminatingFncs;
 		/// Start of all recognized jump tables.
 		/// TODO: use this to check that one table does not use labels from
-		// another.
-		std::map<utils::Address, llvm::SwitchInst*> _switchTableStarts;
+		/// another.
+		std::map<utils::Address, std::set<llvm::SwitchInst*>> _switchTableStarts;
 };
 
 } // namespace bin2llvmir

@@ -457,10 +457,6 @@ utils::Address Decoder::getJumpTarget(
 
 /**
  * \return \c True if switch recognized, \c false otherwise.
- *
- * TODO:
- * - check that all labels can be created before creating them? what if some
- *   creation fails?
  */
 bool Decoder::getJumpTargetSwitch(
 		utils::Address addr,
@@ -587,6 +583,12 @@ bool Decoder::getJumpTargetSwitch(
 	LOG << "\t\t\t" << "table labels:" << std::endl;
 	std::vector<Address> cases;
 	Address tableItemAddr = tableAddr;
+	Address nextTableAddr;
+	auto swTblIt = _switchTableStarts.upper_bound(tableAddr);
+	if (swTblIt != _switchTableStarts.end())
+	{
+		nextTableAddr = swTblIt->first;
+	}
 	while (true)
 	{
 		auto* ci = _image->getImage()->isPointer(tableItemAddr)
@@ -604,6 +606,10 @@ bool Decoder::getJumpTargetSwitch(
 		cases.push_back(item);
 
 		if (tableSize > 0 && cases.size() == tableSize)
+		{
+			break;
+		}
+		if (nextTableAddr.isUndefined() && tableItemAddr >= nextTableAddr)
 		{
 			break;
 		}
@@ -665,7 +671,7 @@ bool Decoder::getJumpTargetSwitch(
 
 	_ranges.remove(tableAddr, tableAddrEnd - 1);
 
-	_switchTableStarts.emplace(tableAddr, sw);
+	_switchTableStarts[tableAddr].insert(sw);
 
 	return true;
 }
