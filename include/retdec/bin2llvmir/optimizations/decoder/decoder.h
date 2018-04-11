@@ -100,6 +100,9 @@ class Decoder : public llvm::ModulePass
 				llvm::CallInst* branchCall,
 				llvm::Value* val,
 				SymbolicTree& st);
+		bool instructionBreaksBasicBlock(
+				utils::Address addr,
+				capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& tr);
 
 		void getOrCreateTarget(
 				utils::Address addr,
@@ -223,6 +226,7 @@ class Decoder : public llvm::ModulePass
 		std::set<utils::Address> _debugFncs;
 		std::set<utils::Address> _staticFncs;
 		std::set<llvm::Function*> _terminatingFncs;
+		llvm::Function* _entryPointFunction = nullptr;
 		/// Start of all recognized jump tables.
 		/// TODO: use this to check that one table does not use labels from
 		/// another.

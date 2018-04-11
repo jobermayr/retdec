@@ -259,7 +259,8 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		}
 
 		_llvm2capstone->emplace(res.llvmInsn, res.capstoneInsn);
-		bbEnd = getJumpTargetsFromInstruction(oldAddr, res);
+		bbEnd |= getJumpTargetsFromInstruction(oldAddr, res);
+		bbEnd |= instructionBreaksBasicBlock(oldAddr, res);
 	}
 	while (!bbEnd);
 
@@ -295,6 +296,24 @@ std::size_t Decoder::decodeJumpTargetDryRun(
 
 	// Common dry run.
 	//
+	return false;
+}
+
+bool Decoder::instructionBreaksBasicBlock(
+		utils::Address addr,
+		capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& tr)
+{
+	// On x86 halt may get generated to end the entry point function:
+	// https://stackoverflow.com/questions/5213466/why-does-gcc-place-a-halt-instruction-in-programs-after-the-call-to-main
+	// The check could be stricter - nop follows, all paths to halt, etc.
+	//
+	if (_config->getConfig().architecture.isX86()
+			&& tr.llvmInsn->getFunction() == _entryPointFunction
+			&& tr.capstoneInsn->id == X86_INS_HLT)
+	{
+		return true;
+	}
+
 	return false;
 }
 

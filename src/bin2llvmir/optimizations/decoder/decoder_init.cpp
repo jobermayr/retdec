@@ -383,7 +383,7 @@ void Decoder::initJumpTargetsEntryPoint()
 				m,
 				Address::getUndef);
 
-		createFunction(ep);
+		_entryPointFunction = createFunction(ep);
 
 		LOG << "\t" << "entry point @ " << ep << std::endl;
 	}
