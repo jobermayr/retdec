@@ -231,7 +231,16 @@ void Decoder::initAllowedRangesWithSegments()
 				case SecSeg::Type::CODE:
 					LOG << "\t\t" << "code -> allowed ranges"
 							<< std::endl;
-					_ranges.addPrimary(start, end);
+					if (sec->getName() == ".plt" // usually marked as code
+						|| sec->getName() == ".got" // usually marked as data
+						|| sec->getName() == ".got.plt")
+					{
+						_ranges.addAlternative(start, end);
+					}
+					else
+					{
+						_ranges.addPrimary(start, end);
+					}
 					break;
 				case SecSeg::Type::DATA:
 					LOG << "\t\t" << "data -> alternative ranges"
@@ -403,17 +412,36 @@ void Decoder::initJumpTargetsImports()
 			continue;
 		}
 
+		bool isPtr = false;
+		auto* ciVal = _image->getConstantDefault(addr);
+		if (_image->getFileFormat()->isPointer(addr)
+			|| (ciVal && ciVal->isZero()))
+		{
+			isPtr = true;
+		}
+		if (auto* sec = _image->getImage()->getSegmentFromAddress(addr))
+		{
+			if (sec->getName() == ".got"
+					|| sec->getName() == ".got.plt")
+			{
+				isPtr = true;
+			}
+		}
+
 		cs_mode m = _currentMode;
 		if (_config->isArmOrThumb())
 		{
 			m = addr % 2 ? CS_MODE_THUMB : CS_MODE_ARM;
 		}
 
-		_jumpTargets.push(
-				addr,
-				JumpTarget::eType::IMPORT,
-				m,
-				Address::getUndef);
+		if (!isPtr)
+		{
+			_jumpTargets.push(
+					addr,
+					JumpTarget::eType::IMPORT,
+					m,
+					Address::getUndef);
+		}
 
 		auto* f = createFunction(addr);
 		_imports.emplace(addr);

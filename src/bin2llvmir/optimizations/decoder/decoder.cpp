@@ -352,11 +352,16 @@ bool Decoder::getJumpTargetsFromInstruction(
 				transformToCall(pCall, tFnc);
 			}
 
-			_jumpTargets.push(
-					t,
-					JumpTarget::eType::CONTROL_FLOW_BR_TRUE,
-					_currentMode,
-					addr);
+			// TODO: if target was from load of import addr, do not add it,
+			// add everywhere, make this somehow better.
+			if (_imports.count(t) == 0)
+			{
+				_jumpTargets.push(
+						t,
+						JumpTarget::eType::CONTROL_FLOW_BR_TRUE,
+						_currentMode,
+						addr);
+			}
 			LOG << "\t\t" << "br @ " << addr << " -> "	<< t << std::endl;
 		}
 
