@@ -1768,9 +1768,43 @@ TEST_P(Capstone2LlvmIrTranslatorMipsTests, MIPS_INS_JR)
 
 //
 // MIPS_INS_JAL
-// TODO: Keystone -- assert, no idea why, disassembly of 'jal 0x1234' by
-// Capstone dumper works.
 //
+
+TEST_P(Capstone2LlvmIrTranslatorMipsTests, MIPS_INS_JAL)
+{
+	ALL_MODES;
+
+	emulate("jal 0x1008", 0x1000);
+
+	EXPECT_NO_REGISTERS_LOADED();
+	EXPECT_JUST_REGISTERS_STORED({
+		{MIPS_REG_RA, 0x1000 + 0x4 + 0x4},
+	});
+	EXPECT_NO_MEMORY_LOADED_STORED();
+	EXPECT_JUST_VALUES_CALLED({
+		{_translator->getCallFunction(), {0x1008}},
+	});
+}
+
+//
+// MIPS_INS_BAL
+//
+
+TEST_P(Capstone2LlvmIrTranslatorMipsTests, MIPS_INS_BAL)
+{
+	ALL_MODES;
+
+	emulate("bal 0x1008", 0x1000);
+
+	EXPECT_NO_REGISTERS_LOADED();
+	EXPECT_JUST_REGISTERS_STORED({
+		{MIPS_REG_RA, 0x1000 + 0x4 + 0x4},
+	});
+	EXPECT_NO_MEMORY_LOADED_STORED();
+	EXPECT_JUST_VALUES_CALLED({
+		{_translator->getCallFunction(), {0x1008}},
+	});
+}
 
 //
 // MIPS_INS_JALR

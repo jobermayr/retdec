@@ -258,6 +258,8 @@ void Capstone2LlvmIrTranslatorMips_impl::initializePseudoCallInstructionIDs()
 			MIPS_INS_BGEZALL,
 			MIPS_INS_BLTZAL,
 			MIPS_INS_BLTZALL,
+			//
+			MIPS_INS_BAL,
 	};
 
 	_returnInsnIds =
@@ -363,7 +365,7 @@ Capstone2LlvmIrTranslatorMips_impl::_i2fm =
 		{MIPS_INS_AVE_U, nullptr},
 		{MIPS_INS_B16, nullptr},
 		{MIPS_INS_BADDU, nullptr},
-		{MIPS_INS_BAL, nullptr},
+		{MIPS_INS_BAL, &Capstone2LlvmIrTranslatorMips_impl::translateJal},
 		{MIPS_INS_BALC, nullptr},
 		{MIPS_INS_BALIGN, nullptr},
 		{MIPS_INS_BBIT0, nullptr},
