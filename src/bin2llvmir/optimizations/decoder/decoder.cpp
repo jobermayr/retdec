@@ -230,13 +230,12 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 	IRBuilder<> irb(bb->getTerminator());
 
 	Address addr = start;
-	Address oldAddr = addr;
 	bool bbEnd = false;
 	do
 	{
 		LOG << "\t\t\t" << "translating = " << addr << std::endl;
 
-		oldAddr = addr;
+		Address oldAddr = addr;
 		auto res = _c2l->translateOne(bytes.first, bytes.second, addr, irb);
 		if (res.failed() || res.llvmInsn == nullptr)
 		{
@@ -261,6 +260,31 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		_llvm2capstone->emplace(res.llvmInsn, res.capstoneInsn);
 		bbEnd |= getJumpTargetsFromInstruction(oldAddr, res);
 		bbEnd |= instructionBreaksBasicBlock(oldAddr, res);
+
+		if (_c2l->hasDelaySlotTypical(res.capstoneInsn->id))
+		{
+			assert(res.branchCall);
+			assert(_c2l->getDelaySlot(res.capstoneInsn->id));
+
+			auto* oldIp = res.branchCall->getParent()->getTerminator();
+			irb.SetInsertPoint(res.branchCall);
+			std::size_t sz = _c2l->getDelaySlot(res.capstoneInsn->id);
+			for (std::size_t i = 0; i < sz; ++i)
+			{
+				auto res = _c2l->translateOne(bytes.first, bytes.second, addr, irb);
+				if (res.failed() || res.llvmInsn == nullptr)
+				{
+					break;
+				}
+				_llvm2capstone->emplace(res.llvmInsn, res.capstoneInsn);
+			}
+			irb.SetInsertPoint(oldIp);
+		}
+		else if (_c2l->hasDelaySlotLikely(res.capstoneInsn->id))
+		{
+			assert(false);
+			// nothing, do not decode delay slot, what should be done?
+		}
 	}
 	while (!bbEnd);
 
@@ -328,7 +352,6 @@ bool Decoder::getJumpTargetsFromInstruction(
 		utils::Address addr,
 		capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& tr)
 {
-	auto nextAddr = addr + tr.size;
 	CallInst* pCall = tr.branchCall;
 
 	BasicBlock* tBb = nullptr;
@@ -395,6 +418,17 @@ bool Decoder::getJumpTargetsFromInstruction(
 	//
 	else if (_c2l->isCondBranchFunctionCall(pCall))
 	{
+		auto nextAddr = addr + tr.size;
+		// Right now, delay slots are only in architectures with fixed
+		// instruction size (more specifically, only in MIPS).
+		// Therefore, we can multiply current instruction size with number of
+		// instructions in the delay slot to get its size.
+		// If this changes, we will have to modify this -> create nextAddr
+		// target only after delay slot instructions are decoded and we know
+		// their sizes.
+		//
+		nextAddr += _c2l->getDelaySlot(tr.capstoneInsn->id) * tr.size;
+
 		if (auto t = getJumpTarget(addr, pCall, pCall->getArgOperand(1)))
 		{
 			getOrCreateTarget(t, false, tBb, tFnc, pCall);
