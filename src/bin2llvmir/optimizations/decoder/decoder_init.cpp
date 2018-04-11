@@ -321,9 +321,9 @@ void Decoder::initJumpTargets()
 	initStaticCode();
 	initJumpTargetsEntryPoint();
 	initJumpTargetsImports();
-	initJumpTargetsExports();
 	initJumpTargetsDebug();
-	initJumpTargetsSymbols();
+	initJumpTargetsSymbols(); // MUST be before exports
+	initJumpTargetsExports();
 }
 
 void Decoder::initJumpTargetsConfig()
@@ -468,6 +468,15 @@ void Decoder::initJumpTargetsExports()
 			{
 				continue;
 			}
+			// On ELF, there is no export table. It was reconstructed from
+			// symbols. Exports does not have to be functions, they can be
+			// data objects. Skip those exports that were not added to symbols.
+			//
+			if (_config->getConfig().fileFormat.isElf()
+					&& _symbols.count(addr) == 0)
+			{
+				continue;
+			}
 
 			cs_mode m = _currentMode;
 			if (_config->isArmOrThumb())
@@ -534,6 +543,7 @@ void Decoder::initJumpTargetsSymbols()
 					sz);
 
 			createFunction(addr);
+			_symbols.insert(addr);
 
 			LOG << "\t" << "symbol public @ " << addr << std::endl;
 		}
@@ -547,6 +557,7 @@ void Decoder::initJumpTargetsSymbols()
 					sz);
 
 			createFunction(addr);
+			_symbols.insert(addr);
 
 			LOG << "\t" << "symbol @ " << addr << std::endl;
 		}

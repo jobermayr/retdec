@@ -231,6 +231,7 @@ class Decoder : public llvm::ModulePass
 
 		std::set<utils::Address> _imports;
 		std::set<utils::Address> _exports;
+		std::set<utils::Address> _symbols;
 		std::set<utils::Address> _debugFncs;
 		std::set<utils::Address> _staticFncs;
 		std::set<llvm::Function*> _terminatingFncs;
