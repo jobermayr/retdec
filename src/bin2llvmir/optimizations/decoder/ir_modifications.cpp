@@ -170,7 +170,7 @@ llvm::Function* Decoder::_splitFunctionOn(
 	std::string name = _names->getPreferredNameForAddress(addr);
 	if (name.empty())
 	{
-		names::generateFunctionName(addr, _config->getConfig().isIda());
+		name = names::generateFunctionName(addr, _config->getConfig().isIda());
 	}
 
 	Function* oldFnc = bb->getParent();

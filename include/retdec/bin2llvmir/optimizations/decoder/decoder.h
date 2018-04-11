@@ -90,7 +90,8 @@ class Decoder : public llvm::ModulePass
 
 		bool getJumpTargetsFromInstruction(
 				utils::Address addr,
-				capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& tr);
+				capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& tr,
+				uint64_t& rangeSize);
 		utils::Address getJumpTarget(
 				utils::Address addr,
 				llvm::CallInst* branchCall,

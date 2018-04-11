@@ -258,7 +258,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		}
 
 		_llvm2capstone->emplace(res.llvmInsn, res.capstoneInsn);
-		bbEnd |= getJumpTargetsFromInstruction(oldAddr, res);
+		bbEnd |= getJumpTargetsFromInstruction(oldAddr, res, bytes.second);
 		bbEnd |= instructionBreaksBasicBlock(oldAddr, res);
 
 		if (_c2l->hasDelaySlotTypical(res.capstoneInsn->id))
@@ -350,7 +350,8 @@ bool Decoder::instructionBreaksBasicBlock(
  */
 bool Decoder::getJumpTargetsFromInstruction(
 		utils::Address addr,
-		capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& tr)
+		capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& tr,
+		uint64_t& rangeSize)
 {
 	CallInst* pCall = tr.branchCall;
 
@@ -373,6 +374,14 @@ bool Decoder::getJumpTargetsFromInstruction(
 					_currentMode,
 					addr);
 			LOG << "\t\t" << "call @ " << addr << " -> " << t << std::endl;
+
+			// The created function might be in range that we are currently
+			// decoding -> if so, trim range size.
+			auto nextAddr = addr + tr.size;
+			if (nextAddr + rangeSize > t)
+			{
+				rangeSize = t - nextAddr;
+			}
 		}
 	}
 	// Return -> break flow, do not try to compute target.
