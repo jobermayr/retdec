@@ -28,9 +28,6 @@ llvm::CallInst* Decoder::transformToCall(
 		s->insertAfter(cc);
 	}
 
-	pseudo->removeFromParent();
-	_pseudoCalls.emplace(pseudo, c);
-
 	return c;
 }
 
@@ -55,23 +52,18 @@ llvm::CallInst* Decoder::transformToCondCall(
 	auto* c = CallInst::Create(callee);
 	c->insertAfter(pseudo);
 
-	pseudo->removeFromParent();
-	_pseudoCalls.emplace(pseudo, c);
-
 	return c;
 }
 
 llvm::ReturnInst* Decoder::transformToReturn(llvm::CallInst* pseudo)
 {
 	auto* term = pseudo->getParent()->getTerminator();
+	assert(pseudo->getNextNode() == term);
 	auto* r = ReturnInst::Create(
 			pseudo->getModule()->getContext(),
 			UndefValue::get(pseudo->getFunction()->getReturnType()),
 			term);
 	term->eraseFromParent();
-
-	pseudo->removeFromParent();
-	_pseudoCalls.emplace(pseudo, r);
 
 	return r;
 }
@@ -81,11 +73,9 @@ llvm::BranchInst* Decoder::transformToBranch(
 		llvm::BasicBlock* branchee)
 {
 	auto* term = pseudo->getParent()->getTerminator();
+	assert(pseudo->getNextNode() == term);
 	auto* br = BranchInst::Create(branchee, term);
 	term->eraseFromParent();
-
-	pseudo->removeFromParent();
-	_pseudoCalls.emplace(pseudo, br);
 
 	return br;
 }
@@ -97,11 +87,9 @@ llvm::BranchInst* Decoder::transformToCondBranch(
 		llvm::BasicBlock* falseBb)
 {
 	auto* term = pseudo->getParent()->getTerminator();
+	assert(pseudo->getNextNode() == term);
 	auto* br = BranchInst::Create(trueBb, falseBb, cond, term);
 	term->eraseFromParent();
-
-	pseudo->removeFromParent();
-	_pseudoCalls.emplace(pseudo, br);
 
 	return br;
 }
@@ -122,6 +110,7 @@ llvm::SwitchInst* Decoder::transformToSwitch(
 	}
 
 	auto* term = pseudo->getParent()->getTerminator();
+	assert(pseudo->getNextNode() == term);
 	auto* intType = cast<IntegerType>(val->getType());
 	auto* sw = SwitchInst::Create(val, defaultBb, numCases, term);
 	unsigned cntr = 0;
@@ -134,9 +123,6 @@ llvm::SwitchInst* Decoder::transformToSwitch(
 		++cntr;
 	}
 	term->eraseFromParent();
-
-	pseudo->removeFromParent();
-	_pseudoCalls.emplace(pseudo, sw);
 
 	return sw;
 }

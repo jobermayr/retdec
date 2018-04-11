@@ -780,24 +780,27 @@ void Decoder::resolvePseudoCalls()
 
 void Decoder::finalizePseudoCalls()
 {
-	for (auto& p : _pseudoCalls)
+	for (auto& f : *_module)
+	for (auto& b : f)
+	for (auto i = b.begin(), e = b.end(); i != e;)
 	{
-		CallInst* pseudo = p.first;
-		Instruction* real = p.second;
-
-		if (real == nullptr)
+		CallInst* pseudo = dyn_cast<CallInst>(&*i);
+		++i;
+		if (pseudo == nullptr)
 		{
-			// Pseudo call could not be resolved.
-			// Leave it be? Replace it with something more descriptive?
-			// Replace calls with pointer calls?
-			// TODO: right now, we are not even storing these.
-			assert(false);
+			continue;
+		}
+		if (!_c2l->isCallFunctionCall(pseudo)
+				&& !_c2l->isReturnFunctionCall(pseudo)
+				&& !_c2l->isBranchFunctionCall(pseudo)
+				&& !_c2l->isCondBranchFunctionCall(pseudo))
+		{
 			continue;
 		}
 
-		delete pseudo;
+		Instruction* it = pseudo->getPrevNode();
+		pseudo->eraseFromParent();
 
-		Instruction* it = real;
 		while (it && !AsmInstruction::isLlvmToAsmInstruction(it))
 		{
 			auto* i = it;
