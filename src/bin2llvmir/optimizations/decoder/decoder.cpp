@@ -378,7 +378,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 			// The created function might be in range that we are currently
 			// decoding -> if so, trim range size.
 			auto nextAddr = addr + tr.size;
-			if (nextAddr + rangeSize > t)
+			if (nextAddr < t && t < nextAddr + rangeSize)
 			{
 				rangeSize = t - nextAddr;
 			}
