@@ -115,6 +115,7 @@ std::size_t Capstone2LlvmIrTranslatorMips_impl::getDelaySlot(uint32_t id) const
 			MIPS_INS_BAL,
 			// branch
 			MIPS_INS_J, MIPS_INS_JR,
+			MIPS_INS_B,
 	};
 	return set.count(id);
 }
@@ -1265,7 +1266,8 @@ void Capstone2LlvmIrTranslatorMips_impl::translateIns(cs_insn* i, cs_mips* mi, l
 }
 
 /**
- * MIPS_INS_J, MIPS_INS_JR
+ * MIPS_INS_J, MIPS_INS_JR,
+ * MIPS_INS_B,
  */
 void Capstone2LlvmIrTranslatorMips_impl::translateJ(cs_insn* i, cs_mips* mi, llvm::IRBuilder<>& irb)
 {

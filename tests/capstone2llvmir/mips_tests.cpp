@@ -1767,6 +1767,23 @@ TEST_P(Capstone2LlvmIrTranslatorMipsTests, MIPS_INS_JR)
 }
 
 //
+// MIPS_INS_B
+//
+
+TEST_P(Capstone2LlvmIrTranslatorMipsTests, MIPS_INS_B)
+{
+	ALL_MODES;
+
+	emulate("j 0x1000", 0x1000);
+
+	EXPECT_NO_REGISTERS_LOADED_STORED();
+	EXPECT_NO_MEMORY_LOADED_STORED();
+	EXPECT_JUST_VALUES_CALLED({
+		{_translator->getBranchFunction(), {0x1000}},
+	});
+}
+
+//
 // MIPS_INS_JAL
 //
 

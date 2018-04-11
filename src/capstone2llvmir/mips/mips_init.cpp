@@ -271,6 +271,7 @@ void Capstone2LlvmIrTranslatorMips_impl::initializePseudoCallInstructionIDs()
 	{
 			MIPS_INS_J,
 			MIPS_INS_JR,
+			MIPS_INS_B,
 	};
 
 	_condBranchInsnIds =
@@ -457,7 +458,7 @@ Capstone2LlvmIrTranslatorMips_impl::_i2fm =
 		{MIPS_INS_BSET, nullptr},
 		{MIPS_INS_BZ, nullptr},
 		{MIPS_INS_BEQZ, &Capstone2LlvmIrTranslatorMips_impl::translateCondBranchBinary},
-		{MIPS_INS_B, nullptr},
+		{MIPS_INS_B, &Capstone2LlvmIrTranslatorMips_impl::translateJ},
 		{MIPS_INS_BNEZ, &Capstone2LlvmIrTranslatorMips_impl::translateCondBranchBinary},
 		{MIPS_INS_BTEQZ, nullptr},
 		{MIPS_INS_BTNEZ, nullptr},
