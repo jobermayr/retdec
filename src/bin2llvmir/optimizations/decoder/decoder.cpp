@@ -159,9 +159,13 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		return;
 	}
 
-	auto* range = jt.getType() < JumpTarget::eType::LEFTOVER
-			? _ranges.get(start)
-			: _ranges.getPrimary(start);
+	bool alternative = false;
+	auto* range = _ranges.getPrimary(start);
+	if (range == nullptr && jt.getType() < JumpTarget::eType::LEFTOVER)
+	{
+		range = _ranges.getAlternative(start);
+		alternative = true;
+	}
 	if (range == nullptr)
 	{
 		LOG << "\t\t" << "found no range -> skip" << std::endl;
@@ -193,13 +197,18 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		bytes.second = sz < bytes.second ? sz : bytes.second;
 	}
 
-	if (jt.getType() == JumpTarget::eType::LEFTOVER)
-	if (auto skipSz = decodeJumpTargetDryRun(jt, bytes))
+	if (jt.getType() == JumpTarget::eType::LEFTOVER
+			|| (alternative
+			&& jt.getType() > JumpTarget::eType::CONTROL_FLOW_RETURN_TARGET))
 	{
-		AddressRange sr(start, start+skipSz-1);
-		LOG << "\t\t" << "dry run failed -> skip range = " << sr << std::endl;
-		_ranges.remove(sr);
-		return;
+		if (auto skipSz = decodeJumpTargetDryRun(jt, bytes))
+		{
+			AddressRange sr(start, start+skipSz-1);
+			LOG << "\t\t" << "dry run failed -> skip range = " << sr
+					<< std::endl;
+			_ranges.remove(sr);
+			return;
+		}
 	}
 
 	BasicBlock* bb = getBasicBlockAtAddress(start);
