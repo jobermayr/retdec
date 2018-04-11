@@ -289,6 +289,10 @@ std::size_t Decoder::decodeJumpTargetDryRun(
 	{
 		return decodeJumpTargetDryRun_arm(jt, bytes);
 	}
+	else if (_config->isMipsOrPic32())
+	{
+		return decodeJumpTargetDryRun_mips(jt, bytes);
+	}
 	else
 	{
 		assert(false);
@@ -786,6 +790,7 @@ void Decoder::finalizePseudoCalls()
 			// Pseudo call could not be resolved.
 			// Leave it be? Replace it with something more descriptive?
 			// Replace calls with pointer calls?
+			// TODO: right now, we are not even storing these.
 			assert(false);
 			continue;
 		}

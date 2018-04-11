@@ -26,6 +26,7 @@ set(BIN2LLVMIR_SOURCES
 	optimizations/decoder/functions.cpp
 	optimizations/decoder/ir_modifications.cpp
 	optimizations/decoder/jump_targets.cpp
+	optimizations/decoder/mips.cpp
 	optimizations/decoder/patterns.cpp
 	optimizations/decoder/x86.cpp
 	optimizations/dsm_generator/dsm_generator.cpp

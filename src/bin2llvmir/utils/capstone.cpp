@@ -16,6 +16,10 @@ bool isNopInstruction(const config::Architecture& arch, cs_insn* insn)
 	{
 		return isNopInstruction_x86(insn);
 	}
+	else if (arch.isMipsOrPic32())
+	{
+		return isNopInstruction_mips(insn);
+	}
 	else
 	{
 		assert(false);
@@ -60,6 +64,21 @@ bool isNopInstruction_x86(cs_insn* insn)
 			&& insn86.operands[0].type == X86_OP_REG
 			&& insn86.operands[1].type == X86_OP_REG
 			&& insn86.operands[0].reg == insn86.operands[1].reg)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+bool isNopInstruction_mips(cs_insn* insn)
+{
+	cs_mips& insnMips = insn->detail->mips;
+
+	// True NOP variants.
+	//
+	if (insn->id == MIPS_INS_NOP
+			|| insn->id == MIPS_INS_SSNOP)
 	{
 		return true;
 	}

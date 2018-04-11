@@ -370,9 +370,17 @@ llvm::Function* Decoder::_splitFunctionOn(
  */
 llvm::GlobalVariable* Decoder::getCallReturnObject()
 {
-	if (_config->getConfig().architecture.isX86())
+	if (_config->getConfig().architecture.isX86_32())
 	{
 		return _module->getNamedGlobal("eax");
+	}
+	else if (_config->getConfig().architecture.isX86_64())
+	{
+		return _module->getNamedGlobal("rax");
+	}
+	else if (_config->isMipsOrPic32())
+	{
+		return _config->getLlvmRegister("v0");
 	}
 
 	assert(false);

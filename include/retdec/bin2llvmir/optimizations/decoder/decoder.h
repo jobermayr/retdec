@@ -170,6 +170,13 @@ class Decoder : public llvm::ModulePass
 				const JumpTarget& jt,
 				ByteData bytes);
 
+	// MIPS specific.
+	//
+	private:
+		std::size_t decodeJumpTargetDryRun_mips(
+				const JumpTarget& jt,
+				ByteData bytes);
+
 	// IR modifications.
 	//
 	private:
