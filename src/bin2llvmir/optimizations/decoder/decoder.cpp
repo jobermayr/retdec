@@ -140,8 +140,20 @@ bool Decoder::getJumpTarget(JumpTarget& jt)
 	}
 	else if (!_ranges.primaryEmpty())
 	{
+		// Instructions on some architectures are aligned.
+		auto start = _ranges.primaryFront().getStart();
+		if (_config->isMipsOrPic32()
+				|| _config->isArmOrThumb()) // ppc?
+		{
+			if (auto m = start % 4)
+			{
+				_ranges.remove(start, start + (4 - m) - 1);
+				start = start + (4 - m);
+			}
+		}
+
 		jt = JumpTarget(
-				_ranges.primaryFront().getStart(),
+				start,
 				JumpTarget::eType::LEFTOVER,
 				CS_MODE_BIG_ENDIAN,
 				Address());

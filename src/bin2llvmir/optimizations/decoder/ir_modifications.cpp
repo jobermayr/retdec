@@ -241,6 +241,7 @@ llvm::Function* Decoder::_splitFunctionOn(
 								Address target = getBasicBlockAddress(succ);
 								assert(target.isDefined());
 								auto* nf = _splitFunctionOn(target, succ);
+								assert(nf);
 
 								CallInst::Create(nf, "", br);
 								ReturnInst::Create(
@@ -319,6 +320,7 @@ llvm::Function* Decoder::_splitFunctionOn(
 								Address target = getBasicBlockAddress(succ);
 								assert(target.isDefined());
 								auto* nf = _splitFunctionOn(target, succ);
+								assert(nf);
 
 								CallInst::Create(nf, "", br);
 								ReturnInst::Create(
