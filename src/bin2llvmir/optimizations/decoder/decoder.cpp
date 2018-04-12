@@ -274,6 +274,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		{
 			assert(res.branchCall);
 			assert(_c2l->getDelaySlot(res.capstoneInsn->id));
+			assert(_c2l->getDelaySlot(res.capstoneInsn->id) == 1);
 
 			auto* oldIp = res.branchCall->getParent()->getTerminator();
 			irb.SetInsertPoint(res.branchCall);
@@ -291,8 +292,39 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		}
 		else if (_c2l->hasDelaySlotLikely(res.capstoneInsn->id))
 		{
-			assert(false);
-			// nothing, do not decode delay slot, what should be done?
+			assert(res.branchCall);
+			assert(_c2l->getDelaySlot(res.capstoneInsn->id));
+			assert(_c2l->getDelaySlot(res.capstoneInsn->id) == 1);
+
+			assert(isa<BranchInst>(res.branchCall->getNextNode()));
+			assert(cast<BranchInst>(res.branchCall->getNextNode())->isConditional());
+
+			auto* br = cast<BranchInst>(res.branchCall->getNextNode());
+			if (br && br->isConditional())
+			{
+				auto* nextBb = br->getParent()->getNextNode();
+				auto* newBb = BasicBlock::Create(
+						_module->getContext(),
+						"",
+						br->getFunction(),
+						nextBb);
+
+				auto* target = br->getSuccessor(0);
+				br->setSuccessor(0, newBb);
+				auto* newTerm = BranchInst::Create(target, newBb);
+				irb.SetInsertPoint(newTerm);
+
+				std::size_t sz = _c2l->getDelaySlot(res.capstoneInsn->id);
+				for (std::size_t i = 0; i < sz; ++i)
+				{
+					auto res = _c2l->translateOne(bytes.first, bytes.second, addr, irb);
+					if (res.failed() || res.llvmInsn == nullptr)
+					{
+						break;
+					}
+					_llvm2capstone->emplace(res.llvmInsn, res.capstoneInsn);
+				}
+			}
 		}
 	}
 	while (!bbEnd);
