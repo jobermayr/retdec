@@ -285,10 +285,10 @@ bool Decoder::patternTerminatingCalls()
 			Address addr = getBasicBlockAddress(nextBb);
 			assert(addr.isDefined());
 
+			LOG << "\t\tsplit fnc @ " << addr << std::endl;
+
 			_splitFunctionOn(addr);
 			modified = true;
-
-			LOG << "\t\tsplit fnc @ " << addr << std::endl;
 		}
 	}
 

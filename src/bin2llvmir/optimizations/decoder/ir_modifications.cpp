@@ -131,7 +131,14 @@ llvm::Function* Decoder::_splitFunctionOn(utils::Address addr)
 {
 	if (auto* bb = getBasicBlockAtAddress(addr))
 	{
-		return _splitFunctionOn(addr, bb);
+		if (bb->getPrevNode() == nullptr)
+		{
+			return bb->getParent();
+		}
+		else
+		{
+			return _splitFunctionOn(addr, bb);
+		}
 	}
 	else if (auto ai = AsmInstruction(_module, addr))
 	{
@@ -147,8 +154,10 @@ llvm::Function* Decoder::_splitFunctionOn(utils::Address addr)
 
 		return _splitFunctionOn(addr, newBb);
 	}
-	else if (auto* before = getBasicBlockBeforeAddress(addr))
+	else if (auto* f = getFunctionContainingAddress(addr))
 	{
+		auto* before = getBasicBlockBeforeAddress(addr);
+		assert(before);
 		auto* newBb = createBasicBlock(addr, before->getParent(), before);
 		return _splitFunctionOn(addr, newBb);
 	}
@@ -321,7 +330,6 @@ llvm::Function* Decoder::_splitFunctionOn(
 								assert(target.isDefined());
 								auto* nf = _splitFunctionOn(target, succ);
 								assert(nf);
-
 								CallInst::Create(nf, "", br);
 								ReturnInst::Create(
 										br->getModule()->getContext(),
@@ -351,6 +359,11 @@ llvm::Function* Decoder::_splitFunctionOn(
 	}
 
 	return newFnc;
+}
+
+bool Decoder::canSplitFunctionOn(utils::Address addr, llvm::BasicBlock* bb)
+{
+	return false;
 }
 
 /**
