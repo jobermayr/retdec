@@ -24,8 +24,12 @@ std::size_t Decoder::decodeJumpTargetDryRun_mips(
 	uint64_t addr = jt.getAddress();
 	std::size_t nops = 0;
 	bool first = true;
+	unsigned counter = 0;
+	unsigned cfChangePos = 0;
 	while (cs_disasm_iter(ce, &bytes.first, &bytes.second, &addr, _dryCsInsn))
 	{
+		++counter;
+
 		if (jt.getType() == JumpTarget::eType::LEFTOVER
 				&& (first || nops > 0)
 				&& capstone_utils::isNopInstruction(
@@ -45,6 +49,11 @@ std::size_t Decoder::decodeJumpTargetDryRun_mips(
 		{
 			return false;
 		}
+		else if (_c2l->isBranchInstruction(*_dryCsInsn)
+				|| _c2l->isCallInstruction(*_dryCsInsn))
+		{
+			cfChangePos = counter;
+		}
 
 		first = false;
 	}
@@ -57,6 +66,17 @@ std::size_t Decoder::decodeJumpTargetDryRun_mips(
 	// There is a BB right after, that is not a function start.
 	//
 	if (getBasicBlockAtAddress(addr) && getFunctionAtAddress(addr) == nullptr)
+	{
+		return false;
+	}
+
+	// We decoded exactly tho whole range, there is at least some good number
+	// of instructions, and block ended with control flow change (+possible
+	// delay slot).
+	//
+	if (bytes.second == 0
+			&& counter >= 8
+			&& (cfChangePos == counter || cfChangePos+1 == counter))
 	{
 		return false;
 	}

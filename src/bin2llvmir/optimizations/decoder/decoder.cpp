@@ -853,11 +853,26 @@ void Decoder::finalizePseudoCalls()
 		Instruction* it = pseudo->getPrevNode();
 		pseudo->eraseFromParent();
 
-		while (it && !AsmInstruction::isLlvmToAsmInstruction(it))
+		bool mipsFirstAsmInstr = true;
+		while (it)
 		{
+			if (AsmInstruction::isLlvmToAsmInstruction(it))
+			{
+				if (_config->isMipsOrPic32() && mipsFirstAsmInstr)
+				{
+					mipsFirstAsmInstr = false;
+				}
+				else
+				{
+					break;
+				}
+			}
+
 			auto* i = it;
 			it = it->getPrevNode();
 
+			// Return address store to stack in x86 calls.
+			//
 			if (_config->getConfig().architecture.isX86()
 					&& (_c2l->isCallFunctionCall(pseudo)
 							|| _c2l->isReturnFunctionCall(pseudo)))
@@ -865,6 +880,18 @@ void Decoder::finalizePseudoCalls()
 			{
 				if (_config->isStackPointerRegister(st->getPointerOperand())
 						|| isa<ConstantInt>(st->getValueOperand()))
+				{
+					st->eraseFromParent();
+				}
+			}
+
+			// Return address store to register in MIPS calls.
+			//
+			if (_config->isMipsOrPic32() && _c2l->isCallFunctionCall(pseudo))
+			if (auto* st = dyn_cast<StoreInst>(i))
+			{
+				if (_c2l->isRegister(st->getPointerOperand())
+						&& st->getPointerOperand()->getName() == "ra")
 				{
 					st->eraseFromParent();
 				}

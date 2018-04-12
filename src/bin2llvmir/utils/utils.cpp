@@ -302,6 +302,8 @@ void dumpControFlowToJsonFunction(
 		llvm::Function& f,
 		std::ostream &out)
 {
+	static auto* config = ConfigProvider::getConfig(f.getParent());
+
 	auto start = getFunctionAddress(&f);
 	auto end = getFunctionEndAddress(&f);
 
@@ -365,7 +367,19 @@ void dumpControFlowToJsonFunction(
 		{
 			if (auto ai = AsmInstruction(i))
 			{
-				usersAddrs.insert(ai.getAddress());
+				auto addr = ai.getAddress();
+				// MIPS hack: there are delay slots on MIPS, calls/branches
+				// are placed at the end of the next instruction (delay slot)
+				// we need to modify reference address.
+				// This assums that all references on MIPS have delays slots of
+				// 4 bytes, and therefore need to be fixed, it it is not the
+				// case, it will cause problems.
+				//
+				if (config && config->isMipsOrPic32())
+				{
+					addr -= 4;
+				}
+				usersAddrs.insert(addr);
 			}
 		}
 	}
