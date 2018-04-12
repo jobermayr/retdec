@@ -1078,27 +1078,53 @@ void StaticCodeAnalysis::confirmWithoutRefs()
 	}
 }
 
+struct comByRefSizeAddress
+{
+	bool operator() (
+			const StaticCodeFunction* lhs,
+			const StaticCodeFunction* rhs) const
+	{
+		if (lhs->references.size() == rhs->references.size())
+		{
+			if (lhs->size == rhs->size)
+			{
+				return lhs->address > rhs->address;
+			}
+			else
+			{
+				return lhs->size > rhs->size;
+			}
+		}
+		else
+		{
+			return lhs->references.size() > rhs->references.size();
+		}
+	}
+};
+
 void StaticCodeAnalysis::confirmAllRefsOk(std::size_t minFncSzWithoutRefs)
 {
 	LOG << "\t" << "confirmAllRefsOk()" << std::endl;
 
-	// Sort all functions with all references OK by number of references.
+	// Sort all functions with all references OK by number of references
+	// (and other stuff).
 	//
-	std::multimap<std::size_t, StaticCodeFunction*> byRefNum;
+	std::multiset<StaticCodeFunction*, comByRefSizeAddress> byRefNum;
+
 	DetectedFunctionsPtrMultimap byAddress;
 	for (auto* f : _worklistDetections)
 	{
 		if (f->allRefsOk())
 		{
-			byRefNum.emplace(f->references.size(), f);
+			byRefNum.insert(f);
 			byAddress.emplace(f->address, f);
 		}
 	}
 	LOG << "\t\t" << "byRefNum (sz = " << byRefNum.size() << "):" << std::endl;
-	for (auto& p : byRefNum)
+	for (auto& f : byRefNum)
 	{
-		LOG << "\t\t\t" << p.first << " @ " << p.second->address
-				<< " " << p.second->getName() << std::endl;
+		LOG << "\t\t\t" << f->references.size() << " @ " << f->address
+				<< " " << f->getName() << ", sz = " << f->size << std::endl;
 	}
 
 	// From functions with the most references to those with at least one
@@ -1107,10 +1133,8 @@ void StaticCodeAnalysis::confirmAllRefsOk(std::size_t minFncSzWithoutRefs)
 	//   - Conflicting function is shorter or has less references.
 	//   - Function has at least some reference or is not too short.
 	//
-	for (auto it = byRefNum.rbegin(), e = byRefNum.rend(); it != e; ++it)
+	for (auto* f : byRefNum)
 	{
-		auto* f = it->second;
-
 		// Function was solved in the meantime.
 		//
 		if (_worklistDetections.count(f) == 0)
@@ -1202,6 +1226,8 @@ void StaticCodeAnalysis::confirmFunction(StaticCodeFunction* f)
 {
 	LOG << "\t\t" << "confirming " << f->getName() << " @ " << f->address
 			<< std::endl;
+
+assert(f->address != 0x890e668);
 
 	// Confirm the function.
 	//
