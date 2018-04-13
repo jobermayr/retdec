@@ -144,6 +144,14 @@ llvm::GlobalVariable* Decoder::getCallReturnObject()
 	{
 		return _config->getLlvmRegister("v0");
 	}
+	else if (_config->getConfig().architecture.isPpc())
+	{
+		return _config->getLlvmRegister("r3");
+	}
+	else if (_config->getConfig().architecture.isArmOrThumb())
+	{
+		return _config->getLlvmRegister("r0");
+	}
 
 	assert(false);
 	return nullptr;

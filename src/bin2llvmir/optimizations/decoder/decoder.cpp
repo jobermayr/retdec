@@ -536,17 +536,20 @@ bool Decoder::getJumpTargetsFromInstruction(
 					addr);
 			LOG << "\t\t" << "cond br @ " << addr << " -> (true) "
 					<< t << std::endl;
+
+			// There is no need to break BB and its decoding if target was not
+			// found.
+			//
+			_jumpTargets.push(
+					nextAddr,
+					JumpTarget::eType::CONTROL_FLOW_BR_FALSE,
+					_currentMode,
+					addr);
+			LOG << "\t\t" << "cond br @ " << addr << " -> (false) "
+					<< nextAddr << std::endl;
+
+			return true;
 		}
-
-		_jumpTargets.push(
-				nextAddr,
-				JumpTarget::eType::CONTROL_FLOW_BR_FALSE,
-				_currentMode,
-				addr);
-		LOG << "\t\t" << "cond br @ " << addr << " -> (false) "
-				<< nextAddr << std::endl;
-
-		return true;
 	}
 
 	return false;
