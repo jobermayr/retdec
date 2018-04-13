@@ -551,6 +551,34 @@ bool Decoder::getJumpTargetsFromInstruction(
 			return true;
 		}
 	}
+	// Analyze ordinary (not control flow) instruction.
+	// TODO: maybe move to separate function.
+	//
+	else
+	{
+		AsmInstruction ai(tr.llvmInsn);
+		for (auto& i : ai)
+		{
+			// Skip ranges from which there are loads.
+			// Mostly for ARM where there are data references after functions
+			// in .text section.
+			// We do not use Symbolic tree here, since control flow is not fully
+			// reconstructed - matching only constants is safe and should be
+			// enough for most cases.
+			//
+			auto* l = dyn_cast<LoadInst>(&i);
+			if (l && isa<ConstantInt>(skipCasts(l->getPointerOperand())))
+			{
+				auto* ci = dyn_cast<ConstantInt>(skipCasts(l->getPointerOperand()));
+				Address t(ci->getZExtValue());
+				auto sz = getTypeByteSizeInBinary(_module, l->getType());
+				AddressRange r(t, t+sz-1);
+				_ranges.remove(r);
+
+				LOG << "\t\t\t\t" << "skip " << r << std::endl;
+			}
+		}
+	}
 
 	return false;
 }
