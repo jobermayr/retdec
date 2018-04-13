@@ -127,245 +127,6 @@ llvm::SwitchInst* Decoder::transformToSwitch(
 	return sw;
 }
 
-llvm::Function* Decoder::_splitFunctionOn(utils::Address addr)
-{
-	if (auto* bb = getBasicBlockAtAddress(addr))
-	{
-		if (bb->getPrevNode() == nullptr)
-		{
-			return bb->getParent();
-		}
-		else
-		{
-			return _splitFunctionOn(addr, bb);
-		}
-	}
-	else if (auto ai = AsmInstruction(_module, addr))
-	{
-		auto* oldBb = ai.getBasicBlock();
-		auto* newBb = ai.makeStart(names::generateBasicBlockName(addr));
-		addBasicBlock(addr, newBb);
-
-		ReturnInst::Create(
-				oldBb->getModule()->getContext(),
-				UndefValue::get(oldBb->getParent()->getReturnType()),
-				oldBb->getTerminator());
-		oldBb->getTerminator()->eraseFromParent();
-
-		return _splitFunctionOn(addr, newBb);
-	}
-	else if (auto* f = getFunctionContainingAddress(addr))
-	{
-		auto* before = getBasicBlockBeforeAddress(addr);
-		assert(before);
-		auto* newBb = createBasicBlock(addr, before->getParent(), before);
-		return _splitFunctionOn(addr, newBb);
-	}
-	else
-	{
-		return createFunction(addr);
-	}
-}
-
-llvm::Function* Decoder::_splitFunctionOn(
-		utils::Address addr,
-		llvm::BasicBlock* bb)
-{
-	if (bb->getPrevNode() == nullptr)
-	{
-		return bb->getParent();
-	}
-
-	std::string name = _names->getPreferredNameForAddress(addr);
-	if (name.empty())
-	{
-		name = names::generateFunctionName(addr, _config->getConfig().isIda());
-	}
-
-	Function* oldFnc = bb->getParent();
-
-	Function* newFnc = Function::Create(
-			FunctionType::get(oldFnc->getReturnType(), false),
-			oldFnc->getLinkage(),
-			name);
-	oldFnc->getParent()->getFunctionList().insertAfter(
-			oldFnc->getIterator(),
-			newFnc);
-
-	_addr2fnc[addr] = newFnc;
-	_fnc2addr[newFnc] = addr;
-
-	newFnc->getBasicBlockList().splice(
-			newFnc->begin(),
-			oldFnc->getBasicBlockList(),
-			bb->getIterator(),
-			oldFnc->getBasicBlockList().end());
-
-	bool restart = true;
-	while (restart)
-	{
-		restart = false;
-		for (BasicBlock& b : *oldFnc)
-		{
-			for (Instruction& i : b)
-			{
-				if (BranchInst* br = dyn_cast<BranchInst>(&i))
-				{
-					if (br->isConditional())
-					{
-						// TODO: this is shit hack.
-//						assert(br->getSuccessor(0)->getParent() == br->getFunction());
-//						assert(br->getSuccessor(1)->getParent() == br->getFunction());
-
-						if (br->getSuccessor(0)->getParent() != br->getFunction()
-								|| br->getSuccessor(1)->getParent() != br->getFunction())
-						{
-							auto* r = ReturnInst::Create(
-									br->getModule()->getContext(),
-									UndefValue::get(br->getFunction()->getReturnType()),
-									br);
-							br->eraseFromParent();
-							restart = true;
-							break;
-						}
-					}
-					else
-					{
-						BasicBlock* succ = br->getSuccessor(0);
-						if (succ->getParent() != br->getFunction())
-						{
-							// Succ is first in function -> call function.
-							if (succ->getPrevNode() == nullptr)
-							{
-								CallInst::Create(succ->getParent(), "", br);
-								ReturnInst::Create(
-										br->getModule()->getContext(),
-										UndefValue::get(br->getFunction()->getReturnType()),
-										br);
-								br->eraseFromParent();
-								break;
-							}
-							else
-							{
-								Address target = getBasicBlockAddress(succ);
-								assert(target.isDefined());
-								auto* nf = _splitFunctionOn(target, succ);
-								assert(nf);
-
-								CallInst::Create(nf, "", br);
-								ReturnInst::Create(
-										br->getModule()->getContext(),
-										UndefValue::get(br->getFunction()->getReturnType()),
-										br);
-								br->eraseFromParent();
-								restart = true;
-								break;
-							}
-						}
-					}
-				}
-				else if (SwitchInst* sw = dyn_cast<SwitchInst>(&i))
-				{
-					for (unsigned j = 0, e = sw->getNumSuccessors(); j != e; ++j)
-					{
-						assert(sw->getSuccessor(j)->getParent() == sw->getFunction());
-					}
-				}
-			}
-
-			if (restart)
-			{
-				break;
-			}
-		}
-	}
-
-	restart = true;
-	while (restart)
-	{
-		restart = false;
-		for (BasicBlock& b : *newFnc)
-		{
-			for (Instruction& i : b)
-			{
-				if (BranchInst* br = dyn_cast<BranchInst>(&i))
-				{
-					if (br->isConditional())
-					{
-						// TODO: this is shit hack.
-//						assert(br->getSuccessor(0)->getParent() == br->getFunction());
-//						assert(br->getSuccessor(1)->getParent() == br->getFunction());
-
-						if (br->getSuccessor(0)->getParent() != br->getFunction()
-								|| br->getSuccessor(1)->getParent() != br->getFunction())
-						{
-							auto* r = ReturnInst::Create(
-									br->getModule()->getContext(),
-									UndefValue::get(br->getFunction()->getReturnType()),
-									br);
-							br->eraseFromParent();
-							restart = true;
-							break;
-						}
-					}
-					else
-					{
-						BasicBlock* succ = br->getSuccessor(0);
-						if (succ->getParent() != br->getFunction())
-						{
-							// Succ is first in function -> call function.
-							if (succ->getPrevNode() == nullptr)
-							{
-								CallInst::Create(succ->getParent(), "", br);
-								ReturnInst::Create(
-										br->getModule()->getContext(),
-										UndefValue::get(br->getFunction()->getReturnType()),
-										br);
-								br->eraseFromParent();
-								break;
-							}
-							else
-							{
-								Address target = getBasicBlockAddress(succ);
-								assert(target.isDefined());
-								auto* nf = _splitFunctionOn(target, succ);
-								assert(nf);
-								CallInst::Create(nf, "", br);
-								ReturnInst::Create(
-										br->getModule()->getContext(),
-										UndefValue::get(br->getFunction()->getReturnType()),
-										br);
-								br->eraseFromParent();
-								restart = true;
-								break;
-							}
-						}
-					}
-				}
-				else if (SwitchInst* sw = dyn_cast<SwitchInst>(&i))
-				{
-					for (unsigned j = 0, e = sw->getNumSuccessors(); j != e; ++j)
-					{
-						assert(sw->getSuccessor(j)->getParent() == sw->getFunction());
-					}
-				}
-			}
-
-			if (restart)
-			{
-				break;
-			}
-		}
-	}
-
-	return newFnc;
-}
-
-bool Decoder::canSplitFunctionOn(utils::Address addr, llvm::BasicBlock* bb)
-{
-	return false;
-}
-
 /**
  * TODO: This will be replaced by a proper ABI provider.
  */
@@ -386,6 +147,202 @@ llvm::GlobalVariable* Decoder::getCallReturnObject()
 
 	assert(false);
 	return nullptr;
+}
+
+/**
+ * \return \c True if it is allowed to split function on basic block \p bb.
+ */
+bool Decoder::canSplitFunctionOn(llvm::BasicBlock* bb)
+{
+	for (auto* u : bb->users())
+	{
+		// All users must be branch instructions.
+		//
+		auto* br = dyn_cast<BranchInst>(u);
+		if (br == nullptr)
+		{
+			return false;
+		}
+
+		// BB must be true branch in all users.
+		//
+		if (br->getSuccessor(0) != bb)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+/**
+ * \return \c True if it is allowed to split function on basic block \p bb.
+ */
+bool Decoder::canSplitFunctionOn(
+		utils::Address addr,
+		llvm::BasicBlock* splitBb,
+		std::set<llvm::BasicBlock*>& newFncStarts)
+{
+	newFncStarts.insert(splitBb);
+
+	auto* f = splitBb->getParent();
+	auto fAddr = getFunctionAddress(f);
+
+	std::set<Address> fncStarts;
+	fncStarts.insert(fAddr);
+	fncStarts.insert(addr);
+
+	bool changed = true;
+	while (changed)
+	{
+		changed = false;
+		for (BasicBlock& b : *f)
+		{
+			Address bAddr = getBasicBlockAddress(&b);
+			auto up = fncStarts.upper_bound(bAddr);
+			--up;
+			Address bFnc = *up;
+
+			for (auto* p : predecessors(&b))
+			{
+				Address pAddr = getBasicBlockAddress(p);
+				auto up = fncStarts.upper_bound(pAddr);
+				--up;
+				Address pFnc = *up;
+
+				if (bFnc != pFnc)
+				{
+					if (!canSplitFunctionOn(&b))
+					{
+						return false;
+					}
+
+					newFncStarts.insert(&b);
+					fncStarts.insert(bAddr);
+					changed = true;
+				}
+			}
+		}
+	}
+
+	return true;
+}
+
+/**
+ * This can create new BB at \p addr even if it then cannot split function
+ * on this new BB. Is this desirable behavior?
+ */
+llvm::Function* Decoder::splitFunctionOn(utils::Address addr)
+{
+	if (auto* bb = getBasicBlockAtAddress(addr))
+	{
+		return bb->getPrevNode()
+				? splitFunctionOn(addr, bb)
+				: bb->getParent();
+	}
+	// There is an instruction at address, but not BB -> do not split
+	// existing blocks to create functions.
+	//
+	else if (auto ai = AsmInstruction(_module, addr))
+	{
+		return nullptr;
+	}
+	else if (auto* f = getFunctionContainingAddress(addr))
+	{
+		auto* before = getBasicBlockBeforeAddress(addr);
+		assert(before);
+		auto* newBb = createBasicBlock(addr, before->getParent(), before);
+		return splitFunctionOn(addr, newBb);
+	}
+	else
+	{
+		return createFunction(addr);
+	}
+}
+
+llvm::Function* Decoder::splitFunctionOn(
+		utils::Address addr,
+		llvm::BasicBlock* splitOnBb)
+{
+	if (splitOnBb->getPrevNode() == nullptr)
+	{
+		return splitOnBb->getParent();
+	}
+
+	std::set<BasicBlock*> newFncStarts;
+	if (!canSplitFunctionOn(addr, splitOnBb, newFncStarts))
+	{
+		return nullptr;
+	}
+
+	llvm::Function* ret = nullptr;
+	std::set<Function*> newFncs;
+	for (auto* splitBb : newFncStarts)
+	{
+		Address splitAddr = getBasicBlockAddress(splitBb);
+
+		std::string name = _names->getPreferredNameForAddress(splitAddr);
+		if (name.empty())
+		{
+			name = names::generateFunctionName(addr, _config->getConfig().isIda());
+		}
+
+		Function* oldFnc = splitBb->getParent();
+		Function* newFnc = Function::Create(
+				FunctionType::get(oldFnc->getReturnType(), false),
+				oldFnc->getLinkage(),
+				name);
+		oldFnc->getParent()->getFunctionList().insertAfter(
+				oldFnc->getIterator(),
+				newFnc);
+
+		addFunction(splitAddr, newFnc);
+
+		newFnc->getBasicBlockList().splice(
+				newFnc->begin(),
+				oldFnc->getBasicBlockList(),
+				splitBb->getIterator(),
+				oldFnc->getBasicBlockList().end());
+
+		newFncs.insert(newFnc);
+		if (splitOnBb == splitBb)
+		{
+			ret = newFnc;
+		}
+	}
+	assert(ret);
+
+	for (Function* f : newFncs)
+	for (BasicBlock& b : *f)
+	{
+		auto* br = dyn_cast<BranchInst>(b.getTerminator());
+		if (br && br->getSuccessor(0)->getParent() != br->getFunction())
+		{
+			auto* callee = br->getSuccessor(0)->getParent();
+			auto* c = CallInst::Create(callee, "", br);
+			if (auto* retObj = getCallReturnObject())
+			{
+				auto* cc = cast<Instruction>(
+						convertValueToTypeAfter(c, retObj->getValueType(), c));
+				auto* s = new StoreInst(cc, retObj);
+				s->insertAfter(cc);
+			}
+
+			ReturnInst::Create(
+					br->getModule()->getContext(),
+					UndefValue::get(br->getFunction()->getReturnType()),
+					br);
+			br->eraseFromParent();
+		}
+
+		// Test.
+		for (auto* s : successors(&b))
+		{
+			assert(b.getParent() == s->getParent());
+		}
+	}
+
+	return ret;
 }
 
 } // namespace bin2llvmir

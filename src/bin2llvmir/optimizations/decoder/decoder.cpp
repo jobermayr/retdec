@@ -240,9 +240,15 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		{
 			bb = &tFnc->front();
 		}
+		// Function can not be split, use BB. This BB does not have predecessor,
+		// which is not ideal, but it might happen.
+		//
+		else if (tBb)
+		{
+			bb = tBb;
+		}
 		else
 		{
-			LOG << "\t\t" << "no bb for fnc -> skip" << std::endl;
 			assert(false);
 			return;
 		}
@@ -434,6 +440,11 @@ bool Decoder::getJumpTargetsFromInstruction(
 			if (nextAddr < t && t < nextAddr + rangeSize)
 			{
 				rangeSize = t - nextAddr;
+			}
+
+			if (_terminatingFncs.count(tFnc))
+			{
+				return true;
 			}
 		}
 	}
@@ -816,13 +827,16 @@ void Decoder::getOrCreateTarget(
 		if (auto* f = getFunctionAtAddress(addr))
 		{
 			tFnc = f;
+			return;
 		}
-		else
+		else if (auto* f = splitFunctionOn(addr))
 		{
-			tFnc = _splitFunctionOn(addr);
+			tFnc = f;
+			return;
 		}
 	}
-	else if (fromI == nullptr)
+
+	if (fromI == nullptr)
 	{
 		if (auto* bb = getBasicBlockAtAddress(addr))
 		{
@@ -858,7 +872,7 @@ void Decoder::getOrCreateTarget(
 		if (tBb && tBb->getParent() != fromFnc)
 		{
 			tBb = nullptr;
-			tFnc = _splitFunctionOn(addr);
+			tFnc = splitFunctionOn(addr);
 		}
 	}
 }

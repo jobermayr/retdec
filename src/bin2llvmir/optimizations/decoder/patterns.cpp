@@ -287,7 +287,7 @@ bool Decoder::patternTerminatingCalls()
 
 			LOG << "\t\tsplit fnc @ " << addr << std::endl;
 
-			_splitFunctionOn(addr);
+			splitFunctionOn(addr);
 			modified = true;
 		}
 	}

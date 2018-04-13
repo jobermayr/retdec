@@ -147,6 +147,7 @@ class Decoder : public llvm::ModulePass
 		llvm::Function* createFunction(
 				utils::Address a,
 				bool declaration = false);
+		void addFunction(utils::Address a, llvm::Function* f);
 
 		std::map<utils::Address, llvm::Function*> _addr2fnc;
 		std::map<llvm::Function*, utils::Address> _fnc2addr;
@@ -204,12 +205,15 @@ class Decoder : public llvm::ModulePass
 				llvm::BasicBlock* defaultBb,
 				const std::vector<llvm::BasicBlock*>& cases);
 
-		llvm::Function* _splitFunctionOn(utils::Address addr);
-		llvm::Function* _splitFunctionOn(
-				utils::Address addr,
-				llvm::BasicBlock* bb);
-		bool canSplitFunctionOn(utils::Address addr, llvm::BasicBlock* bb);
 		llvm::GlobalVariable* getCallReturnObject();
+
+		bool canSplitFunctionOn(llvm::BasicBlock* bb);
+		bool canSplitFunctionOn(
+				utils::Address addr,
+				llvm::BasicBlock* bb,
+				std::set<llvm::BasicBlock*>& newFncStarts);
+		llvm::Function* splitFunctionOn(utils::Address addr);
+		llvm::Function* splitFunctionOn(utils::Address addr, llvm::BasicBlock* bb);
 
 	// Data.
 	//

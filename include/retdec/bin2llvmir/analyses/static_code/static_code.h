@@ -50,6 +50,7 @@ class StaticCodeFunction
 		std::size_t countRefsOk() const;
 		float refsOkShare() const;
 		std::string getName() const;
+		bool isTerminating() const;
 
 	public:
 		utils::Address address;

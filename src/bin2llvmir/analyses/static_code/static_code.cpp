@@ -475,6 +475,23 @@ std::string StaticCodeFunction::getName() const
 	return names.empty() ? "" : names.front();
 }
 
+bool StaticCodeFunction::isTerminating() const
+{
+	static std::set<std::string> termNames = {
+			"exit",
+	};
+
+	for (auto& n : names)
+	{
+		if (termNames.count(n))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 //
 //==============================================================================
 // StaticCodeAnalysis

@@ -78,6 +78,11 @@ void Decoder::initTranslator()
 			basicMode,
 			extraMode);
 	_currentMode = basicMode;
+
+	if (a.isMipsOrPic32() && basicMode == CS_MODE_MIPS32)
+	{
+		_c2l->modifyBasicMode(CS_MODE_MIPS64);
+	}
 }
 
 /**
@@ -622,23 +627,28 @@ void Decoder::initStaticCode()
 			_currentMode);
 	for (auto& p : SCA.getConfirmedDetections())
 	{
-		auto* f = p.second;
+		auto* sf = p.second;
 
 		_jumpTargets.push(
-				f->address,
+				sf->address,
 				JumpTarget::eType::STATIC_CODE,
 				_currentMode,
 				Address::getUndef,
-				f->size);
-		createFunction(f->address);
+				sf->size);
+		auto* f = createFunction(sf->address);
 
 		// Speed-up decoding, but we will not be able to diff CFG json
 		// with IDA CFG.
 		//_ranges.remove(f->address, f->address + f->size - 1);
 
-		_staticFncs.insert(f->address);
+		_staticFncs.insert(sf->address);
 
-		LOG << "\t" << "static @ " << f->address << std::endl;
+		if (sf->isTerminating())
+		{
+			_terminatingFncs.insert(f);
+		}
+
+		LOG << "\t" << "static @ " << sf->address << std::endl;
 	}
 }
 

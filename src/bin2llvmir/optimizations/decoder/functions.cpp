@@ -143,10 +143,15 @@ llvm::Function* Decoder::createFunction(utils::Address a, bool declaration)
 		createBasicBlock(a, f);
 	}
 
-	_addr2fnc[a] = f;
-	_fnc2addr[f] = a;
+	addFunction(a, f);
 
 	return f;
+}
+
+void Decoder::addFunction(utils::Address a, llvm::Function* f)
+{
+	_addr2fnc[a] = f;
+	_fnc2addr[f] = a;
 }
 
 } // namespace bin2llvmir
