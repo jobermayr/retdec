@@ -15,6 +15,27 @@ using namespace llvm;
 namespace retdec {
 namespace bin2llvmir {
 
+/**
+ * Patterns of branch instructions that does not make sense and should not
+ * be accepted.
+ */
+bool isBadBranch(cs_insn* br)
+{
+	auto& mips = br->detail->mips;
+
+	// jr $zero
+	//
+	if (br->id == MIPS_INS_JR
+			&& mips.op_count == 1
+			&& mips.operands[0].type == MIPS_OP_REG
+			&& mips.operands[0].reg == MIPS_REG_ZERO)
+	{
+		return true;
+	}
+
+	return false;
+}
+
 std::size_t Decoder::decodeJumpTargetDryRun_mips(
 		const JumpTarget& jt,
 		ByteData bytes)
@@ -44,12 +65,18 @@ std::size_t Decoder::decodeJumpTargetDryRun_mips(
 			return nops;
 		}
 
-		if (_c2l->isReturnInstruction(*_dryCsInsn)
-				|| _c2l->isBranchInstruction(*_dryCsInsn))
+		if (_c2l->isReturnInstruction(*_dryCsInsn))
 		{
 			return false;
 		}
-		else if (_c2l->isBranchInstruction(*_dryCsInsn)
+		if (_c2l->isBranchInstruction(*_dryCsInsn) && !isBadBranch(_dryCsInsn))
+		{
+			return false;
+		}
+
+		if (_c2l->isReturnInstruction(*_dryCsInsn)
+				|| _c2l->isBranchInstruction(*_dryCsInsn)
+				|| _c2l->isCondBranchInstruction(*_dryCsInsn)
 				|| _c2l->isCallInstruction(*_dryCsInsn))
 		{
 			cfChangePos = counter;
