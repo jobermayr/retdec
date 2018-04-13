@@ -343,6 +343,8 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 					}
 					_llvm2capstone->emplace(res.llvmInsn, res.capstoneInsn);
 				}
+
+				_likelyBb2Target.emplace(newBb, target);
 			}
 		}
 	}

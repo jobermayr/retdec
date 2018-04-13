@@ -17,6 +17,12 @@ namespace bin2llvmir {
  */
 utils::Address Decoder::getBasicBlockAddress(llvm::BasicBlock* b)
 {
+	auto likelyIt = _likelyBb2Target.find(b);
+	if (likelyIt != _likelyBb2Target.end())
+	{
+		b = likelyIt->second;
+	}
+
 	auto fIt = _bb2addr.find(b);
 	return fIt != _bb2addr.end() ? fIt->second : Address();
 }
