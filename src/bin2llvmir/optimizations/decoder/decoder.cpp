@@ -614,16 +614,25 @@ bool Decoder::getJumpTargetSwitch(
 			&& st.ops.size() == 1
 			&& isa<AddOperator>(st.ops[0].value) // add
 			&& st.ops[0].ops.size() == 2
-			&& isa<MulOperator>(st.ops[0].ops[0].value) // mul
+			&& (isa<MulOperator>(st.ops[0].ops[0].value) // mul
+					|| isa<ShlOperator>(st.ops[0].ops[0].value)) // shl
 			&& st.ops[0].ops[0].ops.size() == 2
 			&& isa<Instruction>(st.ops[0].ops[0].ops[0].value) // idx
 			&& isa<ConstantInt>(st.ops[0].ops[0].ops[1].value)
-			&& cast<ConstantInt>(st.ops[0].ops[0].ops[1].value)->getZExtValue()
-					== archByteSz // arch size
 			&& isa<ConstantInt>(st.ops[0].ops[1].value))) // table address
 	{
 		return false;
 	}
+
+	bool usesMul = isa<MulOperator>(st.ops[0].ops[0].value);
+	bool usesShl = isa<ShlOperator>(st.ops[0].ops[0].value);
+	auto* mulShlCi = cast<ConstantInt>(st.ops[0].ops[0].ops[1].value);
+	if (!((usesMul && mulShlCi->getZExtValue() == archByteSz)
+			|| (usesShl && (1 << mulShlCi->getZExtValue()) == archByteSz)))
+	{
+		return false;
+	}
+
 	Address tableAddr = cast<ConstantInt>(st.ops[0].ops[1].value)->getZExtValue();
 	Instruction* idx = cast<Instruction>(st.ops[0].ops[0].ops[0].value);
 
@@ -649,11 +658,13 @@ bool Decoder::getJumpTargetSwitch(
 			// Branching over this BB -> true branching to default case.
 			if (thisBbAddr == falseAddr)
 			{
+				LOG << "\t\t\t\t" << "default: branching over" << std::endl;
 				defAddr = trueAddr;
 			}
 			// Branching to this BB -> false branching to default case.
 			else if (thisBbAddr == trueAddr)
 			{
+				LOG << "\t\t\t\t" << "default: branching to" << std::endl;
 				defAddr = falseAddr;
 			}
 
@@ -683,6 +694,7 @@ bool Decoder::getJumpTargetSwitch(
 	auto levelOrd = stCond.getLevelOrder();
 	for (SymbolicTree* n : levelOrd)
 	{
+		// x86:
 		//>|   %331 = or i1 %329, %330
 		//		>|   %317 = icmp ult i8 %312, 90
 		//				>|   %296 = sub i32 %295, 32
@@ -710,7 +722,29 @@ bool Decoder::getJumpTargetSwitch(
 		{
 			auto* ci = cast<ConstantInt>(n->ops[0].ops[1].value);
 			tableSize = ci->getZExtValue() + 1;
-			LOG << "\t\t\t" << "table size = " << tableSize << std::endl;
+			LOG << "\t\t\t" << "table size (1) = " << tableSize << std::endl;
+			break;
+		}
+		// mips:
+		//>|   %319 = icmp ne i32 %318, 0
+		//		>|   %316 = icmp ult i32 %315, 121
+		//				>|   %314 = and i32 %313, 255
+		//				>| i32 121
+		//		>| i32 0
+		if (isa<ICmpInst>(n->value)
+				&& cast<ICmpInst>(n->value)->getPredicate()
+						== ICmpInst::ICMP_NE
+				&& isa<ICmpInst>(n->ops[0].value)
+				&& cast<ICmpInst>(n->ops[0].value)->getPredicate()
+						== ICmpInst::ICMP_ULT
+				&& isa<ConstantInt>(n->ops[0].ops[1].value)
+				&& !cast<ConstantInt>(n->ops[0].ops[1].value)->isZero()
+				&& isa<ConstantInt>(n->ops[1].value)
+				&& cast<ConstantInt>(n->ops[1].value)->isZero())
+		{
+			auto* ci = cast<ConstantInt>(n->ops[0].ops[1].value);
+			tableSize = ci->getZExtValue();
+			LOG << "\t\t\t" << "table size (2) = " << tableSize << std::endl;
 			break;
 		}
 	}
