@@ -18,6 +18,7 @@ namespace capstone_utils {
 bool isNopInstruction(const config::Architecture& arch, cs_insn* insn);
 bool isNopInstruction_x86(cs_insn* insn);
 bool isNopInstruction_mips(cs_insn* insn);
+bool isNopInstruction_arm(cs_insn* insn);
 
 } // namespace capstone_utils
 } // namespace bin2llvmir

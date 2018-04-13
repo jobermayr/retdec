@@ -20,6 +20,10 @@ bool isNopInstruction(const config::Architecture& arch, cs_insn* insn)
 	{
 		return isNopInstruction_mips(insn);
 	}
+	else if (arch.isArmOrThumb())
+	{
+		return isNopInstruction_arm(insn);
+	}
 	else
 	{
 		assert(false);
@@ -79,6 +83,20 @@ bool isNopInstruction_mips(cs_insn* insn)
 	//
 	if (insn->id == MIPS_INS_NOP
 			|| insn->id == MIPS_INS_SSNOP)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+bool isNopInstruction_arm(cs_insn* insn)
+{
+	cs_arm& insnArm = insn->detail->arm;
+
+	// True NOP variants.
+	//
+	if (insn->id == ARM_INS_NOP)
 	{
 		return true;
 	}
