@@ -15,6 +15,32 @@ using namespace llvm;
 namespace retdec {
 namespace bin2llvmir {
 
+bool insnWrittesPc(csh& ce, cs_insn* insn)
+{
+	auto& arm = insn->detail->arm;
+
+	// Implicit write.
+	//
+	if (cs_reg_read(ce, insn, ARM_REG_PC))
+	{
+		return true;
+	}
+
+	// Explicit write.
+	//
+	for (std::size_t i = 0; arm.op_count; ++i)
+	{
+		auto& op = arm.operands[i];
+		if (op.type == ARM_OP_REG
+				&& op.reg == ARM_REG_PC)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 std::size_t Decoder::decodeJumpTargetDryRun_arm(
 		const JumpTarget& jt,
 		ByteData bytes)
@@ -40,7 +66,8 @@ std::size_t Decoder::decodeJumpTargetDryRun_arm(
 			return nops;
 		}
 
-		if (_c2l->isControlFlowInstruction(*_dryCsInsn))
+		if (_c2l->isControlFlowInstruction(*_dryCsInsn)
+				|| insnWrittesPc(ce, _dryCsInsn))
 		{
 			return false;
 		}

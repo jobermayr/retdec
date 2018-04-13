@@ -86,12 +86,12 @@ bool FileImage::isOk() const
 	return _image != nullptr;
 }
 
-retdec::loader::Image* FileImage::getImage()
+retdec::loader::Image* FileImage::getImage() const
 {
 	return _image.get();
 }
 
-retdec::fileformat::FileFormat* FileImage::getFileFormat()
+retdec::fileformat::FileFormat* FileImage::getFileFormat() const
 {
 	return _image->getFileFormat();
 }
@@ -600,10 +600,20 @@ bool FileImage::isImportTerminating(
 		const fileformat::Import* imp) const
 {
 	std::string name = imp->getName();
-	auto libN = impTbl->getLibrary(imp->getLibraryIndex());
 
-	return (libN == "msvcrt.dll" && name == "exit")
-			|| (libN == "msvcrt.dll" && name == "abort");
+	if (getFileFormat()->isPe() || getFileFormat()->isCoff())
+	{
+		auto libN = impTbl->getLibrary(imp->getLibraryIndex());
+		return (libN == "msvcrt.dll" && name == "exit")
+				|| (libN == "msvcrt.dll" && name == "abort");
+	}
+	else if (getFileFormat()->isElf())
+	{
+		return name == "exit"
+				|| name == "abort";
+	}
+
+	return false;
 }
 
 //

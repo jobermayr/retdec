@@ -39,8 +39,8 @@ class FileImage
 
 		bool isOk() const;
 
-		retdec::loader::Image* getImage();
-		retdec::fileformat::FileFormat* getFileFormat();
+		retdec::loader::Image* getImage() const;
+		retdec::fileformat::FileFormat* getFileFormat() const;
 
 	public:
 		llvm::ConstantInt* getConstantInt(
