@@ -783,7 +783,6 @@ void Capstone2LlvmIrTranslatorArm_impl::translateAdc(cs_insn* i, cs_arm* ai, llv
 	auto* cf = loadRegister(ARM_REG_CPSR_C, irb);
 	auto* add1 = irb.CreateAdd(op1, op2);
 	auto* val = irb.CreateAdd(add1, irb.CreateZExtOrTrunc(cf, add1->getType()));
-	storeOp(ai->operands[0], val, irb);
 	if (ai->update_flags)
 	{
 		llvm::Value* zero = llvm::ConstantInt::get(val->getType(), 0);
@@ -792,6 +791,7 @@ void Capstone2LlvmIrTranslatorArm_impl::translateAdc(cs_insn* i, cs_arm* ai, llv
 		storeRegister(ARM_REG_CPSR_N, irb.CreateICmpSLT(val, zero), irb);
 		storeRegister(ARM_REG_CPSR_Z, irb.CreateICmpEQ(val, zero), irb);
 	}
+	storeOp(ai->operands[0], val, irb);
 }
 
 /**
@@ -816,10 +816,6 @@ void Capstone2LlvmIrTranslatorArm_impl::translateAdd(cs_insn* i, cs_arm* ai, llv
 		std::tie(op1, op2) = loadOpTernaryOp1Op2(ai, irb, eOpConv::THROW);
 	}
 	auto* add = irb.CreateAdd(op1, op2);
-	if (i->id != ARM_INS_CMN)
-	{
-		storeOp(ai->operands[0], add, irb);
-	}
 	if (ai->update_flags || i->id == ARM_INS_CMN)
 	{
 		llvm::Value* zero = llvm::ConstantInt::get(add->getType(), 0);
@@ -827,6 +823,10 @@ void Capstone2LlvmIrTranslatorArm_impl::translateAdd(cs_insn* i, cs_arm* ai, llv
 		storeRegister(ARM_REG_CPSR_V, generateOverflowAdd(add, op1, op2, irb), irb);
 		storeRegister(ARM_REG_CPSR_N, irb.CreateICmpSLT(add, zero), irb);
 		storeRegister(ARM_REG_CPSR_Z, irb.CreateICmpEQ(add, zero), irb);
+	}
+	if (i->id != ARM_INS_CMN)
+	{
+		storeOp(ai->operands[0], add, irb);
 	}
 }
 
@@ -841,10 +841,6 @@ void Capstone2LlvmIrTranslatorArm_impl::translateAnd(cs_insn* i, cs_arm* ai, llv
 		op2 = generateValueNegate(irb, op2);
 	}
 	auto* val = irb.CreateAnd(op1, op2);
-	if (i->id != ARM_INS_TST)
-	{
-		storeOp(ai->operands[0], val, irb);
-	}
 	// If S is specified, the AND instruction:
 	// - updates the N and Z flags according to the result
 	// - can update the C flag during the calculation of Operand2 (shifts?)
@@ -854,6 +850,10 @@ void Capstone2LlvmIrTranslatorArm_impl::translateAnd(cs_insn* i, cs_arm* ai, llv
 		llvm::Value* zero = llvm::ConstantInt::get(val->getType(), 0);
 		storeRegister(ARM_REG_CPSR_N, irb.CreateICmpSLT(val, zero), irb);
 		storeRegister(ARM_REG_CPSR_Z, irb.CreateICmpEQ(val, zero), irb);
+	}
+	if (i->id != ARM_INS_TST)
+	{
+		storeOp(ai->operands[0], val, irb);
 	}
 }
 
@@ -944,10 +944,6 @@ void Capstone2LlvmIrTranslatorArm_impl::translateEor(cs_insn* i, cs_arm* ai, llv
 {
 	std::tie(op1, op2) = loadOpTernaryOp1Op2(ai, irb, eOpConv::THROW);
 	auto* val = irb.CreateXor(op1, op2);
-	if (i->id != ARM_INS_TEQ)
-	{
-		storeOp(ai->operands[0], val, irb);
-	}
 	// If S is specified, the EOR instruction:
 	// - updates the N and Z flags according to the result
 	// - can update the C flag during the calculation of Operand2 (shifts?)
@@ -957,6 +953,10 @@ void Capstone2LlvmIrTranslatorArm_impl::translateEor(cs_insn* i, cs_arm* ai, llv
 		llvm::Value* zero = llvm::ConstantInt::get(val->getType(), 0);
 		storeRegister(ARM_REG_CPSR_N, irb.CreateICmpSLT(val, zero), irb);
 		storeRegister(ARM_REG_CPSR_Z, irb.CreateICmpEQ(val, zero), irb);
+	}
+	if (i->id != ARM_INS_TEQ)
+	{
+		storeOp(ai->operands[0], val, irb);
 	}
 }
 
@@ -968,7 +968,6 @@ void Capstone2LlvmIrTranslatorArm_impl::translateMla(cs_insn* i, cs_arm* ai, llv
 	std::tie(op1, op2, op3) = loadOpQuaternaryOp1Op2Op3(ai, irb);
 	auto* val = irb.CreateMul(op1, op2);
 	val = irb.CreateAdd(op3, val);
-	storeOp(ai->operands[0], val, irb);
 
 	// Updates the N and Z flags according to the result.
 	// Corrupts the C and V flag in ARMv4.
@@ -981,6 +980,7 @@ void Capstone2LlvmIrTranslatorArm_impl::translateMla(cs_insn* i, cs_arm* ai, llv
 		storeRegister(ARM_REG_CPSR_N, irb.CreateICmpSLT(val, zero), irb);
 		storeRegister(ARM_REG_CPSR_Z, irb.CreateICmpEQ(val, zero), irb);
 	}
+	storeOp(ai->operands[0], val, irb);
 }
 
 /**
@@ -1011,7 +1011,7 @@ void Capstone2LlvmIrTranslatorArm_impl::translateMov(cs_insn* i, cs_arm* ai, llv
 	{
 		op1 = generateValueNegate(irb, op1);
 	}
-	storeOp(ai->operands[0], op1, irb);
+
 	// If S is specified, the MOV instruction:
 	// - updates the N and Z flags according to the result
 	// - can update the C flag during the calculation of Operand2 (shifts?)
@@ -1022,6 +1022,7 @@ void Capstone2LlvmIrTranslatorArm_impl::translateMov(cs_insn* i, cs_arm* ai, llv
 		storeRegister(ARM_REG_CPSR_N, irb.CreateICmpSLT(op1, zero), irb);
 		storeRegister(ARM_REG_CPSR_Z, irb.CreateICmpEQ(op1, zero), irb);
 	}
+	storeOp(ai->operands[0], op1, irb);
 }
 
 /**
@@ -1080,8 +1081,6 @@ void Capstone2LlvmIrTranslatorArm_impl::translateShifts(cs_insn* i, cs_arm* ai, 
 		return;
 	}
 
-	storeOp(ai->operands[0], op1, irb);
-
 	// If S is specified, the MOV instruction:
 	// - updates the N and Z flags according to the result
 	// - can update the C flag during the calculation of Operand2 (shifts?)
@@ -1092,6 +1091,7 @@ void Capstone2LlvmIrTranslatorArm_impl::translateShifts(cs_insn* i, cs_arm* ai, 
 		storeRegister(ARM_REG_CPSR_N, irb.CreateICmpSLT(op1, zero), irb);
 		storeRegister(ARM_REG_CPSR_Z, irb.CreateICmpEQ(op1, zero), irb);
 	}
+	storeOp(ai->operands[0], op1, irb);
 }
 
 /**
@@ -1147,7 +1147,6 @@ void Capstone2LlvmIrTranslatorArm_impl::translateMul(cs_insn* i, cs_arm* ai, llv
 {
 	std::tie(op1, op2) = loadOpTernaryOp1Op2(ai, irb, eOpConv::THROW);
 	auto* val = irb.CreateMul(op1, op2);
-	storeOp(ai->operands[0], val, irb);
 	// If S is specified, the MUL instruction:
 	// - updates the N and Z flags according to the result
 	// - corrupts the C and V flag in ARMv4
@@ -1158,6 +1157,7 @@ void Capstone2LlvmIrTranslatorArm_impl::translateMul(cs_insn* i, cs_arm* ai, llv
 		storeRegister(ARM_REG_CPSR_N, irb.CreateICmpSLT(val, zero), irb);
 		storeRegister(ARM_REG_CPSR_Z, irb.CreateICmpEQ(val, zero), irb);
 	}
+	storeOp(ai->operands[0], val, irb);
 }
 
 /**
@@ -1175,7 +1175,6 @@ void Capstone2LlvmIrTranslatorArm_impl::translateOrr(cs_insn* i, cs_arm* ai, llv
 {
 	std::tie(op1, op2) = loadOpTernaryOp1Op2(ai, irb, eOpConv::THROW);
 	auto* val = irb.CreateOr(op1, op2);
-	storeOp(ai->operands[0], val, irb);
 	// If S is specified, the ORR instruction:
 	// - updates the N and Z flags according to the result
 	// - can update the C flag during the calculation of Operand2 (shifts?)
@@ -1186,6 +1185,7 @@ void Capstone2LlvmIrTranslatorArm_impl::translateOrr(cs_insn* i, cs_arm* ai, llv
 		storeRegister(ARM_REG_CPSR_N, irb.CreateICmpSLT(val, zero), irb);
 		storeRegister(ARM_REG_CPSR_Z, irb.CreateICmpEQ(val, zero), irb);
 	}
+	storeOp(ai->operands[0], val, irb);
 }
 
 /**
@@ -1361,7 +1361,6 @@ void Capstone2LlvmIrTranslatorArm_impl::translateSbc(cs_insn* i, cs_arm* ai, llv
 	cf = irb.CreateICmpEQ(cf, irb.getFalse());
 	auto* sub1 = irb.CreateSub(op1, op2);
 	auto* val = irb.CreateSub(sub1, irb.CreateZExtOrTrunc(cf, sub1->getType()));
-	storeOp(ai->operands[0], val, irb);
 	if (ai->update_flags)
 	{
 		llvm::Value* zero = llvm::ConstantInt::get(val->getType(), 0);
@@ -1373,6 +1372,7 @@ void Capstone2LlvmIrTranslatorArm_impl::translateSbc(cs_insn* i, cs_arm* ai, llv
 		storeRegister(ARM_REG_CPSR_N, irb.CreateICmpSLT(val, zero), irb);
 		storeRegister(ARM_REG_CPSR_Z, irb.CreateICmpEQ(val, zero), irb);
 	}
+	storeOp(ai->operands[0], val, irb);
 }
 
 /**
@@ -1482,8 +1482,6 @@ void Capstone2LlvmIrTranslatorArm_impl::translateLdr(cs_insn* i, cs_arm* ai, llv
 			? irb.CreateSExtOrTrunc(op1, irb.getInt32Ty())
 			: irb.CreateZExtOrTrunc(op1, irb.getInt32Ty());
 
-	storeOp(ai->operands[0], op1, irb);
-
 	if (ai->writeback && idx && baseR != ARM_REG_INVALID)
 	{
 		auto* b = loadRegister(baseR, irb);
@@ -1492,6 +1490,8 @@ void Capstone2LlvmIrTranslatorArm_impl::translateLdr(cs_insn* i, cs_arm* ai, llv
 				: irb.CreateAdd(b, idx);
 		storeRegister(baseR, v, irb);
 	}
+
+	storeOp(ai->operands[0], op1, irb);
 }
 
 /**
@@ -1534,9 +1534,6 @@ void Capstone2LlvmIrTranslatorArm_impl::translateLdrd(cs_insn* i, cs_arm* ai, ll
 	auto* lo = irb.CreateTrunc(op1, irb.getInt32Ty());
 	auto* hi = irb.CreateTrunc(irb.CreateLShr(op1, 32), irb.getInt32Ty());
 
-	storeOp(ai->operands[0], hi, irb);
-	storeOp(ai->operands[1], lo, irb);
-
 	if (ai->writeback && idx && baseR != ARM_REG_INVALID)
 	{
 		auto* b = loadRegister(baseR, irb);
@@ -1545,6 +1542,8 @@ void Capstone2LlvmIrTranslatorArm_impl::translateLdrd(cs_insn* i, cs_arm* ai, ll
 				: irb.CreateAdd(b, idx);
 		storeRegister(baseR, v, irb);
 	}
+	storeOp(ai->operands[0], hi, irb);
+	storeOp(ai->operands[1], lo, irb);
 }
 
 /**
@@ -1718,10 +1717,6 @@ void Capstone2LlvmIrTranslatorArm_impl::translateSub(cs_insn* i, cs_arm* ai, llv
 		std::tie(op1, op2) = loadOpTernaryOp1Op2(ai, irb, eOpConv::THROW);
 	}
 	auto* sub = irb.CreateSub(op1, op2);
-	if (i->id != ARM_INS_CMP)
-	{
-		storeOp(ai->operands[0], sub, irb);
-	}
 	if (ai->update_flags || i->id == ARM_INS_CMP)
 	{
 		llvm::Value* zero = llvm::ConstantInt::get(sub->getType(), 0);
@@ -1741,6 +1736,10 @@ void Capstone2LlvmIrTranslatorArm_impl::translateSub(cs_insn* i, cs_arm* ai, llv
 		// flag sets if we can do it same as here.
 //		storeRegister(ARM_REG_CPSR_Z, irb.CreateICmpEQ(sub, zero), irb); // ugly
 		storeRegister(ARM_REG_CPSR_Z, irb.CreateICmpEQ(op1, op2), irb); // nice
+	}
+	if (i->id != ARM_INS_CMP)
+	{
+		storeOp(ai->operands[0], sub, irb);
 	}
 }
 
@@ -1778,9 +1777,6 @@ void Capstone2LlvmIrTranslatorArm_impl::translateUmlal(cs_insn* i, cs_arm* ai, l
 	auto* hi = irb.CreateTrunc(irb.CreateLShr(val, 32), irb.getInt32Ty());
 	auto* lo = irb.CreateTrunc(val, irb.getInt32Ty());
 
-	storeOp(ai->operands[0], lo, irb);
-	storeOp(ai->operands[1], hi, irb);
-
 	// - Updates the N and Z flags according to the result.
 	// - Does not affect the C or V flags.
 	if (ai->update_flags)
@@ -1789,6 +1785,9 @@ void Capstone2LlvmIrTranslatorArm_impl::translateUmlal(cs_insn* i, cs_arm* ai, l
 		storeRegister(ARM_REG_CPSR_N, irb.CreateICmpSLT(val, zero), irb);
 		storeRegister(ARM_REG_CPSR_Z, irb.CreateICmpEQ(val, zero), irb);
 	}
+
+	storeOp(ai->operands[0], lo, irb);
+	storeOp(ai->operands[1], hi, irb);
 }
 
 /**
@@ -1816,9 +1815,6 @@ void Capstone2LlvmIrTranslatorArm_impl::translateUmull(cs_insn* i, cs_arm* ai, l
 	auto* hi = irb.CreateTrunc(irb.CreateLShr(val, 32), irb.getInt32Ty());
 	auto* lo = irb.CreateTrunc(val, irb.getInt32Ty());
 
-	storeOp(ai->operands[0], lo, irb);
-	storeOp(ai->operands[1], hi, irb);
-
 	// - Updates the N and Z flags according to the result.
 	// - Does not affect the C or V flags.
 	if (ai->update_flags)
@@ -1827,6 +1823,9 @@ void Capstone2LlvmIrTranslatorArm_impl::translateUmull(cs_insn* i, cs_arm* ai, l
 		storeRegister(ARM_REG_CPSR_N, irb.CreateICmpSLT(val, zero), irb);
 		storeRegister(ARM_REG_CPSR_Z, irb.CreateICmpEQ(val, zero), irb);
 	}
+
+	storeOp(ai->operands[0], lo, irb);
+	storeOp(ai->operands[1], hi, irb);
 }
 
 /**
