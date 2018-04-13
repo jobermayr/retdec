@@ -106,14 +106,15 @@ bool Decoder::run()
 	decode();
 	patternsRecognize();
 
-dumpControFlowToJson(_module, _config->getOutputDirectory());
 dumpModuleToFile(_module, _config->getOutputDirectory());
 
 	resolvePseudoCalls();
 	finalizePseudoCalls();
-	initConfigFunction();
 
+dumpControFlowToJson(_module, _config->getOutputDirectory());
 dumpModuleToFile(_module, _config->getOutputDirectory());
+
+	initConfigFunction();
 
 	return false;
 }
@@ -886,6 +887,52 @@ void Decoder::resolvePseudoCalls()
 	// - new result -> new transformation
 	// This will not be easy. Can fixpoint even be reached? Reverts, etc. are
 	// hard and ugly.
+
+	for (Function& f : *_module)
+	for (BasicBlock& b : f)
+	for (auto i = b.begin(), e = b.end(); i != e;)
+	{
+		CallInst* pseudo = dyn_cast<CallInst>(&*i);
+		++i;
+		if (pseudo == nullptr)
+		{
+			continue;
+		}
+		if (!_c2l->isCallFunctionCall(pseudo)
+				&& !_c2l->isReturnFunctionCall(pseudo)
+				&& !_c2l->isBranchFunctionCall(pseudo)
+				&& !_c2l->isCondBranchFunctionCall(pseudo))
+		{
+			continue;
+		}
+
+		Instruction* real = pseudo->getNextNode();
+		if (real == nullptr)
+		{
+			continue;
+		}
+		++i;
+
+		// TODO: fix calls, maybe we could create the calls for the first time
+		// here.
+		//
+		if (_c2l->isCallFunctionCall(pseudo)
+				&& isa<CallInst>(real))
+		{
+			Address t = getJumpTarget(
+					AsmInstruction::getInstructionAddress(real),
+					pseudo,
+					pseudo->getArgOperand(0));
+
+			if (t.isUndefined())
+			{
+				++i;
+				auto* st = cast<StoreInst>(*real->user_begin());
+				st->eraseFromParent();
+				real->eraseFromParent();
+			}
+		}
+	}
 }
 
 void Decoder::finalizePseudoCalls()
