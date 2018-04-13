@@ -18,7 +18,6 @@ Capstone2LlvmIrTranslatorX86_impl::Capstone2LlvmIrTranslatorX86_impl(
 		cs_mode extra)
 		:
 		Capstone2LlvmIrTranslator_impl(CS_ARCH_X86, basic, extra, m),
-		_origBasicMode(basic),
 		_reg2parentMap(X86_REG_ENDING, X86_REG_INVALID)
 {
 	// This needs to be called from concrete's class ctor, not abstract's

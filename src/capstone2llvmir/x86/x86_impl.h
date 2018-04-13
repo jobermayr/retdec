@@ -180,8 +180,6 @@ class Capstone2LlvmIrTranslatorX86_impl :
 //==============================================================================
 //
 	protected:
-		cs_mode _origBasicMode = CS_MODE_LITTLE_ENDIAN;
-
 		/// Maps register numbers to numbers of their parents depending on the
 		/// original basic mode (e.g. X86_REG_AH to X86_REG_EAX in 32-bit mode,
 		/// or to X86_REG_RAX in 64-bit mode).

@@ -47,7 +47,7 @@ bool Capstone2LlvmIrTranslatorPowerpc_impl::isAllowedExtraMode(cs_mode m)
 
 uint32_t Capstone2LlvmIrTranslatorPowerpc_impl::getArchByteSize()
 {
-	switch (_basicMode)
+	switch (_origBasicMode)
 	{
 		case CS_MODE_32:
 			return 4;

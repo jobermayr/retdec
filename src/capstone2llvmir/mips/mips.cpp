@@ -52,7 +52,7 @@ bool Capstone2LlvmIrTranslatorMips_impl::isAllowedExtraMode(cs_mode m)
 
 uint32_t Capstone2LlvmIrTranslatorMips_impl::getArchByteSize()
 {
-	switch (_basicMode)
+	switch (_origBasicMode)
 	{
 		case CS_MODE_MIPS32:
 		case CS_MODE_MIPS32R6:

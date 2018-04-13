@@ -436,6 +436,7 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 		cs_arch _arch = CS_ARCH_ALL;
 		cs_mode _basicMode = CS_MODE_LITTLE_ENDIAN;
 		cs_mode _extraMode = CS_MODE_LITTLE_ENDIAN;
+		cs_mode _origBasicMode = CS_MODE_LITTLE_ENDIAN;
 
 		llvm::Module* _module = nullptr;
 		llvm::GlobalVariable* _asm2llvmGv = nullptr;

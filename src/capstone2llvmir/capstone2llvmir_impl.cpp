@@ -23,6 +23,7 @@ Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::Capstone2LlvmIrTranslator_impl(
 		_arch(a),
 		_basicMode(basic),
 		_extraMode(extra),
+		_origBasicMode(basic),
 		_module(m)
 {
 	// Do not call anything here, especially virtual methods.
