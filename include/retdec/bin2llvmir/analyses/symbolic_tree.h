@@ -42,6 +42,8 @@ class SymbolicTree
 		SymbolicTree(const SymbolicTree& other) = default;
 		SymbolicTree(SymbolicTree&& other) = default;
 		SymbolicTree& operator=(SymbolicTree&& other);
+		bool operator==(const SymbolicTree& o) const;
+		bool operator!=(const SymbolicTree& o) const;
 		friend std::ostream& operator<<(
 				std::ostream& out,
 				const SymbolicTree& s);

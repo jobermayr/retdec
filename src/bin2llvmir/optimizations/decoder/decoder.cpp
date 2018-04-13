@@ -619,7 +619,6 @@ bool Decoder::getJumpTargetSwitch(
 			&& (isa<MulOperator>(st.ops[0].ops[0].value) // mul
 					|| isa<ShlOperator>(st.ops[0].ops[0].value)) // shl
 			&& st.ops[0].ops[0].ops.size() == 2
-			&& isa<Instruction>(st.ops[0].ops[0].ops[0].value) // idx
 			&& isa<ConstantInt>(st.ops[0].ops[0].ops[1].value)
 			&& isa<ConstantInt>(st.ops[0].ops[1].value))) // table address
 	{
@@ -636,7 +635,7 @@ bool Decoder::getJumpTargetSwitch(
 	}
 
 	Address tableAddr = cast<ConstantInt>(st.ops[0].ops[1].value)->getZExtValue();
-	Instruction* idx = cast<Instruction>(st.ops[0].ops[0].ops[0].value);
+	Value* idx = cast<Instruction>(st.ops[0].ops[0].value)->getOperand(0);
 
 	LOG << "\t\t" << "switch @ " << addr << std::endl;
 	LOG << "\t\t\t" << "table addr @ " << tableAddr << std::endl;
@@ -733,7 +732,7 @@ bool Decoder::getJumpTargetSwitch(
 		//				>|   %314 = and i32 %313, 255
 		//				>| i32 121
 		//		>| i32 0
-		if (isa<ICmpInst>(n->value)
+		else if (isa<ICmpInst>(n->value)
 				&& cast<ICmpInst>(n->value)->getPredicate()
 						== ICmpInst::ICMP_NE
 				&& isa<ICmpInst>(n->ops[0].value)
@@ -747,6 +746,28 @@ bool Decoder::getJumpTargetSwitch(
 			auto* ci = cast<ConstantInt>(n->ops[0].ops[1].value);
 			tableSize = ci->getZExtValue();
 			LOG << "\t\t\t" << "table size (2) = " << tableSize << std::endl;
+			break;
+		}
+		// mips:
+		//>|   %524 = icmp eq i32 %523, 0
+		//		>|   %449 = icmp ult i32 %448, 5
+		//				>| i32 3
+		//				>| i32 5
+		//		>| i32 0
+		else if (isa<ICmpInst>(n->value)
+				&& cast<ICmpInst>(n->value)->getPredicate()
+						== ICmpInst::ICMP_EQ
+				&& isa<ICmpInst>(n->ops[0].value)
+				&& cast<ICmpInst>(n->ops[0].value)->getPredicate()
+						== ICmpInst::ICMP_ULT
+				&& isa<ConstantInt>(n->ops[0].ops[1].value)
+				&& !cast<ConstantInt>(n->ops[0].ops[1].value)->isZero()
+				&& isa<ConstantInt>(n->ops[1].value)
+				&& cast<ConstantInt>(n->ops[1].value)->isZero())
+		{
+			auto* ci = cast<ConstantInt>(n->ops[0].ops[1].value);
+			tableSize = ci->getZExtValue();
+			LOG << "\t\t\t" << "table size (3) = " << tableSize << std::endl;
 			break;
 		}
 	}

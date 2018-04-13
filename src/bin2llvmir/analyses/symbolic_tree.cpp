@@ -120,17 +120,45 @@ SymbolicTree& SymbolicTree::operator=(SymbolicTree&& other)
 	return *this;
 }
 
+bool SymbolicTree::operator==(const SymbolicTree& o) const
+{
+	if (ops != o.ops)
+	{
+		return false;
+	}
+	if (isa<Constant>(value) && isa<Constant>(o.value))
+	{
+		return value == o.value;
+	}
+	else if (isa<Instruction>(value) && isa<Instruction>(o.value))
+	{
+		auto* i1 = cast<Instruction>(value);
+		auto* i2 = cast<Instruction>(o.value);
+		return i1->isSameOperationAs(i2);
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool SymbolicTree::operator!=(const SymbolicTree& o) const
+{
+	return !(*this == o);
+}
+
 void SymbolicTree::expandNode(
 		ReachingDefinitionsAnalysis* RDA,
 		std::map<llvm::Value*, llvm::Value*>* val2val,
 		unsigned maxNodeLevel,
 		std::unordered_set<llvm::Value*>& processed)
 {
-	auto fIt = processed.find(value);
-	if (fIt != processed.end())
-	{
-		return;
-	}
+// TODO: I don't think this is needed.
+//	auto fIt = processed.find(value);
+//	if (fIt != processed.end())
+//	{
+//		return;
+//	}
 
 	if (User* U = dyn_cast<User>(value))
 	{
@@ -304,8 +332,11 @@ void SymbolicTree::removeStackLoads(Config* config)
 
 void SymbolicTree::simplifyNode(Config* config)
 {
-	simplifyNodeLoadStore();
+// TODO: I don't think this is needed.
+//	simplifyNodeLoadStore();
+
 	_simplifyNode(config);
+
 	fixLevel();
 }
 
@@ -386,6 +417,26 @@ void SymbolicTree::_simplifyNode(Config* config)
 	for (auto &o : ops)
 	{
 		o._simplifyNode(config);
+	}
+
+	if (isa<LoadInst>(value) && ops.size() > 1)
+	{
+		bool allEq = true;
+
+		SymbolicTree& op0 = ops[0];
+		for (auto &o : ops)
+		{
+			if (op0 != o)
+			{
+				allEq = false;
+				break;
+			}
+		}
+
+		if (allEq)
+		{
+			ops.erase(ops.begin()+1, ops.end());
+		}
 	}
 
 	if (ops.empty())
