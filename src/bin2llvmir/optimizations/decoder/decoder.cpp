@@ -104,11 +104,11 @@ bool Decoder::run()
 	LOG << _jumpTargets << std::endl;
 
 	decode();
-	patternsRecognize();
 
 dumpModuleToFile(_module, _config->getOutputDirectory());
 
 	resolvePseudoCalls();
+	patternsRecognize();
 	finalizePseudoCalls();
 
 dumpControFlowToJson(_module, _config->getOutputDirectory());
