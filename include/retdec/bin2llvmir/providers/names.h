@@ -87,7 +87,7 @@ class Name
 
 	public:
 		Name();
-		Name(const std::string& name, eType type);
+		Name(Config* c, const std::string& name, eType type);
 
 		operator std::string() const;
 		explicit operator bool() const;
@@ -95,6 +95,9 @@ class Name
 
 		const std::string& getName() const;
 		eType getType() const;
+
+	private:
+		void fixPic32Mangling();
 
 	private:
 		std::string _name;
@@ -110,7 +113,7 @@ class Names
 		using iterator = typename std::set<Name>::iterator;
 
 	public:
-		bool addName(const std::string& name, Name::eType type);
+		bool addName(Config* c, const std::string& name, Name::eType type);
 
 		const Name& getPreferredName();
 

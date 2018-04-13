@@ -45,13 +45,18 @@ Name::Name()
 
 }
 
-Name::Name(const std::string& name, eType type) :
+Name::Name(Config* c, const std::string& name, eType type) :
 		_name(normalizeNamePrefix(name)), // TODO: normalizeNamePrefix()
 		_type(type)
 {
 	if (_name == "_main") // TODO: ugly
 	{
 		_name = "main";
+	}
+
+	if (c->isPic32())
+	{
+		fixPic32Mangling();
 	}
 }
 
@@ -87,6 +92,48 @@ Name::eType Name::getType() const
 	return _type;
 }
 
+/**
+ * TODO: What is this? How to solve it better? Use demangler?
+ * It is removing all leading '_'.
+ */
+void Name::fixPic32Mangling()
+{
+	if (_name.empty()) return;
+
+	if (_name.find("_d") == 0)
+	{
+		_name = _name.substr(2);
+	}
+	else if (_name[0] == '_')
+	{
+		_name = _name.substr(1);
+	}
+
+	if (_name.empty()) return;
+
+	if (_name.find("_cd") != std::string::npos)
+	{
+		_name = _name.substr(0, _name.find("_cd"));
+	}
+	else if (_name.find("_gG") != std::string::npos)
+	{
+		_name = _name.substr(0, _name.find("_gG"));
+	}
+	else if (_name.find("_eE") != std::string::npos)
+	{
+		_name = _name.substr(0, _name.find("_eE"));
+	}
+	else if (_name.find("_fF") != std::string::npos)
+	{
+		_name = _name.substr(0, _name.find("_fF"));
+	}
+	else if (retdec::utils::endsWith(_name, "_s"))
+	{
+		_name.pop_back();
+		_name.pop_back();
+	}
+}
+
 //
 //==============================================================================
 // Names
@@ -99,14 +146,14 @@ Name Names::_emptyName;
  * Name is not added if \p name is empty.
  * \return \c True if name added, \c false otherwise.
  */
-bool Names::addName(const std::string& name, Name::eType type)
+bool Names::addName(Config* c, const std::string& name, Name::eType type)
 {
 	if (name.empty())
 	{
 		return false;
 	}
 
-	_names.emplace(name, type);
+	_names.emplace(c, name, type);
 	return true;
 }
 
@@ -174,7 +221,7 @@ bool NameContainer::addNameForAddress(
 	}
 
 	auto& ns = _data[a];
-	return ns.addName(name, type);
+	return ns.addName(_config, name, type);
 }
 
 const Names& NameContainer::getNamesForAddress(retdec::utils::Address a)
