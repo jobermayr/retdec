@@ -409,6 +409,12 @@ void Decoder::initJumpTargetsImports()
 		return;
 	}
 
+	// Non-pointer imports are preferred.
+	// We should solve this somehow better.
+	//
+	std::set<std::string> usedNames;
+	std::set<const fileformat::Import*> ptrs;
+
 	for (const auto &imp : *impTbl)
 	{
 		retdec::utils::Address addr = imp.getAddress();
@@ -432,6 +438,11 @@ void Decoder::initJumpTargetsImports()
 				isPtr = true;
 			}
 		}
+		if (isPtr)
+		{
+			ptrs.insert(&imp);
+			continue;
+		}
 
 		cs_mode m = _currentMode;
 		if (_config->isArmOrThumb())
@@ -439,14 +450,11 @@ void Decoder::initJumpTargetsImports()
 			m = addr % 2 ? CS_MODE_THUMB : CS_MODE_ARM;
 		}
 
-		if (!isPtr)
-		{
-			_jumpTargets.push(
-					addr,
-					JumpTarget::eType::IMPORT,
-					m,
-					Address::getUndef);
-		}
+		_jumpTargets.push(
+				addr,
+				JumpTarget::eType::IMPORT,
+				m,
+				Address::getUndef);
 
 		auto* f = createFunction(addr);
 		_imports.emplace(addr);
@@ -456,6 +464,33 @@ void Decoder::initJumpTargetsImports()
 		}
 
 		LOG << "\t\t" << "import: " << imp.getName() << " @ "
+				<< addr << std::endl;
+
+		usedNames.insert(f->getName());
+	}
+
+	for (const auto* imp : ptrs)
+	{
+		Address addr = imp->getAddress();
+		if (usedNames.count(_names->getPreferredNameForAddress(addr)))
+		{
+			continue;
+		}
+
+		cs_mode m = _currentMode;
+		if (_config->isArmOrThumb())
+		{
+			m = addr % 2 ? CS_MODE_THUMB : CS_MODE_ARM;
+		}
+
+		auto* f = createFunction(addr);
+		_imports.emplace(addr);
+		if (_image->isImportTerminating(impTbl, imp))
+		{
+			_terminatingFncs.insert(f);
+		}
+
+		LOG << "\t\t" << "import ptr: " << imp->getName() << " @ "
 				<< addr << std::endl;
 	}
 }
