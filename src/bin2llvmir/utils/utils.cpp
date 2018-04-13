@@ -206,6 +206,8 @@ void dumpControFlowToJsonBasicBlock(
 		llvm::BasicBlock& bbEnd,
 		std::ostream &out)
 {
+	static auto* config = ConfigProvider::getConfig(bb.getModule());
+
 	auto start = getBasicBlockAddress(&bb);
 	auto end = getBasicBlockEndAddress(&bbEnd);
 
@@ -269,6 +271,24 @@ void dumpControFlowToJsonBasicBlock(
 			start = getBasicBlockAddress(succ);
 		}
 		succsAddrs.insert(start);
+	}
+	// MIPS likely delays slot hack - recognize generated pattern and
+	// find all sucessors.
+	if (config
+			&& config->isMipsOrPic32()
+			&& succsAddrs.size() == 1
+			&& getBasicBlockAddress(&bbEnd).isUndefined() // no addr
+			&& (++pred_begin(&bbEnd)) == pred_end(&bbEnd) // single pred
+			&& bbEnd.getPrevNode() == *pred_begin(&bbEnd)) // pred right before
+	{
+		auto* br = llvm::dyn_cast<llvm::BranchInst>((*pred_begin(&bbEnd))->getTerminator());
+		if (br
+				&& br->isConditional()
+				&& br->getSuccessor(0) == &bbEnd
+				&& getBasicBlockAddress(br->getSuccessor(1)))
+		{
+			succsAddrs.insert(getBasicBlockAddress(br->getSuccessor(1)));
+		}
 	}
 
 	if (succsAddrs.empty())
