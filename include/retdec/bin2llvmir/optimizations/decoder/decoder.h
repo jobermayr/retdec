@@ -171,6 +171,7 @@ class Decoder : public llvm::ModulePass
 		std::size_t decodeJumpTargetDryRun_arm(
 				const JumpTarget& jt,
 				ByteData bytes);
+		void patternsPseudoCall_arm(llvm::CallInst*& call, AsmInstruction& pAi);
 
 	// MIPS specific.
 	//

@@ -90,5 +90,54 @@ std::size_t Decoder::decodeJumpTargetDryRun_arm(
 	return true;
 }
 
+/**
+ * Recognize some ARM-specific patterns.
+ */
+void Decoder::patternsPseudoCall_arm(llvm::CallInst*& call, AsmInstruction& ai)
+{
+	// TODO: We could detect this using architecture-agnostic approach by using
+	// ABI info on LR reg.
+	//
+	// 113A0 0F E0 A0 E1    MOV LR, PC   // PC = current insn + 2*insn_size
+	// 113A4 03 F0 A0 E1    MOV PC, R3   // branch -> call
+	// 113A8 00 20 94 E5    LDR R2, [R4] // next insn = return point
+	//
+	// Check that both instructions have the same cond code:
+	// 112E8 0F E0 A0 11    MOVNE LR, PC
+	// 112EC 03 F0 A0 11    MOVNE PC, R3
+	//
+	if (_c2l->isBranchFunctionCall(call))
+	{
+		AsmInstruction prev = ai.getPrev();
+		if (prev.isInvalid())
+		{
+			return;
+		}
+		auto* insn = ai.getCapstoneInsn();
+		auto& arm = insn->detail->arm;
+		auto* pInsn = prev.getCapstoneInsn();
+		auto& pArm = pInsn->detail->arm;
+
+		if (pInsn->id == ARM_INS_MOV
+				&& arm.cc == pArm.cc
+				&& pArm.op_count == 2
+				&& pArm.operands[0].type == ARM_OP_REG
+				&& pArm.operands[0].reg == ARM_REG_LR
+				&& pArm.operands[1].type == ARM_OP_REG
+				&& pArm.operands[1].reg == ARM_REG_PC)
+		{
+			// Replace pseudo branch with pseudo call.
+			auto* nc = CallInst::Create(
+					_c2l->getCallFunction(),
+					{call->getArgOperand(0)},
+					"",
+					call);
+			call->eraseFromParent();
+			call = nc;
+		}
+//		; 0x113a0
+	}
+}
+
 } // namespace bin2llvmir
 } // namespace retdec

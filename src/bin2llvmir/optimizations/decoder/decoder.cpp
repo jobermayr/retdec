@@ -415,7 +415,13 @@ bool Decoder::getJumpTargetsFromInstruction(
 		capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& tr,
 		uint64_t& rangeSize)
 {
-	CallInst* pCall = tr.branchCall;
+	CallInst*& pCall = tr.branchCall;
+
+	if (_config->isArmOrThumb())
+	{
+		AsmInstruction ai(tr.llvmInsn);
+		patternsPseudoCall_arm(pCall, ai);
+	}
 
 	BasicBlock* tBb = nullptr;
 	Function* tFnc = nullptr;
@@ -598,7 +604,8 @@ bool Decoder::getJumpTargetsFromInstruction(
 		}
 	}
 	// Analyze ordinary (not control flow) instruction.
-	// TODO: maybe move to separate function.
+	// TODO: maybe move to a separate function.
+	// TODO: limit the currently decoding range and data.
 	//
 	else
 	{
