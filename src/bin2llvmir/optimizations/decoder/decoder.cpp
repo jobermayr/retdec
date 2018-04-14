@@ -236,7 +236,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 
 		BasicBlock* tBb = nullptr;
 		Function* tFnc = nullptr;
-		getOrCreateTarget(start, true, tBb, tFnc, nullptr);
+		getOrCreateCallTarget(start, tFnc, tBb);
 		if (tFnc && !tFnc->empty())
 		{
 			bb = &tFnc->front();
@@ -433,7 +433,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 	{
 		if (auto t = getJumpTarget(addr, pCall, pCall->getArgOperand(0)))
 		{
-			getOrCreateTarget(t, true, tBb, tFnc, pCall);
+			getOrCreateCallTarget(t, tFnc, tBb);
 			assert(tFnc);
 			transformToCall(pCall, tFnc);
 
@@ -494,7 +494,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 	{
 		if (auto t = getJumpTarget(addr, pCall, pCall->getArgOperand(0)))
 		{
-			getOrCreateTarget(t, false, tBb, tFnc, pCall);
+			getOrCreateBranchTarget(t, tBb, tFnc, pCall);
 			if (tBb && tBb->getParent() == pCall->getFunction())
 			{
 				transformToBranch(pCall, tBb);
@@ -574,11 +574,11 @@ bool Decoder::getJumpTargetsFromInstruction(
 
 		if (auto t = getJumpTarget(addr, pCall, pCall->getArgOperand(1)))
 		{
-			getOrCreateTarget(t, false, tBb, tFnc, pCall);
+			getOrCreateBranchTarget(t, tBb, tFnc, pCall);
 
 			BasicBlock* tBbN = nullptr;
 			Function* tFncN = nullptr;
-			getOrCreateTarget(nextAddr, false, tBbN, tFncN, pCall);
+			getOrCreateBranchTarget(nextAddr, tBbN, tFncN, pCall);
 
 			if (tBb && tBbN
 					&& tBb->getParent() == tBbN->getParent()
@@ -960,7 +960,7 @@ bool Decoder::getJumpTargetSwitch(
 	{
 		BasicBlock* tBb = nullptr;
 		Function* tFnc = nullptr;
-		getOrCreateTarget(c, false, tBb, tFnc, branchCall);
+		getOrCreateBranchTarget(c, tBb, tFnc, branchCall);
 		if (tBb && tBb->getParent() == branchCall->getFunction())
 		{
 			casesBbs.push_back(tBb);
@@ -974,7 +974,7 @@ bool Decoder::getJumpTargetSwitch(
 
 	Function* tFnc = nullptr;
 	BasicBlock* defBb = nullptr;
-	getOrCreateTarget(defAddr, false, defBb, tFnc, branchCall);
+	getOrCreateBranchTarget(defAddr, defBb, tFnc, branchCall);
 	if (defBb == nullptr
 			|| defBb->getParent() != branchCall->getFunction())
 	{
@@ -1006,70 +1006,6 @@ bool Decoder::getJumpTargetSwitch(
 	_switchTableStarts[tableAddr].insert(sw);
 
 	return true;
-}
-
-void Decoder::getOrCreateTarget(
-		utils::Address addr,
-		bool isCall,
-		llvm::BasicBlock*& tBb,
-		llvm::Function*& tFnc,
-		llvm::Instruction* fromI) // = nullptr
-{
-	tBb = nullptr;
-	tFnc = nullptr;
-
-	if (isCall)
-	{
-		if (auto* f = getFunctionAtAddress(addr))
-		{
-			tFnc = f;
-			return;
-		}
-		else if (auto* f = splitFunctionOn(addr))
-		{
-			tFnc = f;
-			return;
-		}
-	}
-
-	if (fromI == nullptr)
-	{
-		if (auto* bb = getBasicBlockAtAddress(addr))
-		{
-			tBb = bb;
-		}
-		else if (auto ai = AsmInstruction(_module, addr))
-		{
-			tBb = ai.makeStart();
-			tBb->setName(names::generateBasicBlockName(ai.getAddress()));
-			addBasicBlock(addr, tBb);
-		}
-		// Function without BBs (e.g. import declarations).
-		else if (auto* targetFnc = getFunctionAtAddress(addr))
-		{
-			tFnc = targetFnc;
-		}
-		else if (auto* bb = getBasicBlockBeforeAddress(addr))
-		{
-			tBb = createBasicBlock(addr, bb->getParent(), bb);
-		}
-		else
-		{
-			auto* newFnc = createFunction(addr);
-			tBb = &newFnc->front();
-		}
-	}
-	else
-	{
-		auto* fromFnc = fromI->getFunction();
-
-		getOrCreateTarget(addr, false, tBb, tFnc);
-
-		if (tBb && tBb->getParent() != fromFnc)
-		{
-			tFnc = splitFunctionOn(addr);
-		}
-	}
 }
 
 void Decoder::resolvePseudoCalls()

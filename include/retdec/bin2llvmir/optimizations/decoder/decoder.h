@@ -105,13 +105,6 @@ class Decoder : public llvm::ModulePass
 				utils::Address addr,
 				capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& tr);
 
-		void getOrCreateTarget(
-				utils::Address addr,
-				bool isCall,
-				llvm::BasicBlock*& tBb,
-				llvm::Function*& tFnc,
-				llvm::Instruction* fromI = nullptr);
-
 		void resolvePseudoCalls();
 		void finalizePseudoCalls();
 
@@ -207,6 +200,16 @@ class Decoder : public llvm::ModulePass
 				const std::vector<llvm::BasicBlock*>& cases);
 
 		llvm::GlobalVariable* getCallReturnObject();
+
+		void getOrCreateCallTarget(
+				utils::Address addr,
+				llvm::Function*& tFnc,
+				llvm::BasicBlock*& tBb);
+		void getOrCreateBranchTarget(
+				utils::Address addr,
+				llvm::BasicBlock*& tBb,
+				llvm::Function*& tFnc,
+				llvm::Instruction* from);
 
 		bool canSplitFunctionOn(llvm::BasicBlock* bb);
 		bool canSplitFunctionOn(

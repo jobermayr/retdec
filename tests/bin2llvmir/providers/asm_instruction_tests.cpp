@@ -1709,10 +1709,11 @@ TEST_F(AsmInstructionTests, makeStartOnFirstInFunction)
 	)");
 	auto ai = AsmInstruction(module.get(), 1234);
 	auto* orig = ai.getBasicBlock();
-	auto* ret = ai.makeStart();
+	auto* ret = ai.makeStart("lab_0");
 
 	std::string exp = R"(
 		define void @fnc() {
+		lab_0:
 			store volatile i64 1234, i64* @llvm2asm, !asm !1
 			ret void
 		}
@@ -1743,7 +1744,7 @@ TEST_F(AsmInstructionTests, makeStartOnFirstBb)
 	)");
 	auto ai = AsmInstruction(module.get(), 5678);
 	auto* orig = ai.getBasicBlock();
-	auto* ret = ai.makeStart();
+	auto* ret = ai.makeStart("lab_0");
 
 	std::string exp = R"(
 		define void @fnc() {

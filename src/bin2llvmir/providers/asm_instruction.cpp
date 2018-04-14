@@ -600,6 +600,9 @@ llvm::BasicBlock* AsmInstruction::makeStart(const std::string& name)
 	//
 	if (_llvmToAsmInstr->getPrevNode() == nullptr)
 	{
+		getBasicBlock()->setName(name.empty()
+				? names::generateBasicBlockName(getAddress())
+				: name);
 		return getBasicBlock();
 	}
 

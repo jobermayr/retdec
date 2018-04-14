@@ -158,6 +158,118 @@ llvm::GlobalVariable* Decoder::getCallReturnObject()
 }
 
 /**
+ * Primary: try to create function for \p addr target and fill \p tFnc with
+ * the result. If successful, \p tBb is also filled.
+ * Secondary: if function not created, try to create BB for \p addr target and
+ * fill \p tBb with the result.
+ */
+void Decoder::getOrCreateCallTarget(
+		utils::Address addr,
+		llvm::Function*& tFnc,
+		llvm::BasicBlock*& tBb)
+{
+	tBb = nullptr;
+	tFnc = nullptr;
+
+	if (auto* f = getFunctionAtAddress(addr))
+	{
+		tFnc = f;
+		tBb = tFnc->empty() ? nullptr : &tFnc->front();
+	}
+	else if (auto* f = splitFunctionOn(addr))
+	{
+		tFnc = f;
+		tBb = tFnc->empty() ? nullptr : &tFnc->front();
+	}
+	else if (auto* bb = getBasicBlockAtAddress(addr))
+	{
+		tBb = bb;
+	}
+	else if (getBasicBlockContainingAddress(addr))
+	{
+		// Nothing - we are not splitting BBs here.
+	}
+	else if (getFunctionContainingAddress(addr))
+	{
+		auto* bb = getBasicBlockBeforeAddress(addr);
+		assert(bb);
+		tBb = createBasicBlock(addr, bb->getParent(), bb);
+	}
+	else
+	{
+		tFnc = createFunction(addr);
+		tBb = &tFnc->front();
+	}
+}
+
+/**
+ *
+ */
+void Decoder::getOrCreateBranchTarget(
+		utils::Address addr,
+		llvm::BasicBlock*& tBb,
+		llvm::Function*& tFnc,
+		llvm::Instruction* from)
+{
+	tBb = nullptr;
+	tFnc = nullptr;
+
+	auto* fromFnc = from->getFunction();
+
+	if (auto* bb = getBasicBlockAtAddress(addr))
+	{
+		tBb = bb;
+	}
+	else if (getBasicBlockContainingAddress(addr))
+	{
+		auto ai = AsmInstruction(_module, addr);
+		if (ai.isInvalid())
+		{
+			// Target in existing block, but not at existing instruction.
+			// Something is wrong, nothing we can do.
+			return;
+		}
+		else if (ai.getFunction() == fromFnc)
+		{
+			tBb = ai.makeStart();
+			addBasicBlock(addr, tBb);
+		}
+		else
+		{
+			// Target at existing instruction, but in different function.
+			// Do not split existing block in other functions here.
+			return;
+		}
+	}
+	// Function without BBs (e.g. import declarations).
+	else if (auto* targetFnc = getFunctionAtAddress(addr))
+	{
+		tFnc = targetFnc;
+	}
+	else if (auto* bb = getBasicBlockBeforeAddress(addr))
+	{
+		tBb = createBasicBlock(addr, bb->getParent(), bb);
+	}
+	else
+	{
+		tFnc = createFunction(addr);
+		tBb = &tFnc->front();
+	}
+
+	if (tBb && tBb->getParent() == fromFnc)
+	{
+		return;
+	}
+	if (tFnc)
+	{
+		return;
+	}
+
+	tFnc = splitFunctionOn(addr);
+	tBb = tFnc ? &tFnc->front() : tBb;
+}
+
+/**
  * \return \c True if it is allowed to split function on basic block \p bb.
  */
 bool Decoder::canSplitFunctionOn(llvm::BasicBlock* bb)

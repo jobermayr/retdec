@@ -106,9 +106,28 @@ llvm::BasicBlock* Decoder::getBasicBlockAfterAddress(utils::Address a)
  */
 llvm::BasicBlock* Decoder::getBasicBlockContainingAddress(utils::Address a)
 {
-	auto* f = getBasicBlockBeforeAddress(a);
-	Address end = getBasicBlockEndAddress(f);
-	return a.isDefined() && end.isDefined() && a < end ? f : nullptr;
+	auto* b = getBasicBlockBeforeAddress(a);
+	if (b == nullptr)
+	{
+		return nullptr;
+	}
+
+	llvm::BasicBlock* bbEnd = b;
+	while (bbEnd->getNextNode())
+	{
+		// Next has address -- is a proper BB.
+		//
+		if (getBasicBlockAddress(bbEnd->getNextNode()).isDefined())
+		{
+			break;
+		}
+		else
+		{
+			bbEnd = bbEnd->getNextNode();
+		}
+	}
+	Address end = getBasicBlockEndAddress(bbEnd);
+	return a.isDefined() && end.isDefined() && a < end ? b : nullptr;
 }
 
 /**
