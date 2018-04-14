@@ -21,18 +21,19 @@ bool insnWrittesPc(csh& ce, cs_insn* insn)
 
 	// Implicit write.
 	//
-	if (cs_reg_read(ce, insn, ARM_REG_PC))
+	if (cs_reg_write(ce, insn, ARM_REG_PC))
 	{
 		return true;
 	}
 
 	// Explicit write.
 	//
-	for (std::size_t i = 0; arm.op_count; ++i)
+	for (std::size_t i = 0; i < arm.op_count; ++i)
 	{
 		auto& op = arm.operands[i];
 		if (op.type == ARM_OP_REG
-				&& op.reg == ARM_REG_PC)
+				&& op.reg == ARM_REG_PC
+				&& op.access == CS_AC_WRITE)
 		{
 			return true;
 		}
