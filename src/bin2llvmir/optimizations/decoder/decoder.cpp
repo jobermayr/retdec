@@ -650,6 +650,13 @@ bool Decoder::getJumpTargetsFromInstruction(
 				AddressRange r(t, t+sz-1);
 				_ranges.remove(r);
 
+				// Trim currently decoding range size if needed.
+				auto nextAddr = addr + tr.size;
+				if (nextAddr < t && t < nextAddr + rangeSize)
+				{
+					rangeSize = t - nextAddr;
+				}
+
 				LOG << "\t\t\t\t" << "skip " << r << std::endl;
 			}
 		}
