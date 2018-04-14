@@ -586,7 +586,7 @@ class Capstone2LlvmIrTranslator
 		 * @return Branch instruction which true branch jumps to the @p c if
 		 *         @p c is conditional, @c nullptr otherwise.
 		 */
-		virtual llvm::BranchInst* isCondCallFunctionCall(llvm::CallInst* c) const = 0;
+		virtual llvm::BranchInst* isInConditionCallFunctionCall(llvm::CallInst* c) const = 0;
 		/**
 		 * @return LLVM function used as special pseudo function whose call
 		 * represents a call operation in the translated LLVM IR.
@@ -611,7 +611,7 @@ class Capstone2LlvmIrTranslator
 		 * @return Branch instruction which true branch jumps to the @p c if
 		 *         @p c is conditional, @c nullptr otherwise.
 		 */
-		virtual llvm::BranchInst* isCondReturnFunctionCall(llvm::CallInst* c) const = 0;
+		virtual llvm::BranchInst* isInConditionReturnFunctionCall(llvm::CallInst* c) const = 0;
 		/**
 		 * @return LLVM function used as special pseudo function whose call
 		 * represents a return operation in the translated LLVM IR.
@@ -630,6 +630,14 @@ class Capstone2LlvmIrTranslator
 		 */
 		virtual bool isBranchFunctionCall(llvm::CallInst* c) const = 0;
 		/**
+		 * Is @c isBranchFunctionCall() @c true for the passed LLVM call
+		 * instruction @p c, and execution of the call instruction @p c is
+		 * conditional.
+		 * @return Branch instruction which true branch jumps to the @p c if
+		 *         @p c is conditional, @c nullptr otherwise.
+		 */
+		virtual llvm::BranchInst* isInConditionBranchFunctionCall(llvm::CallInst* c) const = 0;
+		/**
 		 * @return LLVM function used as special pseudo function whose call
 		 * represents a branch operation in the translated LLVM IR.
 		 * Function signature: @code{.cpp} void (i<arch_sz>) @endcode
@@ -642,6 +650,14 @@ class Capstone2LlvmIrTranslator
 		 * Function signature: @code{.cpp} void (i1, i<arch_sz>) @endcode
 		 */
 		virtual bool isCondBranchFunction(llvm::Function* f) const = 0;
+		/**
+		 * Is @c isCondBranchFunction() @c true for the passed LLVM call
+		 * instruction @p c, and execution of the call instruction @p c is
+		 * conditional.
+		 * @return Branch instruction which true branch jumps to the @p c if
+		 *         @p c is conditional, @c nullptr otherwise.
+		 */
+		virtual llvm::BranchInst* isInConditionCondBranchFunctionCall(llvm::CallInst* c) const = 0;
 		/**
 		 * Is the passed LLVM call instruction @p c a special pseudo call
 		 * instruction representing a conditional branch operation in the

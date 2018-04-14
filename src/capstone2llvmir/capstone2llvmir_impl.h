@@ -106,20 +106,22 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 
 		virtual bool isCallFunction(llvm::Function* f) const override;
 		virtual bool isCallFunctionCall(llvm::CallInst* c) const override;
-		virtual llvm::BranchInst* isCondCallFunctionCall(llvm::CallInst* c) const override;
+		virtual llvm::BranchInst* isInConditionCallFunctionCall(llvm::CallInst* c) const override;
 		virtual llvm::Function* getCallFunction() const override;
 
 		virtual bool isReturnFunction(llvm::Function* f) const override;
 		virtual bool isReturnFunctionCall(llvm::CallInst* c) const override;
-		virtual llvm::BranchInst* isCondReturnFunctionCall(llvm::CallInst* c) const override;
+		virtual llvm::BranchInst* isInConditionReturnFunctionCall(llvm::CallInst* c) const override;
 		virtual llvm::Function* getReturnFunction() const override;
 
 		virtual bool isBranchFunction(llvm::Function* f) const override;
 		virtual bool isBranchFunctionCall(llvm::CallInst* c) const override;
+		virtual llvm::BranchInst* isInConditionBranchFunctionCall(llvm::CallInst* c) const override;
 		virtual llvm::Function* getBranchFunction() const override;
 
 		virtual bool isCondBranchFunction(llvm::Function* f) const override;
 		virtual bool isCondBranchFunctionCall(llvm::CallInst* c) const override;
+		virtual llvm::BranchInst* isInConditionCondBranchFunctionCall(llvm::CallInst* c) const override;
 		virtual llvm::Function* getCondBranchFunction() const override;
 
 		virtual llvm::GlobalVariable* isRegister(llvm::Value* v) const override;
@@ -416,6 +418,10 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 		llvm::IntegerType* getDefaultType();
 		llvm::Value* getThisInsnAddress(cs_insn* i);
 		llvm::Value* getNextInsnAddress(cs_insn* i);
+
+	protected:
+		llvm::BranchInst* getCondBranchForInsnInIfThen(
+				llvm::Instruction* i) const;
 
 	protected:
 		llvm::Function* getAsmFunction(const std::string& name) const;

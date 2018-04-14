@@ -456,7 +456,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 	else if (_c2l->isReturnFunctionCall(pCall))
 	{
 		transformToReturn(pCall);
-		if (auto* cond = _c2l->isCondReturnFunctionCall(pCall))
+		if (auto* cond = _c2l->isInConditionReturnFunctionCall(pCall))
 		{
 			// Name the block and assign an address to it -> keep up with IDA.
 			auto nextAddr = addr + tr.size;
@@ -502,9 +502,22 @@ bool Decoder::getJumpTargetsFromInstruction(
 			LOG << "\t\t" << "br @ " << addr << " -> "	<< t << std::endl;
 		}
 
-		// TODO: unify usage of inCondition in branch in cond and special
-		// functions in cond return/call.
-		return tr.inCondition ? false : true;
+		if (auto* cond = _c2l->isInConditionBranchFunctionCall(pCall))
+		{
+			// Name the block and assign an address to it -> keep up with IDA.
+			auto nextAddr = addr + tr.size;
+			auto* nextBb = cond->getSuccessor(1);
+
+			assert(getBasicBlockAtAddress(nextAddr) == nullptr);
+
+			nextBb->setName(names::generateBasicBlockName(nextAddr));
+			addBasicBlock(nextAddr, nextBb);
+			return false;
+		}
+		else
+		{
+			return true;
+		}
 	}
 	// Conditional branch -> insert target (if computed), and next (flow
 	// may or may not jump/continue after).

@@ -420,8 +420,22 @@ bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isCondBranchInstruction(
 //==============================================================================
 //
 
-llvm::BranchInst* getCondBranchForInsnInIfThen(llvm::Instruction* i)
+template <typename CInsn, typename CInsnOp>
+llvm::BranchInst*
+Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::getCondBranchForInsnInIfThen(
+		llvm::Instruction* i) const
 {
+	// Asm to LLVM mapping instruction is not in BB where call is.
+	auto* prev = i->getPrevNode();
+	while (prev)
+	{
+		if (isSpecialAsm2LlvmInstr(prev))
+		{
+			return nullptr;
+		}
+		prev = prev->getPrevNode();
+	}
+
 	auto* prevBb = i->getParent()->getPrevNode();
 	auto* term = prevBb ? prevBb->getTerminator() : nullptr;
 	auto* br = llvm::dyn_cast_or_null<llvm::BranchInst>(term);
@@ -482,25 +496,9 @@ bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isCallFunctionCall(llvm::Ca
 }
 
 template <typename CInsn, typename CInsnOp>
-llvm::BranchInst* Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isCondCallFunctionCall(llvm::CallInst* c) const
+llvm::BranchInst* Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isInConditionCallFunctionCall(llvm::CallInst* c) const
 {
-	if (!isCallFunctionCall(c))
-	{
-		return nullptr;
-	}
-
-	// Asm to LLVM mapping instruction is not in BB where call is.
-	auto* prev = c->getPrevNode();
-	while (prev)
-	{
-		if (isSpecialAsm2LlvmInstr(prev))
-		{
-			return nullptr;
-		}
-		prev = prev->getPrevNode();
-	}
-
-	return getCondBranchForInsnInIfThen(c);
+	return isCallFunctionCall(c) ? getCondBranchForInsnInIfThen(c) : nullptr;
 }
 
 template <typename CInsn, typename CInsnOp>
@@ -523,25 +521,9 @@ bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isReturnFunctionCall(
 }
 
 template <typename CInsn, typename CInsnOp>
-llvm::BranchInst* Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isCondReturnFunctionCall(llvm::CallInst* c) const
+llvm::BranchInst* Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isInConditionReturnFunctionCall(llvm::CallInst* c) const
 {
-	if (!isReturnFunctionCall(c))
-	{
-		return nullptr;
-	}
-
-	// Asm to LLVM mapping instruction is not in BB where call is.
-	auto* prev = c->getPrevNode();
-	while (prev)
-	{
-		if (isSpecialAsm2LlvmInstr(prev))
-		{
-			return nullptr;
-		}
-		prev = prev->getPrevNode();
-	}
-
-	return getCondBranchForInsnInIfThen(c);
+	return isReturnFunctionCall(c) ? getCondBranchForInsnInIfThen(c) : nullptr;
 }
 
 template <typename CInsn, typename CInsnOp>
@@ -564,6 +546,12 @@ bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isBranchFunctionCall(
 }
 
 template <typename CInsn, typename CInsnOp>
+llvm::BranchInst* Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isInConditionBranchFunctionCall(llvm::CallInst* c) const
+{
+	return isBranchFunctionCall(c) ? getCondBranchForInsnInIfThen(c) : nullptr;
+}
+
+template <typename CInsn, typename CInsnOp>
 llvm::Function* Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::getBranchFunction() const
 {
 	return _branchFunction;
@@ -581,6 +569,12 @@ bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isCondBranchFunctionCall(
 		llvm::CallInst* c) const
 {
 	return c ? isCondBranchFunction(c->getCalledFunction()) : false;
+}
+
+template <typename CInsn, typename CInsnOp>
+llvm::BranchInst* Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isInConditionCondBranchFunctionCall(llvm::CallInst* c) const
+{
+	return isCondBranchFunctionCall(c) ? getCondBranchForInsnInIfThen(c) : nullptr;
 }
 
 template <typename CInsn, typename CInsnOp>
