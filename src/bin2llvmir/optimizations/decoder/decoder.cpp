@@ -655,10 +655,37 @@ utils::Address Decoder::getJumpTarget(
 			&& isa<ConstantInt>(st.ops[0].value))
 	{
 		auto* ci = dyn_cast<ConstantInt>(st.ops[0].value);
-		Address addr = ci->getZExtValue();
-		if (_imports.count(addr))
+		Address t = ci->getZExtValue();
+		if (_imports.count(t))
 		{
-			return addr;
+			return t;
+		}
+	}
+	// TODO: Some nicer, more general solution?
+	// ARM:
+	// printf:
+	//     116FC 00 C0 9F E5    LDR R12, =__imp_printf
+	//     11700 00 F0 9C E5    LDR PC, [R12]
+	// tree:
+	//>|   %3 = load i32, i32* %2
+	//		>|   %0 = load i32, i32* inttoptr (i32 71428 to i32*)
+	//				>| i32 71428
+	//
+	// solveMemoryLoads() and simplifyNode() combo will solve both loads
+	// -> we can not check for imports.
+	//
+	if (isa<LoadInst>(st.value)
+			&& st.ops.size() == 1
+			&& isa<LoadInst>(st.ops[0].value)
+			&& st.ops[0].ops.size() == 1
+			&& isa<ConstantInt>(st.ops[0].ops[0].value))
+	{
+		auto* ptr = dyn_cast<ConstantInt>(st.ops[0].ops[0].value);
+		auto* ci = _image->getConstantDefault(ptr->getZExtValue());
+		Address t = ci->getZExtValue();
+		if (_imports.count(t))
+		{
+			return t;
 		}
 	}
 
@@ -1143,6 +1170,20 @@ void Decoder::finalizePseudoCalls()
 			{
 				if (_c2l->isRegister(st->getPointerOperand())
 						&& st->getPointerOperand()->getName() == "ra")
+				{
+					st->eraseFromParent();
+				}
+			}
+
+			// Return address store to register in MIPS calls.
+			// TODO: what about other possible LR stores? e.g. see
+			// patternsPseudoCall_arm().
+			//
+			if (_config->isArmOrThumb() && _c2l->isCallFunctionCall(pseudo))
+			if (auto* st = dyn_cast<StoreInst>(i))
+			{
+				if (_c2l->isRegister(st->getPointerOperand())
+						&& st->getPointerOperand()->getName() == "lr")
 				{
 					st->eraseFromParent();
 				}
