@@ -1489,16 +1489,27 @@ void Capstone2LlvmIrTranslatorArm_impl::translateLdr(cs_insn* i, cs_arm* ai, llv
 			? irb.CreateSExtOrTrunc(op1, irb.getInt32Ty())
 			: irb.CreateZExtOrTrunc(op1, irb.getInt32Ty());
 
+	llvm::Value* v = nullptr;
 	if (ai->writeback && idx && baseR != ARM_REG_INVALID)
 	{
 		auto* b = loadRegister(baseR, irb);
-		auto* v = subtract
+		v = subtract
 				? irb.CreateSub(b, idx)
 				: irb.CreateAdd(b, idx);
-		storeRegister(baseR, v, irb);
+		if (baseR != ARM_REG_PC)
+		{
+			storeRegister(baseR, v, irb);
+		}
 	}
 
 	storeOp(ai->operands[0], op1, irb);
+
+	bool op0Pc = ai->operands[0].type == ARM_OP_REG
+			&& ai->operands[0].reg == ARM_REG_PC;
+	if (!op0Pc && baseR == ARM_REG_PC && v)
+	{
+		storeRegister(baseR, v, irb);
+	}
 }
 
 /**
@@ -1541,16 +1552,49 @@ void Capstone2LlvmIrTranslatorArm_impl::translateLdrd(cs_insn* i, cs_arm* ai, ll
 	auto* lo = irb.CreateTrunc(op1, irb.getInt32Ty());
 	auto* hi = irb.CreateTrunc(irb.CreateLShr(op1, 32), irb.getInt32Ty());
 
+	llvm::Value* v = nullptr;
 	if (ai->writeback && idx && baseR != ARM_REG_INVALID)
 	{
 		auto* b = loadRegister(baseR, irb);
-		auto* v = subtract
+		v = subtract
 				? irb.CreateSub(b, idx)
 				: irb.CreateAdd(b, idx);
+		if (baseR != ARM_REG_PC)
+		{
+			storeRegister(baseR, v, irb);
+		}
+	}
+
+	bool op0Pc = ai->operands[0].type == ARM_OP_REG
+			&& ai->operands[0].reg == ARM_REG_PC;
+	bool op1Pc = ai->operands[1].type == ARM_OP_REG
+			&& ai->operands[1].reg == ARM_REG_PC;
+
+	if (!op0Pc && !op1Pc)
+	{
+		storeOp(ai->operands[0], hi, irb);
+		storeOp(ai->operands[1], lo, irb);
+	}
+	else if (op0Pc && !op1Pc)
+	{
+		storeOp(ai->operands[1], lo, irb);
+		storeOp(ai->operands[0], hi, irb);
+	}
+	else if (!op0Pc && op1Pc)
+	{
+		storeOp(ai->operands[0], hi, irb);
+		storeOp(ai->operands[1], lo, irb);
+	}
+	else
+	{
+		// Store only one.
+		storeOp(ai->operands[0], hi, irb);
+	}
+
+	if (!op0Pc && !op1Pc && baseR == ARM_REG_PC && v)
+	{
 		storeRegister(baseR, v, irb);
 	}
-	storeOp(ai->operands[0], hi, irb);
-	storeOp(ai->operands[1], lo, irb);
 }
 
 /**
