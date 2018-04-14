@@ -225,9 +225,8 @@ bool Decoder::canSplitFunctionOn(
 						return false;
 					}
 
-					newFncStarts.insert(&b);
-					fncStarts.insert(bAddr);
-					changed = true;
+					changed |= newFncStarts.insert(&b).second;
+					changed |= fncStarts.insert(bAddr).second;
 				}
 			}
 		}
@@ -276,7 +275,6 @@ llvm::Function* Decoder::splitFunctionOn(
 	{
 		return splitOnBb->getParent();
 	}
-
 	std::set<BasicBlock*> newFncStarts;
 	if (!canSplitFunctionOn(addr, splitOnBb, newFncStarts))
 	{
