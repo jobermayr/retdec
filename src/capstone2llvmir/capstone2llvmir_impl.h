@@ -106,10 +106,12 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 
 		virtual bool isCallFunction(llvm::Function* f) const override;
 		virtual bool isCallFunctionCall(llvm::CallInst* c) const override;
+		virtual llvm::BranchInst* isCondCallFunctionCall(llvm::CallInst* c) const override;
 		virtual llvm::Function* getCallFunction() const override;
 
 		virtual bool isReturnFunction(llvm::Function* f) const override;
 		virtual bool isReturnFunctionCall(llvm::CallInst* c) const override;
+		virtual llvm::BranchInst* isCondReturnFunctionCall(llvm::CallInst* c) const override;
 		virtual llvm::Function* getReturnFunction() const override;
 
 		virtual bool isBranchFunction(llvm::Function* f) const override;
@@ -249,9 +251,17 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 		virtual llvm::CallInst* generateCallFunctionCall(
 				llvm::IRBuilder<>& irb,
 				llvm::Value* t);
+		virtual llvm::CallInst* generateCondCallFunctionCall(
+				llvm::IRBuilder<>& irb,
+				llvm::Value* cond,
+				llvm::Value* t);
 		virtual void generateReturnFunction();
 		virtual llvm::CallInst* generateReturnFunctionCall(
 				llvm::IRBuilder<>& irb,
+				llvm::Value* t);
+		virtual llvm::CallInst* generateCondReturnFunctionCall(
+				llvm::IRBuilder<>& irb,
+				llvm::Value* cond,
 				llvm::Value* t);
 		virtual void generateBranchFunction();
 		virtual llvm::CallInst* generateBranchFunctionCall(

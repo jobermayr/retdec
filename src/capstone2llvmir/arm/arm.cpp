@@ -863,14 +863,21 @@ void Capstone2LlvmIrTranslatorArm_impl::translateAnd(cs_insn* i, cs_arm* ai, llv
 void Capstone2LlvmIrTranslatorArm_impl::translateB(cs_insn* i, cs_arm* ai, llvm::IRBuilder<>& irb)
 {
 	op0 = loadOpUnary(ai, irb);
+	bool isReturn = ai->operands[0].type == ARM_OP_REG
+			&& ai->operands[0].reg == ARM_REG_LR;
+
 	if (ai->cc == ARM_CC_AL || ai->cc == ARM_CC_INVALID)
 	{
-		generateBranchFunctionCall(irb, op0);
+		isReturn
+			? generateReturnFunctionCall(irb, op0)
+			: generateBranchFunctionCall(irb, op0);
 	}
 	else
 	{
 		auto* cond = generateInsnConditionCode(irb, ai);
-		generateCondBranchFunctionCall(irb, cond, op0);
+		isReturn
+			? generateCondReturnFunctionCall(irb, cond, op0)
+			: generateCondBranchFunctionCall(irb, cond, op0);
 	}
 }
 

@@ -420,6 +420,22 @@ bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isCondBranchInstruction(
 //==============================================================================
 //
 
+llvm::BranchInst* getCondBranchForInsnInIfThen(llvm::Instruction* i)
+{
+	auto* prevBb = i->getParent()->getPrevNode();
+	auto* term = prevBb ? prevBb->getTerminator() : nullptr;
+	auto* br = llvm::dyn_cast_or_null<llvm::BranchInst>(term);
+	if (prevBb == nullptr
+			|| br == nullptr
+			|| !br->isConditional()
+			|| br->getSuccessor(0) != i->getParent())
+	{
+		return nullptr;
+	}
+
+	return br;
+}
+
 template <typename CInsn, typename CInsnOp>
 llvm::Module* Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::getModule() const
 {
@@ -466,6 +482,28 @@ bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isCallFunctionCall(llvm::Ca
 }
 
 template <typename CInsn, typename CInsnOp>
+llvm::BranchInst* Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isCondCallFunctionCall(llvm::CallInst* c) const
+{
+	if (!isCallFunctionCall(c))
+	{
+		return nullptr;
+	}
+
+	// Asm to LLVM mapping instruction is not in BB where call is.
+	auto* prev = c->getPrevNode();
+	while (prev)
+	{
+		if (isSpecialAsm2LlvmInstr(prev))
+		{
+			return nullptr;
+		}
+		prev = prev->getPrevNode();
+	}
+
+	return getCondBranchForInsnInIfThen(c);
+}
+
+template <typename CInsn, typename CInsnOp>
 llvm::Function* Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::getCallFunction() const
 {
 	return _callFunction;
@@ -482,6 +520,28 @@ bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isReturnFunctionCall(
 		llvm::CallInst* c) const
 {
 	return c ? isReturnFunction(c->getCalledFunction()) : false;
+}
+
+template <typename CInsn, typename CInsnOp>
+llvm::BranchInst* Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isCondReturnFunctionCall(llvm::CallInst* c) const
+{
+	if (!isReturnFunctionCall(c))
+	{
+		return nullptr;
+	}
+
+	// Asm to LLVM mapping instruction is not in BB where call is.
+	auto* prev = c->getPrevNode();
+	while (prev)
+	{
+		if (isSpecialAsm2LlvmInstr(prev))
+		{
+			return nullptr;
+		}
+		prev = prev->getPrevNode();
+	}
+
+	return getCondBranchForInsnInIfThen(c);
 }
 
 template <typename CInsn, typename CInsnOp>
@@ -689,6 +749,21 @@ llvm::CallInst* Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::generateCallFunc
 }
 
 template <typename CInsn, typename CInsnOp>
+llvm::CallInst* Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::generateCondCallFunctionCall(
+		llvm::IRBuilder<>& irb,
+		llvm::Value* cond,
+		llvm::Value* t)
+{
+	auto bodyIrb = generateIfThen(cond, irb);
+
+	auto* a1t = _callFunction->getArgumentList().front().getType();
+	t = bodyIrb.CreateSExtOrTrunc(t, a1t);
+	_branchGenerated = bodyIrb.CreateCall(_callFunction, {t});
+	_inCondition = true;
+	return _branchGenerated;
+}
+
+template <typename CInsn, typename CInsnOp>
 void Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::generateReturnFunction()
 {
 	auto* ft = llvm::FunctionType::get(
@@ -710,6 +785,21 @@ llvm::CallInst* Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::generateReturnFu
 	auto* a1t = _returnFunction->getArgumentList().front().getType();
 	t = irb.CreateSExtOrTrunc(t, a1t);
 	_branchGenerated = irb.CreateCall(_returnFunction, {t});
+	return _branchGenerated;
+}
+
+template <typename CInsn, typename CInsnOp>
+llvm::CallInst* Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::generateCondReturnFunctionCall(
+		llvm::IRBuilder<>& irb,
+		llvm::Value* cond,
+		llvm::Value* t)
+{
+	auto bodyIrb = generateIfThen(cond, irb);
+
+	auto* a1t = _returnFunction->getArgumentList().front().getType();
+	t = bodyIrb.CreateSExtOrTrunc(t, a1t);
+	_branchGenerated = bodyIrb.CreateCall(_returnFunction, {t});
+	_inCondition = true;
 	return _branchGenerated;
 }
 

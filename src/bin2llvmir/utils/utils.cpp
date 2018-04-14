@@ -274,9 +274,8 @@ void dumpControFlowToJsonBasicBlock(
 	}
 	// MIPS likely delays slot hack - recognize generated pattern and
 	// find all sucessors.
+	// Also applicable to ARM cond call/return patterns, and other cases.
 	if (config
-			&& config->isMipsOrPic32()
-			&& succsAddrs.size() == 1
 			&& getBasicBlockAddress(&bbEnd).isUndefined() // no addr
 			&& (++pred_begin(&bbEnd)) == pred_end(&bbEnd) // single pred
 			&& bbEnd.getPrevNode() == *pred_begin(&bbEnd)) // pred right before

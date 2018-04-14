@@ -456,7 +456,22 @@ bool Decoder::getJumpTargetsFromInstruction(
 	else if (_c2l->isReturnFunctionCall(pCall))
 	{
 		transformToReturn(pCall);
-		return true;
+		if (auto* cond = _c2l->isCondReturnFunctionCall(pCall))
+		{
+			// Name the block and assign an address to it -> keep up with IDA.
+			auto nextAddr = addr + tr.size;
+			auto* nextBb = cond->getSuccessor(1);
+
+			assert(getBasicBlockAtAddress(nextAddr) == nullptr);
+
+			nextBb->setName(names::generateBasicBlockName(nextAddr));
+			addBasicBlock(nextAddr, nextBb);
+			return false;
+		}
+		else
+		{
+			return true;
+		}
 	}
 	// Unconditional branch -> insert target (if computed).
 	//

@@ -580,6 +580,14 @@ class Capstone2LlvmIrTranslator
 		 */
 		virtual bool isCallFunctionCall(llvm::CallInst* c) const = 0;
 		/**
+		 * Is @c isCallFunctionCall() @c true for the passed LLVM call
+		 * instruction @p c, and execution of the call instruction @p c is
+		 * conditional.
+		 * @return Branch instruction which true branch jumps to the @p c if
+		 *         @p c is conditional, @c nullptr otherwise.
+		 */
+		virtual llvm::BranchInst* isCondCallFunctionCall(llvm::CallInst* c) const = 0;
+		/**
 		 * @return LLVM function used as special pseudo function whose call
 		 * represents a call operation in the translated LLVM IR.
 		 * Function signature: @code{.cpp} void (i<arch_sz>) @endcode
@@ -596,6 +604,14 @@ class Capstone2LlvmIrTranslator
 		 * LLVM IR?
 		 */
 		virtual bool isReturnFunctionCall(llvm::CallInst* c) const = 0;
+		/**
+		 * Is @c isReturnFunctionCall() @c true for the passed LLVM call
+		 * instruction @p c, and execution of the call instruction @p c is
+		 * conditional.
+		 * @return Branch instruction which true branch jumps to the @p c if
+		 *         @p c is conditional, @c nullptr otherwise.
+		 */
+		virtual llvm::BranchInst* isCondReturnFunctionCall(llvm::CallInst* c) const = 0;
 		/**
 		 * @return LLVM function used as special pseudo function whose call
 		 * represents a return operation in the translated LLVM IR.
