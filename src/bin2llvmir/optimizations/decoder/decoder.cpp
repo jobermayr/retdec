@@ -434,7 +434,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 		if (auto t = getJumpTarget(addr, pCall, pCall->getArgOperand(0)))
 		{
 			getOrCreateTarget(t, true, tBb, tFnc, pCall);
-			assert(tFnc && tBb == nullptr);
+			assert(tFnc);
 			transformToCall(pCall, tFnc);
 
 			_jumpTargets.push(
@@ -495,7 +495,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 		if (auto t = getJumpTarget(addr, pCall, pCall->getArgOperand(0)))
 		{
 			getOrCreateTarget(t, false, tBb, tFnc, pCall);
-			if (tBb)
+			if (tBb && tBb->getParent() == pCall->getFunction())
 			{
 				transformToBranch(pCall, tBb);
 			}
@@ -549,7 +549,6 @@ bool Decoder::getJumpTargetsFromInstruction(
 						tBr);
 				tBr->eraseFromParent();
 			}
-
 			return false;
 		}
 		else
@@ -590,6 +589,13 @@ bool Decoder::getJumpTargetsFromInstruction(
 			else if (tFnc && tBbN)
 			{
 				transformToCondCall(pCall, pCall->getOperand(0), tFnc, tBbN);
+			}
+			else if (tBb && tBbN
+					&& tBb->getParent() != pCall->getFunction()
+					&& tBbN->getParent() == pCall->getFunction())
+			{
+				// TODO: In the end, not now, transform to conditional jump out.
+				return false;
 			}
 			else
 			{
@@ -1061,7 +1067,6 @@ void Decoder::getOrCreateTarget(
 
 		if (tBb && tBb->getParent() != fromFnc)
 		{
-			tBb = nullptr;
 			tFnc = splitFunctionOn(addr);
 		}
 	}
