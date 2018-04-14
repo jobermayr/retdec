@@ -634,7 +634,6 @@ bool Decoder::getJumpTargetsFromInstruction(
 	}
 	// Analyze ordinary (not control flow) instruction.
 	// TODO: maybe move to a separate function.
-	// TODO: limit the currently decoding range and data.
 	//
 	else
 	{
@@ -648,24 +647,28 @@ bool Decoder::getJumpTargetsFromInstruction(
 			// reconstructed - matching only constants is safe and should be
 			// enough for most cases.
 			//
-			auto* l = dyn_cast<LoadInst>(&i);
-			if (l && isa<ConstantInt>(skipCasts(l->getPointerOperand())))
+			if (auto* l = dyn_cast<LoadInst>(&i))
 			{
-				auto* ci = dyn_cast<ConstantInt>(skipCasts(l->getPointerOperand()));
-				Address t(ci->getZExtValue());
-				auto sz = getTypeByteSizeInBinary(_module, l->getType());
-				AddressRange r(t, t+sz-1);
-				_ranges.remove(r);
-
-				// Trim currently decoding range size if needed.
-				auto nextAddr = addr + tr.size;
-				if (nextAddr < t && t < nextAddr + rangeSize)
+				SymbolicTree st(_RDA, l->getPointerOperand(), nullptr, 8);
+				st.simplifyNode(_config);
+				if (auto* ci = dyn_cast<ConstantInt>(st.value))
 				{
-					rangeSize = t - nextAddr;
-				}
+					Address t(ci->getZExtValue());
+					auto sz = getTypeByteSizeInBinary(_module, l->getType());
+					AddressRange r(t, t+sz-1);
+					_ranges.remove(r);
 
-				LOG << "\t\t\t\t" << "skip " << r << std::endl;
+					// Trim currently decoding range size if needed.
+					auto nextAddr = addr + tr.size;
+					if (nextAddr < t && t < nextAddr + rangeSize)
+					{
+						rangeSize = t - nextAddr;
+					}
+
+					LOG << "\t\t\t\t" << "skip " << r << std::endl;
+				}
 			}
+
 		}
 	}
 
