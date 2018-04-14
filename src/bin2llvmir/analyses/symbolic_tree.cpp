@@ -521,6 +521,13 @@ void SymbolicTree::_simplifyNode(Config* config)
 					op1->getSExtValue() + op2->getSExtValue());
 			ops.clear();
 		}
+		else if (isa<SubOperator>(value))
+		{
+			value = ConstantInt::get(
+					op1->getType(),
+					op1->getSExtValue() - op2->getSExtValue());
+			ops.clear();
+		}
 		else if (auto* op = dyn_cast<BinaryOperator>(value))
 		{
 			if (op->getOpcode() == BinaryOperator::Or)

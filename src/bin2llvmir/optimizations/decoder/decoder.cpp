@@ -512,6 +512,22 @@ bool Decoder::getJumpTargetsFromInstruction(
 
 			nextBb->setName(names::generateBasicBlockName(nextAddr));
 			addBasicBlock(nextAddr, nextBb);
+
+			// Break the flow if BB in which pseudo call is continues to the
+			// false branch of cond br.
+			auto* bodyBb = pCall->getParent();
+			auto* tBr = dyn_cast<BranchInst>(bodyBb->getTerminator());
+			if (tBr
+					&& tBr->isUnconditional()
+					&& tBr->getSuccessor(0) == cond->getSuccessor(1))
+			{
+				auto* r = ReturnInst::Create(
+						pCall->getModule()->getContext(),
+						UndefValue::get(pCall->getFunction()->getReturnType()),
+						tBr);
+				tBr->eraseFromParent();
+			}
+
 			return false;
 		}
 		else
