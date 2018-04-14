@@ -642,6 +642,7 @@ utils::Address Decoder::getJumpTarget(
 		return ci->getZExtValue();
 	}
 
+	// If there is load, at first try imports.
 	if (isa<LoadInst>(st.value)
 			&& st.ops.size() == 1
 			&& isa<ConstantInt>(st.ops[0].value))
@@ -651,10 +652,6 @@ utils::Address Decoder::getJumpTarget(
 		if (_imports.count(addr))
 		{
 			return addr;
-		}
-		else if (auto* ci = _image->getConstantDefault(addr))
-		{
-			return ci->getZExtValue();
 		}
 	}
 
@@ -666,6 +663,14 @@ utils::Address Decoder::getJumpTarget(
 	if (getJumpTargetSwitch(addr, branchCall, val, st))
 	{
 		return Address::getUndef;
+	}
+
+	// If there are loads, try to solve them.
+	st.solveMemoryLoads(_image);
+	st.simplifyNode(_config);
+	if (auto* ci = dyn_cast<ConstantInt>(st.value))
+	{
+		return ci->getZExtValue();
 	}
 
 	return Address::getUndef;
