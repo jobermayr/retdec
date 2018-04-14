@@ -492,6 +492,8 @@ bool Decoder::getJumpTargetsFromInstruction(
 	//
 	else if (_c2l->isBranchFunctionCall(pCall))
 	{
+		_switchGenerated = false;
+
 		if (auto t = getJumpTarget(addr, pCall, pCall->getArgOperand(0)))
 		{
 			getOrCreateBranchTarget(t, tBb, tFnc, pCall);
@@ -515,6 +517,11 @@ bool Decoder::getJumpTargetsFromInstruction(
 						addr);
 			}
 			LOG << "\t\t" << "br @ " << addr << " -> "	<< t << std::endl;
+		}
+
+		if (_switchGenerated)
+		{
+			return true;
 		}
 
 		if (auto* cond = _c2l->isInConditionBranchFunctionCall(pCall))
@@ -802,21 +809,38 @@ bool Decoder::getJumpTargetSwitch(
 			Address trueAddr = getBasicBlockAddress(br->getSuccessor(0));
 
 			// Branching over this BB -> true branching to default case.
-			if (thisBbAddr == falseAddr)
+			if (falseAddr.isDefined() && thisBbAddr == falseAddr)
 			{
-				LOG << "\t\t\t\t" << "default: branching over" << std::endl;
 				defAddr = trueAddr;
+				LOG << "\t\t\t\t" << "default: branching over -> "
+						<< defAddr << std::endl;
 			}
 			// Branching to this BB -> false branching to default case.
-			else if (thisBbAddr == trueAddr)
+			else if (trueAddr.isDefined() && thisBbAddr == trueAddr)
 			{
-				LOG << "\t\t\t\t" << "default: branching to" << std::endl;
 				defAddr = falseAddr;
+				LOG << "\t\t\t\t" << "default: branching to -> "
+						<< defAddr << std::endl;
 			}
 
 			break;
 		}
 	}
+	// ARM:
+	// 90C0 03 F1 9F 97    LDRLS PC, [PC,R3,LSL#2] ; switch jump
+	// 90C4 18 01 00 EA    B     loc_952C ; jumptable 000090C0 default cas
+	//
+	// Pseudo call itself is conditional -> next is default.
+	//
+	BranchInst* armCondBr = nullptr;
+	auto* cond = _c2l->isInConditionBranchFunctionCall(branchCall);
+	if (cond && thisBb == cond->getSuccessor(0))
+	{
+		// TODO: use known current insn size, not AsmInstruction() -> slow.
+		defAddr = addr + AsmInstruction(branchCall).getByteSize();
+		armCondBr = cond;
+	}
+
 	if (defAddr.isUndefined() || brToSwitch == nullptr)
 	{
 		LOG << "\t\t\t" << "no default target -> skip" << std::endl;
@@ -1011,6 +1035,15 @@ bool Decoder::getJumpTargetSwitch(
 	_ranges.remove(tableAddr, tableAddrEnd - 1);
 
 	_switchTableStarts[tableAddr].insert(sw);
+	_switchGenerated = true;
+
+	if (armCondBr)
+	{
+		auto* newBr = BranchInst::Create(armCondBr->getSuccessor(0), armCondBr);
+		auto* rmSucc = armCondBr->getSuccessor(1);
+		armCondBr->eraseFromParent();
+		rmSucc->eraseFromParent();
+	}
 
 	return true;
 }

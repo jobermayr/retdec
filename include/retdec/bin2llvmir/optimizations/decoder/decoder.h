@@ -264,6 +264,9 @@ class Decoder : public llvm::ModulePass
 		// likely branches. For convenience, we map them to real BBs they will
 		// eventually jump to.
 		std::map<llvm::BasicBlock*, llvm::BasicBlock*> _likelyBb2Target;
+
+		// TODO: remove, solve better.
+		bool _switchGenerated = false;
 };
 
 } // namespace bin2llvmir
