@@ -502,7 +502,9 @@ bool Decoder::getJumpTargetsFromInstruction(
 			LOG << "\t\t" << "br @ " << addr << " -> "	<< t << std::endl;
 		}
 
-		return true;
+		// TODO: unify usage of inCondition in branch in cond and special
+		// functions in cond return/call.
+		return tr.inCondition ? false : true;
 	}
 	// Conditional branch -> insert target (if computed), and next (flow
 	// may or may not jump/continue after).
