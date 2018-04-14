@@ -269,7 +269,8 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		{
 			if (auto* bb = getBasicBlockAtAddress(addr))
 			{
-				if (bb->getParent() == irb.GetInsertBlock()->getParent())
+				if (bb->getParent() == irb.GetInsertBlock()->getParent()
+						&& bb != irb.GetInsertBlock())
 				{
 					auto* br = irb.CreateBr(bb);
 					assert(br->getNextNode() == br->getParent()->getTerminator());
@@ -468,10 +469,18 @@ bool Decoder::getJumpTargetsFromInstruction(
 			auto nextAddr = addr + tr.size;
 			auto* nextBb = cond->getSuccessor(1);
 
-			assert(getBasicBlockAtAddress(nextAddr) == nullptr);
+			if (auto* nBb = getBasicBlockAtAddress(nextAddr))
+			{
+				auto* oldSucc = cond->getSuccessor(1);
+				oldSucc->replaceAllUsesWith(nBb);
+				oldSucc->eraseFromParent();
+			}
+			else
+			{
+				nextBb->setName(names::generateBasicBlockName(nextAddr));
+				addBasicBlock(nextAddr, nextBb);
+			}
 
-			nextBb->setName(names::generateBasicBlockName(nextAddr));
-			addBasicBlock(nextAddr, nextBb);
 			return false;
 		}
 		else
@@ -514,10 +523,17 @@ bool Decoder::getJumpTargetsFromInstruction(
 			auto nextAddr = addr + tr.size;
 			auto* nextBb = cond->getSuccessor(1);
 
-			assert(getBasicBlockAtAddress(nextAddr) == nullptr);
-
-			nextBb->setName(names::generateBasicBlockName(nextAddr));
-			addBasicBlock(nextAddr, nextBb);
+			if (auto* nBb = getBasicBlockAtAddress(nextAddr))
+			{
+				auto* oldSucc = cond->getSuccessor(1);
+				oldSucc->replaceAllUsesWith(nBb);
+				oldSucc->eraseFromParent();
+			}
+			else
+			{
+				nextBb->setName(names::generateBasicBlockName(nextAddr));
+				addBasicBlock(nextAddr, nextBb);
+			}
 
 			// Break the flow if BB in which pseudo call is continues to the
 			// false branch of cond br.
