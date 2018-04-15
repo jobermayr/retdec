@@ -363,7 +363,11 @@ void Decoder::initJumpTargetsConfig()
 				Address::getUndef,
 				sz);
 
-		createFunction(f.getStart());
+		auto* nf = createFunction(f.getStart());
+		if (_fnc2sz.count(nf) == 0 && f.getSize().isDefined())
+		{
+			_fnc2sz.emplace(nf, f.getSize());
+		}
 
 		LOG << "\t" << "function @ " << f.getStart() << std::endl;
 	}
@@ -582,8 +586,12 @@ void Decoder::initJumpTargetsSymbols()
 					Address::getUndef,
 					sz);
 
-			createFunction(addr);
+			auto* nf = createFunction(addr);
 			_symbols.insert(addr);
+			if (_fnc2sz.count(nf) == 0 && sz.isDefined())
+			{
+				_fnc2sz.emplace(nf, sz);
+			}
 
 			LOG << "\t" << "symbol public @ " << addr << std::endl;
 		}
@@ -596,8 +604,12 @@ void Decoder::initJumpTargetsSymbols()
 					Address::getUndef,
 					sz);
 
-			createFunction(addr);
+			auto* nf = createFunction(addr);
 			_symbols.insert(addr);
+			if (_fnc2sz.count(nf) == 0 && sz.isDefined())
+			{
+				_fnc2sz.emplace(nf, sz);
+			}
 
 			LOG << "\t" << "symbol @ " << addr << std::endl;
 		}
@@ -643,8 +655,12 @@ void Decoder::initJumpTargetsDebug()
 				Address::getUndef,
 				sz);
 
-		createFunction(addr);
+		auto* nf = createFunction(addr);
 		_debugFncs.insert(addr);
+		if (_fnc2sz.count(nf) == 0 && sz.isDefined())
+		{
+			_fnc2sz.emplace(nf, sz);
+		}
 
 		LOG << "\t" << "debug @ " << addr << std::endl;
 	}
@@ -682,6 +698,11 @@ void Decoder::initStaticCode()
 		{
 			_terminatingFncs.insert(f);
 		}
+		// Unreliable.
+//		if (_fnc2sz.count(f) == 0 && sf->size)
+//		{
+//			_fnc2sz.emplace(f, sf->size);
+//		}
 
 		LOG << "\t" << "static @ " << sf->address << std::endl;
 	}

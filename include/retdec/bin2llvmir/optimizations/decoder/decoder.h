@@ -267,6 +267,17 @@ class Decoder : public llvm::ModulePass
 
 		// TODO: remove, solve better.
 		bool _switchGenerated = false;
+
+		// Function sizes from debug info/symbol table/config/etc.
+		// Used to prevent function splitting.
+		//
+		// TODO: Potential overlaps are not handled.
+		// E.g. ack.arm.gnuarmgcc-4.4.1.O0.g.elf:
+		// __floatundidf @ 0x1645c : size = 128
+		// __floatdidf   @ 0x16470 : size = 108
+		// It looks like there is one function in another.
+		//
+		std::map<llvm::Function*, std::size_t> _fnc2sz;
 };
 
 } // namespace bin2llvmir

@@ -302,6 +302,24 @@ bool Decoder::canSplitFunctionOn(llvm::BasicBlock* bb)
 
 /**
  * \return \c True if it is allowed to split function on basic block \p bb.
+ *
+ * TODO:
+ * The problem here is, that function may became unsplittable after it was
+ * split. What then? Merge them back together and transform calls to JUMP_OUTs?
+ * Or defer splits/calls/etc only after basic decoding of all functions is done?
+ * E.g.
+ * fnc1():
+ *     ...
+ *     b lab_in_2
+ *     ...
+ *
+ * fnc2(): (nothing decoded yet)
+ *     ...
+ *     // should not be split here, but it can, because flow from fnc2()
+ *     // start does not exist yet.
+ *     lab_in_2:
+ *     ...
+ *     fnc2 end
  */
 bool Decoder::canSplitFunctionOn(
 		utils::Address addr,
@@ -312,6 +330,15 @@ bool Decoder::canSplitFunctionOn(
 
 	auto* f = splitBb->getParent();
 	auto fAddr = getFunctionAddress(f);
+
+	auto fSzIt = _fnc2sz.find(f);
+	if (fSzIt != _fnc2sz.end())
+	{
+		if (fAddr <= addr && addr < (fAddr+fSzIt->second))
+		{
+			return false;
+		}
+	}
 
 	std::set<Address> fncStarts;
 	fncStarts.insert(fAddr);
