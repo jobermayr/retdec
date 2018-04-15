@@ -47,7 +47,7 @@ BIN2LLVMIR_VOLATILIZED_PASSES="-volatilize -instcombine -reassociate -volatilize
 #
 # - Optimization -phi2seq is needed to be run at the end and not to run two
 # times. This is the reason why it is placed at the very end.
-BIN2LLVMIR_PARAMS="$BIN2LLVMIR_PARAMS_DISABLES -verify $BIN2LLVMIR_VOLATILIZED_PASSES -main-detection -stack -cond-branch-opt -syscalls -idioms-libgcc -constants -param-return -local-vars -type-conversions -simple-types -generate-dsm -remove-asm-instrs -select-fncs -unreachable-funcs -type-conversions -stack-protect -verify $BIN2LLVMIR_ONLY_PASSES -never-returning-funcs -adapter-methods -class-hierarchy $BIN2LLVMIR_ONLY_PASSES -simple-types -stack-ptr-op-remove -type-conversions -idioms -instcombine -global-to-local -dead-global-assign -instcombine -stack-protect -phi2seq"
+BIN2LLVMIR_PARAMS="$BIN2LLVMIR_PARAMS_DISABLES -verify $BIN2LLVMIR_VOLATILIZED_PASSES -main-detection -register -stack -cond-branch-opt -syscalls -idioms-libgcc -constants -param-return -local-vars -type-conversions -simple-types -generate-dsm -remove-asm-instrs -select-fncs -unreachable-funcs -type-conversions -stack-protect -verify $BIN2LLVMIR_ONLY_PASSES -never-returning-funcs -adapter-methods -class-hierarchy $BIN2LLVMIR_ONLY_PASSES -simple-types -stack-ptr-op-remove -type-conversions -idioms -instcombine -global-to-local -dead-global-assign -instcombine -stack-protect -phi2seq"
 # The following options are useful during debugging of bin2llvmirl optimizations.
 #BIN2LLVMIR_PARAMS+="-print-after-all -debug-only=idioms -print-before=idioms -print-after=idioms"
 
