@@ -454,8 +454,35 @@ bool Decoder::getJumpTargetsFromInstruction(
 		if (auto t = getJumpTarget(addr, pCall, pCall->getArgOperand(0)))
 		{
 			getOrCreateCallTarget(t, tFnc, tBb);
-			assert(tFnc);
-			transformToCall(pCall, tFnc);
+
+			if (tFnc)
+			{
+				transformToCall(pCall, tFnc);
+			}
+			else if (tBb && tBb->getParent() == pCall->getFunction())
+			{
+				// TODO
+				transformToBranch(pCall, tBb);
+
+				_jumpTargets.push(
+						t,
+						JumpTarget::eType::CONTROL_FLOW_BR_TRUE,
+						determineMode(tr.capstoneInsn, t),
+						addr);
+				LOG << "\t\t" << "call @ " << addr << " -> " << t << std::endl;
+				return true;
+			}
+			else
+			{
+// TODO: defer call solution to later? after all possible branches are solved?
+// often, it is possible to split function here, but later it would not be,
+// possible. Then, after such split, more splits are needed for those branches
+// thet would make the initial split impossible -> problem, we can not
+// transform them.
+//				assert(false);
+				return false;
+			}
+
 			_jumpTargets.push(
 					t,
 					JumpTarget::eType::CONTROL_FLOW_CALL_TARGET,
@@ -471,7 +498,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 				rangeSize = t - nextAddr;
 			}
 
-			if (_terminatingFncs.count(tFnc))
+			if (tFnc && _terminatingFncs.count(tFnc))
 			{
 				return true;
 			}
@@ -628,7 +655,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 			else
 			{
 				// TODO: deal with this
-				assert(false);
+				return false;
 			}
 
 			_jumpTargets.push(

@@ -437,6 +437,8 @@ llvm::Function* Decoder::splitFunctionOn(
 			name = names::generateFunctionName(addr, _config->getConfig().isIda());
 		}
 
+		LOG << "\t\t\t" << "split on " << splitBb->getName().str() << std::endl;
+
 		Function* oldFnc = splitBb->getParent();
 		Function* newFnc = Function::Create(
 				FunctionType::get(oldFnc->getReturnType(), false),
