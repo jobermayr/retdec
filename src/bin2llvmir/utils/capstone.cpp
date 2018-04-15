@@ -24,6 +24,10 @@ bool isNopInstruction(const config::Architecture& arch, cs_insn* insn)
 	{
 		return isNopInstruction_arm(insn);
 	}
+	else if (arch.isPpc())
+	{
+		return isNopInstruction_ppc(insn);
+	}
 	else
 	{
 		assert(false);
@@ -97,6 +101,21 @@ bool isNopInstruction_arm(cs_insn* insn)
 	// True NOP variants.
 	//
 	if (insn->id == ARM_INS_NOP)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+bool isNopInstruction_ppc(cs_insn* insn)
+{
+	cs_ppc& insnPpc = insn->detail->ppc;
+
+	// True NOP variants.
+	//
+	if (insn->id == PPC_INS_NOP
+			|| insn->id == PPC_INS_XNOP)
 	{
 		return true;
 	}

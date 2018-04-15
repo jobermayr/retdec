@@ -144,7 +144,8 @@ bool Decoder::getJumpTarget(JumpTarget& jt)
 		// Instructions on some architectures are aligned.
 		auto start = _ranges.primaryFront().getStart();
 		if (_config->isMipsOrPic32()
-				|| _config->isArmOrThumb()) // ppc?
+				|| _config->isArmOrThumb()
+				|| _config->getConfig().architecture.isPpc())
 		{
 			if (auto m = start % 4)
 			{
@@ -387,6 +388,10 @@ std::size_t Decoder::decodeJumpTargetDryRun(
 	else if (_config->isMipsOrPic32())
 	{
 		return decodeJumpTargetDryRun_mips(jt, bytes);
+	}
+	else if (_config->getConfig().architecture.isPpc())
+	{
+		return decodeJumpTargetDryRun_ppc(jt, bytes);
 	}
 	else
 	{
@@ -1228,6 +1233,19 @@ void Decoder::finalizePseudoCalls()
 			// patternsPseudoCall_arm().
 			//
 			if (_config->isArmOrThumb() && _c2l->isCallFunctionCall(pseudo))
+			if (auto* st = dyn_cast<StoreInst>(i))
+			{
+				if (_c2l->isRegister(st->getPointerOperand())
+						&& st->getPointerOperand()->getName() == "lr")
+				{
+					st->eraseFromParent();
+				}
+			}
+
+			// TOOD: again, other possible stores && r32 stores.
+			//
+			if (_config->getConfig().architecture.isPpc()
+					&& _c2l->isCallFunctionCall(pseudo))
 			if (auto* st = dyn_cast<StoreInst>(i))
 			{
 				if (_c2l->isRegister(st->getPointerOperand())

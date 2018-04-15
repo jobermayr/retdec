@@ -175,6 +175,13 @@ class Decoder : public llvm::ModulePass
 				const JumpTarget& jt,
 				ByteData bytes);
 
+	// PowerPC specific.
+	//
+	private:
+		std::size_t decodeJumpTargetDryRun_ppc(
+				const JumpTarget& jt,
+				ByteData bytes);
+
 	// IR modifications.
 	//
 	private:
