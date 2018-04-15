@@ -19,7 +19,48 @@ std::size_t Decoder::decodeJumpTargetDryRun_ppc(
 		const JumpTarget& jt,
 		ByteData bytes)
 {
-	return false;
+	static csh ce = _c2l->getCapstoneEngine();
+
+	uint64_t addr = jt.getAddress();
+	std::size_t nops = 0;
+	bool first = true;
+	while (cs_disasm_iter(ce, &bytes.first, &bytes.second, &addr, _dryCsInsn))
+	{
+		if (jt.getType() == JumpTarget::eType::LEFTOVER
+				&& (first || nops > 0)
+				&& capstone_utils::isNopInstruction(
+						_config->getConfig().architecture,
+						_dryCsInsn))
+		{
+			nops += _dryCsInsn->size;
+		}
+		else if (jt.getType() == JumpTarget::eType::LEFTOVER
+				&& nops > 0)
+		{
+			return nops;
+		}
+
+		if (_c2l->isControlFlowInstruction(*_dryCsInsn))
+		{
+			return false;
+		}
+
+		first = false;
+	}
+
+	if (nops > 0)
+	{
+		return nops;
+	}
+
+	// There is a BB right after, that is not a function start.
+	//
+	if (getBasicBlockAtAddress(addr) && getFunctionAtAddress(addr) == nullptr)
+	{
+		return false;
+	}
+
+	return true;
 }
 
 } // namespace bin2llvmir
