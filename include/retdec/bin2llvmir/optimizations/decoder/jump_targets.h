@@ -65,6 +65,7 @@ class JumpTarget
 		utils::Maybe<std::size_t> getSize() const;
 		eType getType() const;
 		retdec::utils::Address getFromAddress() const;
+		cs_mode getMode() const;
 
 	friend std::ostream& operator<<(std::ostream &out, const JumpTarget& jt);
 

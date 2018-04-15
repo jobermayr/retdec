@@ -77,7 +77,6 @@ void Decoder::initTranslator()
 			_module,
 			basicMode,
 			extraMode);
-	_currentMode = basicMode;
 
 	if (a.isMipsOrPic32() && basicMode == CS_MODE_MIPS32)
 	{
@@ -343,7 +342,7 @@ void Decoder::initJumpTargetsConfig()
 			continue;
 		}
 
-		cs_mode m = _currentMode;
+		cs_mode m = _c2l->getBasicMode();
 		if (_config->isArmOrThumb())
 		{
 			m = f.isThumb() ? CS_MODE_THUMB : CS_MODE_ARM;
@@ -380,7 +379,7 @@ void Decoder::initJumpTargetsEntryPoint()
 	auto ep = _config->getConfig().getEntryPoint();
 	if (ep.isDefined())
 	{
-		cs_mode m = _currentMode;
+		cs_mode m = _c2l->getBasicMode();
 		if (_config->isArmOrThumb())
 		{
 			m = ep % 2 ? CS_MODE_THUMB : CS_MODE_ARM;
@@ -453,7 +452,7 @@ void Decoder::initJumpTargetsImports()
 			continue;
 		}
 
-		cs_mode m = _currentMode;
+		cs_mode m = _c2l->getBasicMode();
 		if (_config->isArmOrThumb())
 		{
 			m = addr % 2 ? CS_MODE_THUMB : CS_MODE_ARM;
@@ -491,7 +490,7 @@ void Decoder::initJumpTargetsImports()
 			continue;
 		}
 
-		cs_mode m = _currentMode;
+		cs_mode m = _c2l->getBasicMode();
 		if (_config->isArmOrThumb())
 		{
 			m = addr % 2 ? CS_MODE_THUMB : CS_MODE_ARM;
@@ -533,7 +532,7 @@ void Decoder::initJumpTargetsExports()
 				continue;
 			}
 
-			cs_mode m = _currentMode;
+			cs_mode m = _c2l->getBasicMode();
 			if (_config->isArmOrThumb())
 			{
 				m = addr % 2 ? CS_MODE_THUMB : CS_MODE_ARM;
@@ -580,7 +579,7 @@ void Decoder::initJumpTargetsSymbols()
 			continue;
 		}
 
-		cs_mode m = _currentMode;
+		cs_mode m = _c2l->getBasicMode();
 		if (_config->isArmOrThumb())
 		{
 			m = addr % 2 || s->isThumbSymbol() ? CS_MODE_THUMB : CS_MODE_ARM;
@@ -657,7 +656,7 @@ void Decoder::initJumpTargetsDebug()
 		}
 		auto& f = p.second;
 
-		cs_mode m = _currentMode;
+		cs_mode m = _c2l->getBasicMode();
 		if (_config->isArmOrThumb())
 		{
 			m = addr % 2 || f.isThumb() ? CS_MODE_THUMB : CS_MODE_ARM;
@@ -702,12 +701,12 @@ void Decoder::initStaticCode()
 			_image,
 			_names,
 			_c2l->getCapstoneEngine(),
-			_currentMode);
+			_c2l->getBasicMode());
 	for (auto& p : SCA.getConfirmedDetections())
 	{
 		auto* sf = p.second;
 
-		cs_mode m = _currentMode;
+		cs_mode m = _c2l->getBasicMode();
 		if (_config->isArmOrThumb())
 		{
 			m = sf->isThumb() ? CS_MODE_THUMB : CS_MODE_ARM;

@@ -156,7 +156,7 @@ bool Decoder::getJumpTarget(JumpTarget& jt)
 		jt = JumpTarget(
 				start,
 				JumpTarget::eType::LEFTOVER,
-				CS_MODE_BIG_ENDIAN,
+				_c2l->getBasicMode(),
 				Address());
 		return true;
 	}
@@ -256,6 +256,14 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 	}
 	assert(bb && bb->getTerminator());
 	IRBuilder<> irb(bb->getTerminator());
+
+	if (_c2l->getBasicMode() != jt.getMode())
+	{
+		_c2l->modifyBasicMode(jt.getMode());
+		LOG << "\t\t" << "switch mode -> "
+				<< (jt.getMode() == CS_MODE_THUMB ? " (thumb)" : "(arm)")
+				<< std::endl;
+	}
 
 	Address addr = start;
 	bool bbEnd = false;
@@ -390,6 +398,18 @@ std::size_t Decoder::decodeJumpTargetDryRun(
 	return false;
 }
 
+cs_mode Decoder::determineMode(cs_insn* insn, utils::Address target)
+{
+	if (_config->isArmOrThumb())
+	{
+		return determineMode_arm(insn, target);
+	}
+	else
+	{
+		return _c2l->getBasicMode();
+	}
+}
+
 bool Decoder::instructionBreaksBasicBlock(
 		utils::Address addr,
 		capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& tr)
@@ -436,11 +456,10 @@ bool Decoder::getJumpTargetsFromInstruction(
 			getOrCreateCallTarget(t, tFnc, tBb);
 			assert(tFnc);
 			transformToCall(pCall, tFnc);
-
 			_jumpTargets.push(
 					t,
 					JumpTarget::eType::CONTROL_FLOW_CALL_TARGET,
-					_currentMode,
+					determineMode(tr.capstoneInsn, t),
 					addr);
 			LOG << "\t\t" << "call @ " << addr << " -> " << t << std::endl;
 
@@ -513,7 +532,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 				_jumpTargets.push(
 						t,
 						JumpTarget::eType::CONTROL_FLOW_BR_TRUE,
-						_currentMode,
+						determineMode(tr.capstoneInsn, t),
 						addr);
 			}
 			LOG << "\t\t" << "br @ " << addr << " -> "	<< t << std::endl;
@@ -615,7 +634,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 			_jumpTargets.push(
 					t,
 					JumpTarget::eType::CONTROL_FLOW_BR_TRUE,
-					_currentMode,
+					determineMode(tr.capstoneInsn, t),
 					addr);
 			LOG << "\t\t" << "cond br @ " << addr << " -> (true) "
 					<< t << std::endl;
@@ -626,7 +645,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 			_jumpTargets.push(
 					nextAddr,
 					JumpTarget::eType::CONTROL_FLOW_BR_FALSE,
-					_currentMode,
+					_c2l->getBasicMode(),
 					addr);
 			LOG << "\t\t" << "cond br @ " << addr << " -> (false) "
 					<< nextAddr << std::endl;
@@ -1025,7 +1044,7 @@ bool Decoder::getJumpTargetSwitch(
 		_jumpTargets.push(
 				c,
 				JumpTarget::eType::CONTROL_FLOW_SWITCH_CASE,
-				_currentMode,
+				_c2l->getBasicMode(), // mode should not change here
 				addr);
 		LOG << "\t\t" << "switch -> (case) " << c << std::endl;
 	}
@@ -1033,7 +1052,7 @@ bool Decoder::getJumpTargetSwitch(
 	_jumpTargets.push(
 			defAddr,
 			JumpTarget::eType::CONTROL_FLOW_SWITCH_CASE,
-			_currentMode,
+			_c2l->getBasicMode(), // mode should bot change here
 			addr);
 	LOG << "\t\t" << "switch -> (default) " << defAddr << std::endl;
 

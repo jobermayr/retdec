@@ -81,6 +81,11 @@ retdec::utils::Address JumpTarget::getFromAddress() const
 	return _fromAddress;
 }
 
+cs_mode JumpTarget::getMode() const
+{
+	return _mode;
+}
+
 std::ostream& operator<<(std::ostream &out, const JumpTarget& jt)
 {
 	std::string t;

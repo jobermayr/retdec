@@ -87,6 +87,7 @@ class Decoder : public llvm::ModulePass
 		std::size_t decodeJumpTargetDryRun(
 				const JumpTarget& jt,
 				ByteData bytes);
+		cs_mode determineMode(cs_insn* insn, utils::Address target);
 
 		bool getJumpTargetsFromInstruction(
 				utils::Address addr,
@@ -165,6 +166,7 @@ class Decoder : public llvm::ModulePass
 				const JumpTarget& jt,
 				ByteData bytes);
 		void patternsPseudoCall_arm(llvm::CallInst*& call, AsmInstruction& pAi);
+		cs_mode determineMode_arm(cs_insn* insn, utils::Address target);
 
 	// MIPS specific.
 	//
@@ -231,7 +233,6 @@ class Decoder : public llvm::ModulePass
 
 		ReachingDefinitionsAnalysis _RDA;
 
-		cs_mode _currentMode = CS_MODE_LITTLE_ENDIAN;
 		std::unique_ptr<capstone2llvmir::Capstone2LlvmIrTranslator> _c2l;
 		cs_insn* _dryCsInsn = nullptr;
 
