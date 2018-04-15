@@ -384,6 +384,10 @@ void Decoder::initJumpTargetsEntryPoint()
 		if (_config->isArmOrThumb())
 		{
 			m = ep % 2 ? CS_MODE_THUMB : CS_MODE_ARM;
+			if (ep % 2)
+			{
+				ep -= 1;
+			}
 		}
 
 		_jumpTargets.push(
@@ -394,7 +398,8 @@ void Decoder::initJumpTargetsEntryPoint()
 
 		_entryPointFunction = createFunction(ep);
 
-		LOG << "\t" << "entry point @ " << ep << std::endl;
+		LOG << "\t" << "entry point @ " << ep
+				<< (m == CS_MODE_THUMB ? " (thumb)" : "") << std::endl;
 	}
 	else
 	{
@@ -452,6 +457,10 @@ void Decoder::initJumpTargetsImports()
 		if (_config->isArmOrThumb())
 		{
 			m = addr % 2 ? CS_MODE_THUMB : CS_MODE_ARM;
+			if (addr % 2)
+			{
+				addr -= 1;
+			}
 		}
 
 		_jumpTargets.push(
@@ -468,7 +477,8 @@ void Decoder::initJumpTargetsImports()
 		}
 
 		LOG << "\t\t" << "import: " << imp.getName() << " @ "
-				<< addr << std::endl;
+				<< addr << (m == CS_MODE_THUMB ? " (thumb)" : "")
+				<< std::endl;
 
 		usedNames.insert(f->getName());
 	}
@@ -495,7 +505,8 @@ void Decoder::initJumpTargetsImports()
 		}
 
 		LOG << "\t\t" << "import ptr: " << imp->getName() << " @ "
-				<< addr << std::endl;
+				<< addr << (m == CS_MODE_THUMB ? " (thumb)" : "")
+				<< std::endl;
 	}
 }
 
@@ -526,6 +537,10 @@ void Decoder::initJumpTargetsExports()
 			if (_config->isArmOrThumb())
 			{
 				m = addr % 2 ? CS_MODE_THUMB : CS_MODE_ARM;
+				if (addr % 2)
+				{
+					addr -= 1;
+				}
 			}
 
 			_jumpTargets.push(
@@ -537,7 +552,8 @@ void Decoder::initJumpTargetsExports()
 			createFunction(addr);
 			_exports.insert(addr);
 
-			LOG << "\t\t" << "export @ " << addr << std::endl;
+			LOG << "\t\t" << "export @ " << addr
+					<< (m == CS_MODE_THUMB ? " (thumb)" : "") << std::endl;
 		}
 	}
 }
@@ -568,6 +584,10 @@ void Decoder::initJumpTargetsSymbols()
 		if (_config->isArmOrThumb())
 		{
 			m = addr % 2 || s->isThumbSymbol() ? CS_MODE_THUMB : CS_MODE_ARM;
+			if (addr % 2)
+			{
+				addr -= 1;
+			}
 		}
 
 		utils::Maybe<std::size_t> sz;
@@ -593,7 +613,8 @@ void Decoder::initJumpTargetsSymbols()
 				_fnc2sz.emplace(nf, sz);
 			}
 
-			LOG << "\t" << "symbol public @ " << addr << std::endl;
+			LOG << "\t" << "symbol public @ " << addr
+					<< (m == CS_MODE_THUMB ? " (thumb)" : "") << std::endl;
 		}
 		else
 		{
@@ -611,7 +632,8 @@ void Decoder::initJumpTargetsSymbols()
 				_fnc2sz.emplace(nf, sz);
 			}
 
-			LOG << "\t" << "symbol @ " << addr << std::endl;
+			LOG << "\t" << "symbol @ " << addr
+					<< (m == CS_MODE_THUMB ? " (thumb)" : "") << std::endl;
 		}
 	}
 }
@@ -639,6 +661,10 @@ void Decoder::initJumpTargetsDebug()
 		if (_config->isArmOrThumb())
 		{
 			m = addr % 2 || f.isThumb() ? CS_MODE_THUMB : CS_MODE_ARM;
+			if (addr % 2)
+			{
+				addr -= 1;
+			}
 		}
 
 		utils::Maybe<std::size_t> sz;
@@ -662,7 +688,8 @@ void Decoder::initJumpTargetsDebug()
 			_fnc2sz.emplace(nf, sz);
 		}
 
-		LOG << "\t" << "debug @ " << addr << std::endl;
+		LOG << "\t" << "debug @ " << addr
+				<< (m == CS_MODE_THUMB ? " (thumb)" : "") << std::endl;
 	}
 }
 
@@ -680,10 +707,16 @@ void Decoder::initStaticCode()
 	{
 		auto* sf = p.second;
 
+		cs_mode m = _currentMode;
+		if (_config->isArmOrThumb())
+		{
+			m = sf->isThumb() ? CS_MODE_THUMB : CS_MODE_ARM;
+		}
+
 		_jumpTargets.push(
 				sf->address,
 				JumpTarget::eType::STATIC_CODE,
-				_currentMode,
+				m,
 				Address::getUndef,
 				sf->size);
 		auto* f = createFunction(sf->address);
@@ -704,7 +737,8 @@ void Decoder::initStaticCode()
 //			_fnc2sz.emplace(f, sf->size);
 //		}
 
-		LOG << "\t" << "static @ " << sf->address << std::endl;
+		LOG << "\t" << "static @ " << sf->address
+				<< (m == CS_MODE_THUMB ? " (thumb)" : "") << std::endl;
 	}
 }
 

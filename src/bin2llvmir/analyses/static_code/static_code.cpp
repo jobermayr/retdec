@@ -492,6 +492,11 @@ bool StaticCodeFunction::isTerminating() const
 	return false;
 }
 
+bool StaticCodeFunction::isThumb() const
+{
+	return utils::containsCaseInsensitive(signaturePath, "thumb");
+}
+
 //
 //==============================================================================
 // StaticCodeAnalysis

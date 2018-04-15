@@ -51,6 +51,7 @@ class StaticCodeFunction
 		float refsOkShare() const;
 		std::string getName() const;
 		bool isTerminating() const;
+		bool isThumb() const;
 
 	public:
 		utils::Address address;
