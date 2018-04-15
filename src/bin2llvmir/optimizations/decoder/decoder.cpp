@@ -589,11 +589,13 @@ bool Decoder::getJumpTargetsFromInstruction(
 
 			if (tBb && tBbN
 					&& tBb->getParent() == tBbN->getParent()
-					&& tBb->getParent() == pCall->getFunction())
+					&& tBb->getParent() == pCall->getFunction()
+					&& tBb->getPrevNode()) // is not first in fnct, first -> call
 			{
 				transformToCondBranch(pCall, pCall->getOperand(0), tBb, tBbN);
 			}
-			else if (tFnc && tBbN)
+			else if (tFnc && tBbN
+					&& tBbN->getParent() == pCall->getFunction())
 			{
 				transformToCondCall(pCall, pCall->getOperand(0), tFnc, tBbN);
 			}

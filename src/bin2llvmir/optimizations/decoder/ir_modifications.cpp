@@ -256,6 +256,11 @@ void Decoder::getOrCreateBranchTarget(
 		tBb = &tFnc->front();
 	}
 
+	if (tBb && tBb->getPrevNode() == nullptr)
+	{
+		tFnc = tBb->getParent();
+	}
+
 	if (tBb && tBb->getParent() == fromFnc)
 	{
 		return;
