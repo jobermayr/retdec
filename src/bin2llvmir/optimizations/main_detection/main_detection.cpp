@@ -42,17 +42,20 @@ bool MainDetection::runOnModule(llvm::Module& m)
 	_module = &m;
 	_config = ConfigProvider::getConfig(_module);
 	_image = FileImageProvider::getFileImage(_module);
+	_names = NamesProvider::getNames(_module);
 	return run();
 }
 
 bool MainDetection::runOnModuleCustom(
 		llvm::Module& m,
 		Config* c,
-		FileImage* img)
+		FileImage* img,
+		NameContainer* names)
 {
 	_module = &m;
 	_config = c;
 	_image = img;
+	_names = names;
 	return run();
 }
 
@@ -499,10 +502,13 @@ bool MainDetection::applyResult(retdec::utils::Address mainAddr)
 	if (auto* f = _config->getLlvmFunction(mainAddr))
 	{
 		std::string n = f->getName();
-		if (retdec::utils::startsWith(n, "function_")
-				|| retdec::utils::startsWith(n, "sub_"))
+		if (n != "main")
 		{
 			irmodif.renameFunction(f, "main");
+			_names->addNameForAddress(
+					mainAddr,
+					"main",
+					Name::eType::HIGHEST_PRIORITY);
 			changed = true;
 		}
 	}
@@ -515,6 +521,10 @@ bool MainDetection::applyResult(retdec::utils::Address mainAddr)
 				ai.getLlvmToAsmInstruction(),
 				ai.getAddress(),
 				"main");
+		_names->addNameForAddress(
+				mainAddr,
+				"main",
+				Name::eType::HIGHEST_PRIORITY);
 		changed = true;
 	}
 

@@ -49,11 +49,6 @@ Name::Name(Config* c, const std::string& name, eType type) :
 		_name(normalizeNamePrefix(name)), // TODO: normalizeNamePrefix()
 		_type(type)
 {
-	if (_name == "_main") // TODO: ugly
-	{
-		_name = "main";
-	}
-
 	if (c->isPic32())
 	{
 		fixPic32Mangling();
