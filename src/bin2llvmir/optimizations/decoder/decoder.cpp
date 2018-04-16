@@ -105,14 +105,14 @@ bool Decoder::run()
 
 	decode();
 
-//dumpModuleToFile(_module, _config->getOutputDirectory());
+dumpModuleToFile(_module, _config->getOutputDirectory());
 
 	resolvePseudoCalls();
 	patternsRecognize();
 	finalizePseudoCalls();
 
-//dumpControFlowToJson(_module, _config->getOutputDirectory());
-//dumpModuleToFile(_module, _config->getOutputDirectory());
+dumpControFlowToJson(_module, _config->getOutputDirectory());
+dumpModuleToFile(_module, _config->getOutputDirectory());
 
 	initConfigFunction();
 
@@ -777,11 +777,13 @@ utils::Address Decoder::getJumpTarget(
 			&& isa<ConstantInt>(st.ops[0].ops[0].value))
 	{
 		auto* ptr = dyn_cast<ConstantInt>(st.ops[0].ops[0].value);
-		auto* ci = _image->getConstantDefault(ptr->getZExtValue());
-		Address t = ci->getZExtValue();
-		if (_imports.count(t))
+		if (auto* ci = _image->getConstantDefault(ptr->getZExtValue()))
 		{
-			return t;
+			Address t = ci->getZExtValue();
+			if (_imports.count(t))
+			{
+				return t;
+			}
 		}
 	}
 
@@ -798,6 +800,13 @@ utils::Address Decoder::getJumpTarget(
 	// If there are loads, try to solve them.
 	st.solveMemoryLoads(_image);
 	st.simplifyNode(_config);
+
+// TODO: doing this will solve more, also it will screw up integration.ack.Test_2015_ThumbGccElf
+//	if (getJumpTargetSwitch(addr, branchCall, val, st))
+//	{
+//		return Address::getUndef;
+//	}
+
 	if (auto* ci = dyn_cast<ConstantInt>(st.value))
 	{
 		return ci->getZExtValue();
@@ -855,8 +864,9 @@ bool Decoder::getJumpTargetSwitch(
 	// Default target.
 	//
 	Address defAddr;
-	BranchInst* brToSwitch = nullptr;
+	BranchInst* brToSwitch = nullptr; // TODO: i don't like how this is used
 	auto* thisBb = branchCall->getParent();
+
 	Address thisBbAddr = getBasicBlockAddress(thisBb);
 	for (auto* p : predecessors(thisBb))
 	{
@@ -886,6 +896,7 @@ bool Decoder::getJumpTargetSwitch(
 			break;
 		}
 	}
+
 	// ARM:
 	// 90C0 03 F1 9F 97    LDRLS PC, [PC,R3,LSL#2] ; switch jump
 	// 90C4 18 01 00 EA    B     loc_952C ; jumptable 000090C0 default cas
@@ -899,7 +910,17 @@ bool Decoder::getJumpTargetSwitch(
 		// TODO: use known current insn size, not AsmInstruction() -> slow.
 		defAddr = addr + AsmInstruction(branchCall).getByteSize();
 		armCondBr = cond;
+//		brToSwitch = cond;
 	}
+
+	// TODO:
+	// ARM:
+	// 8AB8 00 D8    BHI def_8D4A ; jumptable 00008D4A default case
+	// 8ABA 43 E1    B   loc_8D44
+	// ...
+	// 8D44 loc_8D44:
+	//               switch
+	//
 
 	if (defAddr.isUndefined() || brToSwitch == nullptr)
 	{

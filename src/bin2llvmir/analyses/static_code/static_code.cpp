@@ -9,7 +9,7 @@
 
 // Debug logs enabled/disabled.
 #include "retdec/bin2llvmir/utils/defs.h"
-#define debug_enabled false
+#define debug_enabled true
 
 using namespace retdec::stacofin;
 using namespace retdec::utils;
@@ -477,8 +477,12 @@ std::string StaticCodeFunction::getName() const
 
 bool StaticCodeFunction::isTerminating() const
 {
+	// TODO: couple names with source signaturePath to make sure we do not
+	// hit wrong functions?
+	//
 	static std::set<std::string> termNames = {
 			"exit",
+			"_exit",
 	};
 
 	for (auto& n : names)
