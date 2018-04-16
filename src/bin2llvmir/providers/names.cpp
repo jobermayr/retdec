@@ -70,11 +70,41 @@ Name::operator bool() const
 	return _type != eType::INVALID;
 }
 
+/**
+ * TODO: Better, more elegent and robust name ordering solution.
+ */
 bool Name::operator<(const Name& o) const
 {
 	if (_type == o._type)
 	{
-		return _name < o._name;
+		// Can this even happen? Maybe it should not.
+		//
+		if (_name.empty())
+		{
+			return false;
+		}
+		else if (o._name.empty())
+		{
+			return true;
+		}
+		// E.g. real case symbol table:
+		// 0x407748 @ .text
+		// 0x407748 @ _printf
+		//
+		else if (_name.front() == '.')
+		{
+			return false;
+		}
+		else if (o._name.front() == '.')
+		{
+			return true;
+		}
+		// Default.
+		//
+		else
+		{
+			return _name < o._name;
+		}
 	}
 	else
 	{
