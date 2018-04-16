@@ -105,14 +105,14 @@ bool Decoder::run()
 
 	decode();
 
-dumpModuleToFile(_module, _config->getOutputDirectory());
+//dumpModuleToFile(_module, _config->getOutputDirectory());
 
 	resolvePseudoCalls();
 	patternsRecognize();
 	finalizePseudoCalls();
 
-dumpControFlowToJson(_module, _config->getOutputDirectory());
-dumpModuleToFile(_module, _config->getOutputDirectory());
+//dumpControFlowToJson(_module, _config->getOutputDirectory());
+//dumpModuleToFile(_module, _config->getOutputDirectory());
 
 	initConfigFunction();
 

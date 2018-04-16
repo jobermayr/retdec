@@ -33,7 +33,7 @@
 
 // Debug logs enabled/disabled.
 #include "retdec/bin2llvmir/utils/defs.h"
-#define debug_enabled true
+#define debug_enabled false
 
 namespace retdec {
 namespace bin2llvmir {

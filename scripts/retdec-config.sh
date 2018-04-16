@@ -1,9 +1,20 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Decompiler's configuration. This file should be included in every decompilation script.
 #
 
-SCRIPT_DIR="$(dirname "$(readlink -e "$0")")"
+# On macOS, we want the GNU version of 'readlink', which is available under
+# 'greadlink':
+gnureadlink()
+{
+	if hash greadlink 2> /dev/null; then
+		greadlink "$@"
+	else
+		readlink "$@"
+	fi
+}
+
+SCRIPT_DIR="$(dirname "$(gnureadlink -e "$0")")"
 
 ##
 ## Paths (everything has to be without the ending slash '/').
@@ -63,8 +74,8 @@ BIN2PAT="$INSTALL_BIN_DIR/retdec-bin2pat"
 PAT2YARA="$INSTALL_BIN_DIR/retdec-pat2yara"
 CONFIGTOOL="$INSTALL_BIN_DIR/retdec-config"
 EXTRACT="$INSTALL_BIN_DIR/retdec-macho-extractor"
-DECOMPILE_SH="$INSTALL_BIN_DIR/retdec-decompiler.sh"
-DECOMPILE_ARCHIVE_SH="$INSTALL_BIN_DIR/retdec-archive-decompiler.sh"
+DECOMPILER_SH="$INSTALL_BIN_DIR/retdec-decompiler.sh"
+ARCHIVE_DECOMPILER_SH="$INSTALL_BIN_DIR/retdec-archive-decompiler.sh"
 SIG_FROM_LIB_SH="$INSTALL_BIN_DIR/retdec-signature-from-library-creator.sh"
 UNPACK_SH="$INSTALL_BIN_DIR/retdec-unpacker.sh"
 LLVMIR2HLL="$INSTALL_BIN_DIR/retdec-llvmir2hll"
@@ -73,7 +84,3 @@ IDA_COLORIZER="$INSTALL_BIN_DIR/retdec-color-c.py"
 UNPACKER="$INSTALL_BIN_DIR/retdec-unpacker"
 
 DEV_NULL="/dev/null"
-
-# An alternative to the `time` shell builtin that provides more information. It
-# is used in night tests to get the running time and used memory of a command.
-TIME="/usr/bin/time -v"

@@ -1,15 +1,37 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Compilation and decompilation utility functions.
 #
 
-SCRIPT_DIR="$(dirname "$(readlink -e "$0")")"
+# On macOS, we want the GNU version of 'readlink', which is available under
+# 'greadlink':
+gnureadlink()
+{
+	if hash greadlink 2> /dev/null; then
+		greadlink "$@"
+	else
+		readlink "$@"
+	fi
+}
+
+SCRIPT_DIR="$(dirname "$(gnureadlink -e "$0")")"
 
 if [ -z "$DECOMPILER_CONFIG" ]; then
 	DECOMPILER_CONFIG="$SCRIPT_DIR/retdec-config.sh"
 fi
 
 . "$DECOMPILER_CONFIG"
+
+# On macOS, 'timeout' from GNU coreutils is by default available under
+# 'gtimeout'.
+gnutimeout()
+{
+	if hash gtimeout 2> /dev/null; then
+		gtimeout "$@"
+	else
+		timeout "$@"
+	fi
+}
 
 #
 # Prints the real, physical location of a directory or file, relative or
@@ -27,7 +49,7 @@ get_realpath()
 	if [[ "$(uname -s)" == *CYGWIN* ]]; then
 		cygpath -ma "$input_path"
 	else
-		readlink -f "$input_path"
+		gnureadlink -f "$input_path"
 	fi
 }
 

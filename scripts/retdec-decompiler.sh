@@ -1,9 +1,20 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # The script decompiles the given file into the selected target high-level language.
 #
 
-SCRIPT_DIR="$(dirname "$(readlink -e "$0")")"
+# On macOS, we want the GNU version of 'readlink', which is available under
+# 'greadlink':
+gnureadlink()
+{
+	if hash greadlink 2> /dev/null; then
+		greadlink "$@"
+	else
+		readlink "$@"
+	fi
+}
+
+SCRIPT_DIR="$(dirname "$(gnureadlink -e "$0")")"
 
 if [ -z "$DECOMPILER_UTILS" ]; then
 	DECOMPILER_UTILS="$SCRIPT_DIR/retdec-utils.sh"
@@ -75,10 +86,12 @@ print_help()
 	echo "               --static-code-sigfile path             Adds additional signature file for static code detection."
 	echo "               --static-code-archive path             Adds additional signature file for static code detection from given archive."
 	echo "               --no-default-static-signatures         No default signatures for statically linked code analysis are loaded (options static-code-sigfile/archive are still available)."
+	echo "               --max-memory bytes                     Limits the maximal memory of fileinfo, bin2llvmir, and llvmir2hll into the given number of bytes."
+	echo "               --no-memory-limit                      Disables the default memory limit (half of system RAM) of fileinfo, bin2llvmir, and llvmir2hll."
 }
 SCRIPT_NAME=$0
 GETOPT_SHORTOPT="a:e:hkl:m:o:p:"
-GETOPT_LONGOPT="arch:,help,keep-unreachable-funcs,target-language:,mode:,output:,pdb:,backend-aggressive-opts,backend-arithm-expr-evaluator:,backend-call-info-obtainer:,backend-cfg-test,backend-disabled-opts:,backend-emit-cfg,backend-emit-cg,backend-cg-conversion:,backend-cfg-conversion:,backend-enabled-opts:,backend-find-patterns:,backend-force-module-name:,backend-keep-all-brackets,backend-keep-library-funcs,backend-llvmir2bir-converter:,backend-no-compound-operators,backend-no-debug,backend-no-debug-comments,backend-no-opts,backend-no-symbolic-names,backend-no-time-varying-info,backend-no-var-renaming,backend-semantics,backend-strict-fpu-semantics,backend-var-renamer:,cleanup,graph-format:,raw-entry-point:,raw-section-vma:,endian:,select-decode-only,select-functions:,select-ranges:,fileinfo-verbose,fileinfo-use-all-external-patterns,config:,color-for-ida,no-config,stop-after:,static-code-sigfile:,static-code-archive:,no-default-static-signatures,ar-name:,ar-index:"
+GETOPT_LONGOPT="arch:,help,keep-unreachable-funcs,target-language:,mode:,output:,pdb:,backend-aggressive-opts,backend-arithm-expr-evaluator:,backend-call-info-obtainer:,backend-cfg-test,backend-disabled-opts:,backend-emit-cfg,backend-emit-cg,backend-cg-conversion:,backend-cfg-conversion:,backend-enabled-opts:,backend-find-patterns:,backend-force-module-name:,backend-keep-all-brackets,backend-keep-library-funcs,backend-llvmir2bir-converter:,backend-no-compound-operators,backend-no-debug,backend-no-debug-comments,backend-no-opts,backend-no-symbolic-names,backend-no-time-varying-info,backend-no-var-renaming,backend-semantics,backend-strict-fpu-semantics,backend-var-renamer:,cleanup,graph-format:,raw-entry-point:,raw-section-vma:,endian:,select-decode-only,select-functions:,select-ranges:,fileinfo-verbose,fileinfo-use-all-external-patterns,config:,color-for-ida,no-config,stop-after:,static-code-sigfile:,static-code-archive:,no-default-static-signatures,ar-name:,ar-index:,max-memory:,no-memory-limit"
 
 #
 # Check proper combination of input arguments.
@@ -465,6 +478,19 @@ while true; do
 		[ "$AR_INDEX" ] && print_error_and_die "Duplicate option: --ar-index"
 		AR_INDEX="$2"
 		shift 2;;
+	--max-memory)
+		[ "$MAX_MEMORY" ] && print_error_and_die "Duplicate option: --max-memory"
+		[ "$NO_MEMORY_LIMIT" ] && print_error_and_die "Clashing options: --max-memory and --no-memory-limit"
+		MAX_MEMORY="$2"
+		if [[ ! "$MAX_MEMORY" =~ ^[0-9]+$ ]]; then
+			print_error_and_die "Invalid value for --max-memory: $MAX_MEMORY (expected a positive integer)"
+		fi
+		shift 2;;
+	--no-memory-limit)
+		[ "$NO_MEMORY_LIMIT" ] && print_error_and_die "Duplicate option: --no-memory-limit"
+		[ "$MAX_MEMORY" ] && print_error_and_die "Clashing options: --max-memory and --no-memory-limit"
+		NO_MEMORY_LIMIT=1
+		shift;;
 	--)								# Input file.
 		if [ $# -eq 2 ]; then
 			IN="$2"
@@ -641,6 +667,13 @@ if [ "$MODE" = "bin" ] || [ "$MODE" = "raw" ]; then
 			FILEINFO_PARAMS+=(--crypto "$par")
 		done
 	fi
+	if [ ! -z "$MAX_MEMORY" ]; then
+		FILEINFO_PARAMS+=(--max-memory "$MAX_MEMORY")
+	elif [ -z "$NO_MEMORY_LIMIT" ]; then
+		# By default, we want to limit the memory of fileinfo into half of
+		# system RAM to prevent potential black screens on Windows (#270).
+		FILEINFO_PARAMS+=(--max-memory-half-ram)
+	fi
 	echo ""
 	echo "##### Gathering file information..."
 	echo "RUN: $FILEINFO ${FILEINFO_PARAMS[@]}"
@@ -683,6 +716,13 @@ if [ "$MODE" = "bin" ] || [ "$MODE" = "raw" ]; then
 			for par in "${FILEINFO_EXTERNAL_YARA_EXTRA_CRYPTO_DATABASES[@]}"; do
 				FILEINFO_PARAMS+=(--crypto "$par")
 			done
+		fi
+		if [ ! -z "$MAX_MEMORY" ]; then
+			FILEINFO_PARAMS+=(--max-memory "$MAX_MEMORY")
+		elif [ -z "$NO_MEMORY_LIMIT" ]; then
+			# By default, we want to limit the memory of fileinfo into half of
+			# system RAM to prevent potential black screens on Windows (#270).
+			FILEINFO_PARAMS+=(--max-memory-half-ram)
 		fi
 
 		echo ""
@@ -861,6 +901,14 @@ if [ "$MODE" = "bin" ] || [ "$MODE" = "raw" ]; then
 
 	BIN2LLVMIR_PARAMS=(-provider-init -config-path "$CONFIG" -decoder $BIN2LLVMIR_PARAMS)
 
+	if [ ! -z "$MAX_MEMORY" ]; then
+		BIN2LLVMIR_PARAMS+=(-max-memory "$MAX_MEMORY")
+	elif [ -z "$NO_MEMORY_LIMIT" ]; then
+		# By default, we want to limit the memory of bin2llvmir into half of
+		# system RAM to prevent potential black screens on Windows (#270).
+		BIN2LLVMIR_PARAMS+=(-max-memory-half-ram)
+	fi
+
 	echo ""
 	echo "##### Decompiling $IN into $OUT_BACKEND_BC..."
 	echo "RUN: $BIN2LLVMIR ${BIN2LLVMIR_PARAMS[@]} -o $OUT_BACKEND_BC"
@@ -913,6 +961,13 @@ if [ "$BACKEND_EMIT_CFG" ]; then
 	LLVMIR2HLL_PARAMS+=(-emit-cfgs)
 	[ "$BACKEND_CFG_TEST" ] && LLVMIR2HLL_PARAMS+=(--backend-cfg-test)
 fi
+if [ ! -z "$MAX_MEMORY" ]; then
+	LLVMIR2HLL_PARAMS+=(-max-memory "$MAX_MEMORY")
+elif [ -z "$NO_MEMORY_LIMIT" ]; then
+	# By default, we want to limit the memory of llvmir2hll into half of system
+	# RAM to prevent potential black screens on Windows (#270).
+	LLVMIR2HLL_PARAMS+=(-max-memory-half-ram)
+fi
 
 # Decompile the optimized IR code.
 echo ""
@@ -953,8 +1008,10 @@ fi
 # Remove trailing whitespace and the last redundant empty new line from the
 # generated output (if any). It is difficult to do this in the back-end, so we
 # do it here.
-sed -i 's/[ \t]*$//' "$OUT"
-sed -i '$ { /^$/ d}' "$OUT"
+# Note: Do not use the -i flag (in-place replace) as there is apparently no way
+#       of getting sed -i to work consistently on both MacOS and Linux.
+sed -e :a -e '/^\n*$/{$d;N;};/\n$/ba' -e 's/[[:space:]]*$//' < "$OUT" > "$OUT.tmp"
+mv "$OUT.tmp" "$OUT"
 
 # Colorize output file.
 if [ "$COLOR_IDA" ]; then

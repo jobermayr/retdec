@@ -1,31 +1,27 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Runs the decompilation script with the given arguments over all files in the
 # given static library.
 #
-# Requirements:
-#  - bash
-#  - the `timeout` command
-#
 
-SCRIPT_DIR="$(dirname "$(readlink -e "$0")")"
+# On macOS, we want the GNU version of 'readlink', which is available under
+# 'greadlink':
+gnureadlink()
+{
+	if hash greadlink 2> /dev/null; then
+		greadlink "$@"
+	else
+		readlink "$@"
+	fi
+}
+
+SCRIPT_DIR="$(dirname "$(gnureadlink -e "$0")")"
 
 if [ -z "$DECOMPILER_UTILS" ]; then
 	DECOMPILER_UTILS="$SCRIPT_DIR/retdec-utils.sh"
 fi
 
 . "$DECOMPILER_UTILS"
-
-##
-## Check that all script requirements are satisfied.
-##
-for CMD in "timeout"; do
-	command -v $CMD > /dev/null 2>&1 || {
-		echo "error: The \`$CMD\` command is required but it is not" \
-			"available. Aborting." >&2
-		exit 1
-	}
-done
 
 ##
 ## Configuration.
@@ -98,7 +94,7 @@ do
 		--)
 			# Skip -- and store arguments for decompilation.
 			shift
-			DECOMPILE_SH_ARGS=$*
+			DECOMPILER_SH_ARGS=$*
 			break;;
 		*)
 			! [ -f "$1" ] && print_error_and_die "Input '$1' is not a valid file."
@@ -163,9 +159,9 @@ fi
 ##
 ## Run the decompilation script over all the found files.
 ##
-echo -n "Running \`$DECOMPILE_SH"
-if [ "$DECOMPILE_SH_ARGS" != "" ]; then
-	echo -n "$DECOMPILE_SH_ARGS"
+echo -n "Running \`$DECOMPILER_SH"
+if [ "$DECOMPILER_SH_ARGS" != "" ]; then
+	echo -n "$DECOMPILER_SH_ARGS"
 fi
 echo "\` over $FILE_COUNT files with timeout ${TIMEOUT}s" \
 	"(run \`kill $$\` to terminate this script)..." >&2
@@ -176,7 +172,7 @@ for ((INDEX=0; INDEX<FILE_COUNT; INDEX++)); do
 
 	# We have to use indexes instead of names because archives can contain multiple files with same name.
 	LOG_FILE="$LIBRARY_PATH.file_$FILE_INDEX.log.verbose"                                                    # Do not escape!
-	timeout $TIMEOUT "$DECOMPILE_SH" --ar-index="$INDEX" -o "$LIBRARY_PATH.file_$FILE_INDEX" "$LIBRARY_PATH" $DECOMPILE_SH_ARGS > "$LOG_FILE" 2>&1
+	gnutimeout $TIMEOUT "$DECOMPILER_SH" --ar-index="$INDEX" -o "$LIBRARY_PATH.file_$FILE_INDEX" "$LIBRARY_PATH" $DECOMPILER_SH_ARGS > "$LOG_FILE" 2>&1
 	RC=$?
 
 	# Print status.
