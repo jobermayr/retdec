@@ -61,7 +61,6 @@ class Name
 			// Stuff from config.
 			CONFIG_FUNCTION,
 			CONFIG_GLOBAL,
-			CONFIG_ENTRY_POINT,
 			CONFIG_SEGMENT,
 			//
 			DEBUG_FUNCTION,

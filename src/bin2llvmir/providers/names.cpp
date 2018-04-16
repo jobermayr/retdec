@@ -154,6 +154,7 @@ bool Names::addName(Config* c, const std::string& name, Name::eType type)
 	}
 
 	_names.emplace(c, name, type);
+
 	return true;
 }
 
@@ -239,7 +240,7 @@ void NameContainer::initFromConfig()
 	addNameForAddress(
 			_config->getConfig().getEntryPoint(),
 			names::entryPointName,
-			Name::eType::CONFIG_ENTRY_POINT);
+			Name::eType::ENTRY_POINT);
 
 	for (auto& p : _config->getConfig().functions)
 	{
