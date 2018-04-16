@@ -641,7 +641,7 @@ void Decoder::initJumpTargetsDebug()
 {
 	LOG << "\n" << "initJumpTargetsDebug():" << std::endl;
 
-	if (_debug)
+	if (_debug == nullptr)
 	{
 		LOG << "\t" << "no debug info -> skip" << std::endl;
 		return;
@@ -681,7 +681,7 @@ void Decoder::initJumpTargetsDebug()
 				sz);
 
 		auto* nf = createFunction(addr);
-		_debugFncs.insert(addr);
+		_debugFncs.emplace(addr, &f);
 		if (_fnc2sz.count(nf) == 0 && sz.isDefined())
 		{
 			_fnc2sz.emplace(nf, sz);
@@ -770,7 +770,16 @@ void Decoder::initConfigFunction()
 		}
 
 		cf->setIsExported(_exports.count(start));
-		cf->setIsFromDebug(_debugFncs.count(start));
+
+		auto dbgIt = _debugFncs.find(start);
+		if (dbgIt != _debugFncs.end())
+		{
+			auto* df = dbgIt->second;
+			cf->setIsFromDebug(true);
+			cf->setStartLine(df->getStartLine());
+			cf->setEndLine(df->getEndLine());
+			cf->setSourceFileName(df->getSourceFileName());
+		}
 	}
 }
 
