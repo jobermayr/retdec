@@ -87,7 +87,7 @@ class Decoder : public llvm::ModulePass
 		std::size_t decodeJumpTargetDryRun(
 				const JumpTarget& jt,
 				ByteData bytes);
-		cs_mode determineMode(cs_insn* insn, utils::Address target);
+		cs_mode determineMode(cs_insn* insn, utils::Address& target);
 
 		bool getJumpTargetsFromInstruction(
 				utils::Address addr,
@@ -166,7 +166,7 @@ class Decoder : public llvm::ModulePass
 				const JumpTarget& jt,
 				ByteData bytes);
 		void patternsPseudoCall_arm(llvm::CallInst*& call, AsmInstruction& pAi);
-		cs_mode determineMode_arm(cs_insn* insn, utils::Address target);
+		cs_mode determineMode_arm(cs_insn* insn, utils::Address& target);
 
 	// MIPS specific.
 	//

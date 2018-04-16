@@ -403,7 +403,7 @@ std::size_t Decoder::decodeJumpTargetDryRun(
 	return false;
 }
 
-cs_mode Decoder::determineMode(cs_insn* insn, utils::Address target)
+cs_mode Decoder::determineMode(cs_insn* insn, utils::Address& target)
 {
 	if (_config->isArmOrThumb())
 	{
@@ -458,6 +458,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 	{
 		if (auto t = getJumpTarget(addr, pCall, pCall->getArgOperand(0)))
 		{
+			auto m = determineMode(tr.capstoneInsn, t);
 			getOrCreateCallTarget(t, tFnc, tBb);
 
 			if (tFnc)
@@ -472,7 +473,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 				_jumpTargets.push(
 						t,
 						JumpTarget::eType::CONTROL_FLOW_BR_TRUE,
-						determineMode(tr.capstoneInsn, t),
+						m,
 						addr);
 				LOG << "\t\t" << "call @ " << addr << " -> " << t << std::endl;
 				return true;
@@ -547,6 +548,8 @@ bool Decoder::getJumpTargetsFromInstruction(
 
 		if (auto t = getJumpTarget(addr, pCall, pCall->getArgOperand(0)))
 		{
+			auto m = determineMode(tr.capstoneInsn, t);
+
 			getOrCreateBranchTarget(t, tBb, tFnc, pCall);
 			if (tBb && tBb->getParent() == pCall->getFunction())
 			{
@@ -564,7 +567,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 				_jumpTargets.push(
 						t,
 						JumpTarget::eType::CONTROL_FLOW_BR_TRUE,
-						determineMode(tr.capstoneInsn, t),
+						m,
 						addr);
 			}
 			LOG << "\t\t" << "br @ " << addr << " -> "	<< t << std::endl;
@@ -632,6 +635,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 
 		if (auto t = getJumpTarget(addr, pCall, pCall->getArgOperand(1)))
 		{
+			auto m = determineMode(tr.capstoneInsn, t);
 			getOrCreateBranchTarget(t, tBb, tFnc, pCall);
 
 			BasicBlock* tBbN = nullptr;
@@ -666,7 +670,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 			_jumpTargets.push(
 					t,
 					JumpTarget::eType::CONTROL_FLOW_BR_TRUE,
-					determineMode(tr.capstoneInsn, t),
+					m,
 					addr);
 			LOG << "\t\t" << "cond br @ " << addr << " -> (true) "
 					<< t << std::endl;

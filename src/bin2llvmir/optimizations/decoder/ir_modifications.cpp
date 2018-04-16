@@ -175,30 +175,39 @@ void Decoder::getOrCreateCallTarget(
 	{
 		tFnc = f;
 		tBb = tFnc->empty() ? nullptr : &tFnc->front();
+		LOG << "\t\t\t\t" << "F: getFunctionAtAddress() @ " << addr << std::endl;
 	}
 	else if (auto* f = splitFunctionOn(addr))
 	{
 		tFnc = f;
 		tBb = tFnc->empty() ? nullptr : &tFnc->front();
+		LOG << "\t\t\t\t" << "F: splitFunctionOn() @ " << addr << std::endl;
 	}
 	else if (auto* bb = getBasicBlockAtAddress(addr))
 	{
 		tBb = bb;
+		LOG << "\t\t\t\t" << "F: getBasicBlockAtAddress() @ " << addr << std::endl;
 	}
 	else if (getBasicBlockContainingAddress(addr))
 	{
 		// Nothing - we are not splitting BBs here.
+		LOG << "\t\t\t\t" << "F: getBasicBlockContainingAddress() @ "
+				<< addr << std::endl;
 	}
 	else if (getFunctionContainingAddress(addr))
 	{
 		auto* bb = getBasicBlockBeforeAddress(addr);
 		assert(bb);
 		tBb = createBasicBlock(addr, bb->getParent(), bb);
+		LOG << "\t\t\t\t" << "F: getFunctionContainingAddress() @ "
+				<< addr << std::endl;
 	}
 	else
 	{
 		tFnc = createFunction(addr);
 		tBb = &tFnc->front();
+		LOG << "\t\t\t\t" << "F: createFunction() @ "
+				<< addr << std::endl;
 	}
 }
 
@@ -219,6 +228,7 @@ void Decoder::getOrCreateBranchTarget(
 	if (auto* bb = getBasicBlockAtAddress(addr))
 	{
 		tBb = bb;
+		LOG << "\t\t\t\t" << "B: getBasicBlockAtAddress() @ " << addr << std::endl;
 	}
 	else if (getBasicBlockContainingAddress(addr))
 	{
@@ -227,17 +237,20 @@ void Decoder::getOrCreateBranchTarget(
 		{
 			// Target in existing block, but not at existing instruction.
 			// Something is wrong, nothing we can do.
+			LOG << "\t\t\t\t" << "B: invalid ASM @ " << addr << std::endl;
 			return;
 		}
 		else if (ai.getFunction() == fromFnc)
 		{
 			tBb = ai.makeStart();
 			addBasicBlock(addr, tBb);
+			LOG << "\t\t\t\t" << "B: addBasicBlock @ " << addr << std::endl;
 		}
 		else
 		{
 			// Target at existing instruction, but in different function.
 			// Do not split existing block in other functions here.
+			LOG << "\t\t\t\t" << "B: ASM in diff fnc @ " << addr << std::endl;
 			return;
 		}
 	}
@@ -245,15 +258,18 @@ void Decoder::getOrCreateBranchTarget(
 	else if (auto* targetFnc = getFunctionAtAddress(addr))
 	{
 		tFnc = targetFnc;
+		LOG << "\t\t\t\t" << "B: getFunctionAtAddress() @ " << addr << std::endl;
 	}
 	else if (auto* bb = getBasicBlockBeforeAddress(addr))
 	{
 		tBb = createBasicBlock(addr, bb->getParent(), bb);
+		LOG << "\t\t\t\t" << "B: getBasicBlockBeforeAddress() @ " << addr << std::endl;
 	}
 	else
 	{
 		tFnc = createFunction(addr);
 		tBb = &tFnc->front();
+		LOG << "\t\t\t\t" << "B: default @ " << addr << std::endl;
 	}
 
 	if (tBb && tBb->getPrevNode() == nullptr)
@@ -270,6 +286,7 @@ void Decoder::getOrCreateBranchTarget(
 		return;
 	}
 
+	LOG << "\t\t\t\t" << "B: splitFunctionOn @ " << addr << std::endl;
 	tFnc = splitFunctionOn(addr);
 	tBb = tFnc ? &tFnc->front() : tBb;
 }
@@ -281,20 +298,31 @@ bool Decoder::canSplitFunctionOn(llvm::BasicBlock* bb)
 {
 	for (auto* u : bb->users())
 	{
-		// All users must be branch instructions.
+		// All users must be unconditional branch instructions.
 		//
 		auto* br = dyn_cast<BranchInst>(u);
-		if (br == nullptr)
+		if (br == nullptr || br->isConditional())
+		{
+			return false;
+		}
+
+		// Branch can not come from istruction wight before basic block.
+		// This expects that such branches were created
+		// TODO: if
+		//
+		AsmInstruction brAsm(br);
+		AsmInstruction bbAsm(bb);
+		if (bbAsm.getPrev() == brAsm)
 		{
 			return false;
 		}
 
 		// BB must be true branch in all users.
 		//
-		if (br->getSuccessor(0) != bb)
-		{
-			return false;
-		}
+//		if (br->getSuccessor(0) != bb)
+//		{
+//			return false;
+//		}
 	}
 
 	return true;
@@ -387,6 +415,7 @@ llvm::Function* Decoder::splitFunctionOn(utils::Address addr)
 {
 	if (auto* bb = getBasicBlockAtAddress(addr))
 	{
+		LOG << "\t\t\t\t" << "S: splitFunctionOn @ " << addr << std::endl;
 		return bb->getPrevNode()
 				? splitFunctionOn(addr, bb)
 				: bb->getParent();
@@ -396,10 +425,12 @@ llvm::Function* Decoder::splitFunctionOn(utils::Address addr)
 	//
 	else if (auto ai = AsmInstruction(_module, addr))
 	{
+		LOG << "\t\t\t\t" << "S: ASM @ " << addr << std::endl;
 		return nullptr;
 	}
 	else if (auto* f = getFunctionContainingAddress(addr))
 	{
+		LOG << "\t\t\t\t" << "S: getFunctionContainingAddress() @ " << addr << std::endl;
 		auto* before = getBasicBlockBeforeAddress(addr);
 		assert(before);
 		auto* newBb = createBasicBlock(addr, before->getParent(), before);
@@ -407,6 +438,7 @@ llvm::Function* Decoder::splitFunctionOn(utils::Address addr)
 	}
 	else
 	{
+		LOG << "\t\t\t\t" << "S: createFunction() @ " << addr << std::endl;
 		return createFunction(addr);
 	}
 }
@@ -415,13 +447,23 @@ llvm::Function* Decoder::splitFunctionOn(
 		utils::Address addr,
 		llvm::BasicBlock* splitOnBb)
 {
+	if (addr == 0x104da)
+	{
+		dumpModuleToFile(_module, _config->getOutputDirectory());
+	}
+
+	LOG << "\t\t\t\t" << "S: splitFunctionOn @ " << addr << " on "
+			<< splitOnBb->getName().str() << std::endl;
+
 	if (splitOnBb->getPrevNode() == nullptr)
 	{
+		LOG << "\t\t\t\t" << "S: BB first @ " << addr << std::endl;
 		return splitOnBb->getParent();
 	}
 	std::set<BasicBlock*> newFncStarts;
 	if (!canSplitFunctionOn(addr, splitOnBb, newFncStarts))
 	{
+		LOG << "\t\t\t\t" << "S: !canSplitFunctionOn() @ " << addr << std::endl;
 		return nullptr;
 	}
 
@@ -431,13 +473,14 @@ llvm::Function* Decoder::splitFunctionOn(
 	{
 		Address splitAddr = getBasicBlockAddress(splitBb);
 
+		LOG << "\t\t\t\t" << "S: splitting @ " << splitAddr << " on "
+				<< splitBb->getName().str() << std::endl;
+
 		std::string name = _names->getPreferredNameForAddress(splitAddr);
 		if (name.empty())
 		{
-			name = names::generateFunctionName(addr, _config->getConfig().isIda());
+			name = names::generateFunctionName(splitAddr, _config->getConfig().isIda());
 		}
-
-		LOG << "\t\t\t" << "split on " << splitBb->getName().str() << std::endl;
 
 		Function* oldFnc = splitBb->getParent();
 		Function* newFnc = Function::Create(
@@ -456,6 +499,7 @@ llvm::Function* Decoder::splitFunctionOn(
 				splitBb->getIterator(),
 				oldFnc->getBasicBlockList().end());
 
+		newFncs.insert(oldFnc);
 		newFncs.insert(newFnc);
 		if (splitOnBb == splitBb)
 		{
@@ -490,6 +534,10 @@ llvm::Function* Decoder::splitFunctionOn(
 		// Test.
 		for (auto* s : successors(&b))
 		{
+			if (b.getParent() != s->getParent())
+			{
+				dumpModuleToFile(_module, _config->getOutputDirectory());
+			}
 			assert(b.getParent() == s->getParent());
 		}
 	}

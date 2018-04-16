@@ -142,14 +142,22 @@ void Decoder::patternsPseudoCall_arm(llvm::CallInst*& call, AsmInstruction& ai)
 	}
 }
 
-cs_mode Decoder::determineMode_arm(cs_insn* insn, utils::Address target)
+cs_mode Decoder::determineMode_arm(cs_insn* insn, utils::Address& target)
 {
 	if (insn->id != ARM_INS_BX && insn->id != ARM_INS_BLX)
 	{
 		return _c2l->getBasicMode();
 	}
 
-	return target % 2 ? CS_MODE_THUMB : CS_MODE_ARM;
+	if (target % 2)
+	{
+		target -= 1;
+		return CS_MODE_THUMB;
+	}
+	else
+	{
+		return CS_MODE_ARM;
+	}
 }
 
 } // namespace bin2llvmir
