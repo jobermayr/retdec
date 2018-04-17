@@ -574,7 +574,7 @@ void Decoder::initJumpTargetsSymbols()
 		if (auto* jt = _jumpTargets.push(
 				addr,
 				JumpTarget::eType::SYMBOL,
-				_c2l->getBasicMode(),
+				s->isThumbSymbol() ? CS_MODE_THUMB :_c2l->getBasicMode(),
 				Address::getUndef,
 				sz))
 		{
