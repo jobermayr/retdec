@@ -1253,8 +1253,6 @@ void StaticCodeAnalysis::confirmFunction(StaticCodeFunction* f)
 	LOG << "\t\t" << "confirming " << f->getName() << " @ " << f->address
 			<< std::endl;
 
-assert(f->address != 0x890e668);
-
 	// Confirm the function.
 	//
 	_confirmedDetections.emplace(f->address, f);
