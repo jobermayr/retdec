@@ -6,6 +6,8 @@
 
 #include "retdec/bin2llvmir/optimizations/decoder/jump_targets.h"
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
+#include "retdec/bin2llvmir/providers/config.h"
+#include "retdec/bin2llvmir/utils/capstone.h"
 
 namespace retdec {
 namespace bin2llvmir {
@@ -15,6 +17,8 @@ namespace bin2llvmir {
 // JumpTarget
 //==============================================================================
 //
+
+Config* JumpTarget::config = nullptr;
 
 JumpTarget::JumpTarget()
 {
@@ -34,7 +38,11 @@ JumpTarget::JumpTarget(
 		_fromAddress(f),
 		_mode(m)
 {
-
+	if (config->isArmOrThumb() && _address % 2)
+	{
+		_mode = CS_MODE_THUMB;
+		_address -= 1;
+	}
 }
 
 bool JumpTarget::operator<(const JumpTarget& o) const
@@ -121,9 +129,6 @@ std::ostream& operator<<(std::ostream &out, const JumpTarget& jt)
 		case JumpTarget::eType::DEBUG:
 			t = "DEBUG";
 			break;
-		case JumpTarget::eType::SYMBOL_PUBLIC:
-			t = "SYMBOL_PUBLIC";
-			break;
 		case JumpTarget::eType::SYMBOL:
 			t = "SYMBOL";
 			break;
@@ -140,10 +145,19 @@ std::ostream& operator<<(std::ostream &out, const JumpTarget& jt)
 	}
 
 	out << jt.getAddress() << " (" << t << ")";
+
+	auto& arch = jt.config->getConfig().architecture;
+	out << " (" << capstone_utils::mode2string(arch, jt.getMode()) << ")";
+
 	if (jt.getFromAddress().isDefined())
 	{
 		out << ", from = " << jt.getFromAddress();
 	}
+	if (jt.hasSize())
+	{
+		out << ", size = " << jt.getSize();
+	}
+
 	return out;
 }
 
@@ -153,17 +167,40 @@ std::ostream& operator<<(std::ostream &out, const JumpTarget& jt)
 //==============================================================================
 //
 
-void JumpTargets::push(
+Config* JumpTargets::config = nullptr;
+
+const JumpTarget* JumpTargets::push(
 		retdec::utils::Address a,
 		JumpTarget::eType t,
 		cs_mode m,
 		retdec::utils::Address f,
 		utils::Maybe<std::size_t> sz)
 {
+	static auto& arch = config->getConfig().architecture;
+
 	if (a.isDefined())
 	{
-		_data.insert(JumpTarget(a, t, m, f, sz));
+		if (arch.isArmOrThumb() && a % 2)
+		{
+			m = CS_MODE_THUMB;
+			a -= 1;
+		}
+
+		if ((arch.isArmOrThumb() && m == CS_MODE_ARM && a % 4)
+				|| (arch.isArmOrThumb() && m == CS_MODE_THUMB && a % 2)
+				|| (arch.isMipsOrPic32() && a % 4)
+				|| (arch.isMipsOrPic32() && a % 4))
+		{
+			LOG << "\t\t" << "[-] JT not aligned @ " << a << std::endl;
+		}
+		else
+		{
+			LOG << "\t\t" << "[+] JT @ " << a << std::endl;
+			return &(*_data.emplace(a, t, m, f, sz).first);
+		}
 	}
+
+	return nullptr;
 }
 
 std::size_t JumpTargets::size() const
@@ -206,7 +243,7 @@ std::ostream& operator<<(std::ostream &out, const JumpTargets& jts)
 	out << "Jump targets:" << std::endl;
 	for (auto& jt : jts._data)
 	{
-		out << jt << std::endl;
+		out << "\t" << jt << std::endl;
 	}
 	return out;
 }

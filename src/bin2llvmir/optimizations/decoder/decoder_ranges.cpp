@@ -18,7 +18,7 @@ void RangesToDecode::addPrimary(utils::Address s, utils::Address e)
 
 void RangesToDecode::addPrimary(const utils::AddressRange& r)
 {
-	_primaryRanges.insert(r);
+	addPrimary(r.getStart(), r.getEnd());
 }
 
 void RangesToDecode::addAlternative(utils::Address s, utils::Address e)
@@ -28,7 +28,7 @@ void RangesToDecode::addAlternative(utils::Address s, utils::Address e)
 
 void RangesToDecode::addAlternative(const utils::AddressRange& r)
 {
-	_alternativeRanges.insert(r);
+	addAlternative(r.getStart(), r.getEnd());
 }
 
 void RangesToDecode::remove(utils::Address s, utils::Address e)

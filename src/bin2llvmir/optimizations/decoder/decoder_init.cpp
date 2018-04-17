@@ -65,7 +65,7 @@ void Decoder::initTranslator()
 			&& a.getBitSize() == 32)
 	{
 		arch = CS_ARCH_ARM;
-		basicMode = CS_MODE_ARM;
+		basicMode = CS_MODE_ARM; // We start with ARM mode even for THUMB.
 	}
 	else
 	{
@@ -78,6 +78,13 @@ void Decoder::initTranslator()
 			basicMode,
 			extraMode);
 
+	// MIPS 64 -it mode can decompile more instructions than the 32-bit mode.
+	// When 32-bit mode is used, some 32-bit instructions that IDA handles fail
+	// to disassemble. Therefore, we init translator with 32-bit mode to get
+	// 32-bit environment and then switch it to 64-bit mode to handle more
+	// instructions. So far, there have been no problems, but it may be
+	// potentially dangerous.
+	//
 	if (a.isMipsOrPic32() && basicMode == CS_MODE_MIPS32)
 	{
 		_c2l->modifyBasicMode(CS_MODE_MIPS64);
@@ -168,12 +175,12 @@ void Decoder::initEnvironmentRegisters()
 		if (_c2l->isRegister(&gv))
 		{
 			unsigned regNum = _c2l->getCapstoneRegister(&gv);
-			auto s = retdec::config::Storage::inRegister(
+			auto s = config::Storage::inRegister(
 					gv.getName(),
 					regNum,
 					"");
 
-			retdec::config::Object cr(gv.getName(), s);
+			config::Object cr(gv.getName(), s);
 			cr.type.setLlvmIr(llvmObjToString(gv.getValueType()));
 			cr.setRealName(gv.getName());
 			_config->getConfig().registers.insert(cr);
@@ -321,6 +328,9 @@ void Decoder::initAllowedRangesWithSegments()
  */
 void Decoder::initJumpTargets()
 {
+	JumpTarget::config = _config;
+	JumpTargets::config = _config;
+
 	initJumpTargetsConfig();
 	initStaticCode();
 	initJumpTargetsEntryPoint();
@@ -336,39 +346,33 @@ void Decoder::initJumpTargetsConfig()
 
 	for (auto& p : _config->getConfig().functions)
 	{
-		retdec::config::Function& f = p.second;
+		config::Function& f = p.second;
 		if (f.getStart().isUndefined())
 		{
 			continue;
 		}
 
-		cs_mode m = _c2l->getBasicMode();
-		if (_config->isArmOrThumb())
-		{
-			m = f.isThumb() ? CS_MODE_THUMB : CS_MODE_ARM;
-		}
-
-		utils::Maybe<std::size_t> sz;
 		auto tmpSz = f.getSize();
-		if (tmpSz.isDefined() && tmpSz > 0)
-		{
-			sz = tmpSz.getValue();
-		}
+		auto sz = tmpSz.isDefined() && tmpSz > 0
+				? Maybe<std::size_t>(tmpSz)
+				: Maybe<std::size_t>();
 
-		_jumpTargets.push(
+		if (auto* jt = _jumpTargets.push(
 				f.getStart(),
 				JumpTarget::eType::CONFIG,
-				m,
+				f.isThumb() ? CS_MODE_THUMB : _c2l->getBasicMode(),
 				Address::getUndef,
-				sz);
-
-		auto* nf = createFunction(f.getStart());
-		if (_fnc2sz.count(nf) == 0 && f.getSize().isDefined())
+				sz))
 		{
-			_fnc2sz.emplace(nf, f.getSize());
-		}
+			auto* nf = createFunction(jt->getAddress());
+			addFunctionSize(nf, jt->getSize());
 
-		LOG << "\t" << "function @ " << f.getStart() << std::endl;
+			LOG << "\t" << "[+] " << f.getStart() << std::endl;
+		}
+		else
+		{
+			LOG << "\t" << "[-] " << f.getStart() << " (no JT)" << std::endl;
+		}
 	}
 }
 
@@ -377,32 +381,18 @@ void Decoder::initJumpTargetsEntryPoint()
 	LOG << "\n" << "initJumpTargetsEntryPoint():" << std::endl;
 
 	auto ep = _config->getConfig().getEntryPoint();
-	if (ep.isDefined())
+	if (auto* jt = _jumpTargets.push(
+			ep,
+			JumpTarget::eType::ENTRY_POINT,
+			_c2l->getBasicMode(),
+			Address::getUndef))
 	{
-		cs_mode m = _c2l->getBasicMode();
-		if (_config->isArmOrThumb())
-		{
-			m = ep % 2 ? CS_MODE_THUMB : CS_MODE_ARM;
-			if (ep % 2)
-			{
-				ep -= 1;
-			}
-		}
-
-		_jumpTargets.push(
-				ep,
-				JumpTarget::eType::ENTRY_POINT,
-				m,
-				Address::getUndef);
-
-		_entryPointFunction = createFunction(ep);
-
-		LOG << "\t" << "entry point @ " << ep
-				<< (m == CS_MODE_THUMB ? " (thumb)" : "") << std::endl;
+		_entryPointFunction = createFunction(jt->getAddress());
+		LOG << "\t" << "[+] " << ep << std::endl;
 	}
 	else
 	{
-		LOG << "\t" << "entry point @ UNDEFINED" << std::endl;
+		LOG << "\t" << "[-] " << ep << " (no JT)" << std::endl;
 	}
 }
 
@@ -425,87 +415,80 @@ void Decoder::initJumpTargetsImports()
 
 	for (const auto &imp : *impTbl)
 	{
-		retdec::utils::Address addr = imp.getAddress();
-		if (addr.isUndefined())
+		utils::Address a = imp.getAddress();
+		if (a.isUndefined())
 		{
 			continue;
 		}
 
+		auto* ciVal = _image->getConstantDefault(a);
+		auto* sec = _image->getImage()->getSegmentFromAddress(a);
+
 		bool isPtr = false;
-		auto* ciVal = _image->getConstantDefault(addr);
-		if (_image->getFileFormat()->isPointer(addr)
-			|| (ciVal && ciVal->isZero()))
-		{
-			isPtr = true;
-		}
-		if (auto* sec = _image->getImage()->getSegmentFromAddress(addr))
-		{
-			if (sec->getName() == ".got"
-					|| sec->getName() == ".got.plt")
-			{
-				isPtr = true;
-			}
-		}
+		isPtr |= _image->getFileFormat()->isPointer(a);
+		isPtr |= ciVal && ciVal->isZero();
+		isPtr |= sec && sec->getName() == ".got";
+		isPtr |= sec && sec->getName() == ".got.plt";
 		if (isPtr)
 		{
 			ptrs.insert(&imp);
 			continue;
 		}
 
-		cs_mode m = _c2l->getBasicMode();
-		if (_config->isArmOrThumb())
-		{
-			m = addr % 2 ? CS_MODE_THUMB : CS_MODE_ARM;
-			if (addr % 2)
-			{
-				addr -= 1;
-			}
-		}
-
-		_jumpTargets.push(
-				addr,
+		if (auto* jt = _jumpTargets.push(
+				a,
 				JumpTarget::eType::IMPORT,
-				m,
-				Address::getUndef);
-
-		auto* f = createFunction(addr);
-		_imports.emplace(addr);
-		if (_image->isImportTerminating(impTbl, &imp))
+				_c2l->getBasicMode(),
+				Address::getUndef))
 		{
-			_terminatingFncs.insert(f);
+			auto* f = createFunction(jt->getAddress());
+			_imports.emplace(jt->getAddress());
+			if (_image->isImportTerminating(impTbl, &imp))
+			{
+				_terminatingFncs.insert(f);
+			}
+			usedNames.insert(imp.getName());
+
+			LOG << "\t" << "[+] " << a << " @ " << imp.getName() << std::endl;
 		}
-
-		LOG << "\t\t" << "import: " << imp.getName() << " @ "
-				<< addr << (m == CS_MODE_THUMB ? " (thumb)" : "")
-				<< std::endl;
-
-		usedNames.insert(f->getName());
+		else
+		{
+			LOG << "\t" << "[-] " << a << " @ " << imp.getName()
+					<< " (no JT)" << std::endl;
+		}
 	}
 
 	for (const auto* imp : ptrs)
 	{
-		Address addr = imp->getAddress();
-		if (usedNames.count(_names->getPreferredNameForAddress(addr)))
+		Address a = imp->getAddress();
+
+		if (usedNames.count(imp->getName()))
 		{
+			LOG << "\t" << "[-] " << a << " @ " << imp->getName()
+					<< " (alreadu used name)" << std::endl;
 			continue;
 		}
 
-		cs_mode m = _c2l->getBasicMode();
-		if (_config->isArmOrThumb())
+		if (auto* jt = _jumpTargets.push(
+				a,
+				JumpTarget::eType::IMPORT,
+				_c2l->getBasicMode(),
+				Address::getUndef))
 		{
-			m = addr % 2 ? CS_MODE_THUMB : CS_MODE_ARM;
-		}
+			auto* f = createFunction(jt->getAddress());
+			_imports.emplace(jt->getAddress());
+			if (_image->isImportTerminating(impTbl, imp))
+			{
+				_terminatingFncs.insert(f);
+			}
 
-		auto* f = createFunction(addr);
-		_imports.emplace(addr);
-		if (_image->isImportTerminating(impTbl, imp))
+			LOG << "\t" << "[+] " << a << " @ " << imp->getName() << std::endl;
+		}
+		else
 		{
-			_terminatingFncs.insert(f);
+			LOG << "\t" << "[-] " << a << " @ " << imp->getName()
+					<< " (no JT)" << std::endl;
 		}
-
-		LOG << "\t\t" << "import ptr: " << imp->getName() << " @ "
-				<< addr << (m == CS_MODE_THUMB ? " (thumb)" : "")
-				<< std::endl;
 	}
 }
 
@@ -513,46 +496,45 @@ void Decoder::initJumpTargetsExports()
 {
 	LOG << "\n" << "initJumpTargetsExports():" << std::endl;
 
-	if (auto* exTbl = _image->getFileFormat()->getExportTable())
+	auto* exTbl = _image->getFileFormat()->getExportTable();
+	if (exTbl == nullptr)
 	{
-		for (const auto& exp : *exTbl)
+		LOG << "\t" << "no export table -> skip" << std::endl;
+		return;
+	}
+
+	for (const auto& exp : *exTbl)
+	{
+		utils::Address addr = exp.getAddress();
+		if (addr.isUndefined())
 		{
-			retdec::utils::Address addr = exp.getAddress();
-			if (addr.isUndefined())
-			{
-				continue;
-			}
-			// On ELF, there is no export table. It was reconstructed from
-			// symbols. Exports does not have to be functions, they can be
-			// data objects. Skip those exports that were not added to symbols.
-			//
-			if (_config->getConfig().fileFormat.isElf()
-					&& _symbols.count(addr) == 0)
-			{
-				continue;
-			}
+			continue;
+		}
+		// On ELF, there is no export table. It was reconstructed from
+		// symbols. Exports do not have to be functions, they can be
+		// data objects. Skip those exports that were not added to symbols.
+		//
+		if (_config->getConfig().fileFormat.isElf()
+				&& _symbols.count(addr) == 0)
+		{
+			LOG << "\t" << "[-] " << addr << " (no symbol)" << std::endl;
+			continue;
+		}
 
-			cs_mode m = _c2l->getBasicMode();
-			if (_config->isArmOrThumb())
-			{
-				m = addr % 2 ? CS_MODE_THUMB : CS_MODE_ARM;
-				if (addr % 2)
-				{
-					addr -= 1;
-				}
-			}
+		if (auto* jt = _jumpTargets.push(
+				addr,
+				JumpTarget::eType::EXPORT,
+				_c2l->getBasicMode(),
+				Address::getUndef))
+		{
+			createFunction(jt->getAddress());
+			_exports.emplace(jt->getAddress());
 
-			_jumpTargets.push(
-					addr,
-					JumpTarget::eType::EXPORT,
-					m,
-					Address::getUndef);
-
-			createFunction(addr);
-			_exports.insert(addr);
-
-			LOG << "\t\t" << "export @ " << addr
-					<< (m == CS_MODE_THUMB ? " (thumb)" : "") << std::endl;
+			LOG << "\t" << "[+] " << addr << std::endl;
+		}
+		else
+		{
+			LOG << "\t" << "[-] " << addr << " (no JT)" << std::endl;
 		}
 	}
 }
@@ -573,21 +555,7 @@ void Decoder::initJumpTargetsSymbols()
 		{
 			continue;
 		}
-		retdec::utils::Address addr = a;
-		if (addr.isUndefined())
-		{
-			continue;
-		}
-
-		cs_mode m = _c2l->getBasicMode();
-		if (_config->isArmOrThumb())
-		{
-			m = addr % 2 || s->isThumbSymbol() ? CS_MODE_THUMB : CS_MODE_ARM;
-			if (addr % 2)
-			{
-				addr -= 1;
-			}
-		}
+		utils::Address addr = a;
 
 		utils::Maybe<std::size_t> sz;
 		unsigned long long tmpSz = 0;
@@ -596,43 +564,22 @@ void Decoder::initJumpTargetsSymbols()
 			sz = tmpSz;
 		}
 
-		if (s->getType() == retdec::fileformat::Symbol::Type::PUBLIC)
+		if (auto* jt = _jumpTargets.push(
+				addr,
+				JumpTarget::eType::SYMBOL,
+				_c2l->getBasicMode(),
+				Address::getUndef,
+				sz))
 		{
-			_jumpTargets.push(
-					addr,
-					JumpTarget::eType::SYMBOL_PUBLIC,
-					m,
-					Address::getUndef,
-					sz);
+			auto* nf = createFunction(jt->getAddress());
+			_symbols.insert(jt->getAddress());
+			addFunctionSize(nf, sz);
 
-			auto* nf = createFunction(addr);
-			_symbols.insert(addr);
-			if (_fnc2sz.count(nf) == 0 && sz.isDefined())
-			{
-				_fnc2sz.emplace(nf, sz);
-			}
-
-			LOG << "\t" << "symbol public @ " << addr
-					<< (m == CS_MODE_THUMB ? " (thumb)" : "") << std::endl;
+			LOG << "\t" << "[+] " << addr << std::endl;
 		}
 		else
 		{
-			_jumpTargets.push(
-					addr,
-					JumpTarget::eType::SYMBOL,
-					m,
-					Address::getUndef,
-					sz);
-
-			auto* nf = createFunction(addr);
-			_symbols.insert(addr);
-			if (_fnc2sz.count(nf) == 0 && sz.isDefined())
-			{
-				_fnc2sz.emplace(nf, sz);
-			}
-
-			LOG << "\t" << "symbol @ " << addr
-					<< (m == CS_MODE_THUMB ? " (thumb)" : "") << std::endl;
+			LOG << "\t" << "[-] " << addr << " (no JT)" << std::endl;
 		}
 	}
 }
@@ -649,22 +596,12 @@ void Decoder::initJumpTargetsDebug()
 
 	for (const auto& p : _debug->functions)
 	{
-		retdec::utils::Address addr = p.first;
+		utils::Address addr = p.first;
 		if (addr.isUndefined())
 		{
 			continue;
 		}
 		auto& f = p.second;
-
-		cs_mode m = _c2l->getBasicMode();
-		if (_config->isArmOrThumb())
-		{
-			m = addr % 2 || f.isThumb() ? CS_MODE_THUMB : CS_MODE_ARM;
-			if (addr % 2)
-			{
-				addr -= 1;
-			}
-		}
 
 		utils::Maybe<std::size_t> sz;
 		auto tmpSz = p.second.getSize();
@@ -673,22 +610,23 @@ void Decoder::initJumpTargetsDebug()
 			sz = tmpSz.getValue();
 		}
 
-		_jumpTargets.push(
+		if (auto* jt = _jumpTargets.push(
 				addr,
 				JumpTarget::eType::DEBUG,
-				m,
+				f.isThumb() ? CS_MODE_THUMB : _c2l->getBasicMode(),
 				Address::getUndef,
-				sz);
-
-		auto* nf = createFunction(addr);
-		_debugFncs.emplace(addr, &f);
-		if (_fnc2sz.count(nf) == 0 && sz.isDefined())
+				sz))
 		{
-			_fnc2sz.emplace(nf, sz);
-		}
+			auto* nf = createFunction(jt->getAddress());
+			_debugFncs.emplace(jt->getAddress(), &f);
+			addFunctionSize(nf, sz);
 
-		LOG << "\t" << "debug @ " << addr
-				<< (m == CS_MODE_THUMB ? " (thumb)" : "") << std::endl;
+			LOG << "\t" << "[+] " << addr << std::endl;
+		}
+		else
+		{
+			LOG << "\t" << "[-] " << addr << " (no JT)" << std::endl;
+		}
 	}
 }
 
@@ -702,62 +640,50 @@ void Decoder::initStaticCode()
 			_names,
 			_c2l->getCapstoneEngine(),
 			_c2l->getBasicMode());
+
 	for (auto& p : SCA.getConfirmedDetections())
 	{
 		auto* sf = p.second;
 
-		cs_mode m = _c2l->getBasicMode();
-		if (_config->isArmOrThumb())
-		{
-			m = sf->isThumb() ? CS_MODE_THUMB : CS_MODE_ARM;
-		}
-
-		_jumpTargets.push(
+		if (auto* jt = _jumpTargets.push(
 				sf->address,
 				JumpTarget::eType::STATIC_CODE,
-				m,
+				sf->isThumb() ? CS_MODE_THUMB : _c2l->getBasicMode(),
 				Address::getUndef,
-				sf->size);
-		auto* f = createFunction(sf->address);
-
-		// Speed-up decoding, but we will not be able to diff CFG json
-		// with IDA CFG.
-		//_ranges.remove(f->address, f->address + f->size - 1);
-
-		_staticFncs.insert(sf->address);
-
-		if (sf->isTerminating())
+				sf->size))
 		{
-			_terminatingFncs.insert(f);
-		}
-		// Unreliable.
-//		if (_fnc2sz.count(f) == 0 && sf->size)
-//		{
-//			_fnc2sz.emplace(f, sf->size);
-//		}
+			auto* nf = createFunction(jt->getAddress());
+			_staticFncs.insert(jt->getAddress());
+			if (sf->isTerminating())
+			{
+				_terminatingFncs.insert(nf);
+			}
 
-		LOG << "\t" << "static @ " << sf->address
-				<< (m == CS_MODE_THUMB ? " (thumb)" : "") << std::endl;
+			// Unreliable - sometimes there are nops, alignment, or other patterns.
+			//addFunctionSize(f, sf->size);
+
+			// Speed-up decoding, but we will not be able to diff CFG json
+			// with IDA CFG.
+			//_ranges.remove(f->address, f->address + f->size - 1);
+
+			LOG << "\t" << "[+] " << sf->address << std::endl;
+		}
+		else
+		{
+			LOG << "\t" << "[-] " << sf->address << " (no JT)" << std::endl;
+		}
 	}
 }
 
-void Decoder::initConfigFunction()
+void Decoder::initConfigFunctions()
 {
 	for (auto& p : _fnc2addr)
 	{
 		Function* f = p.first;
 		Address start = p.second;
-		Address end = start;
+		Address end = getFunctionEndAddress(f) - 1;
 
-		if (!f->empty() && !f->back().empty())
-		{
-			if (auto ai = AsmInstruction(&f->back().back()))
-			{
-				end = ai.getEndAddress() - 1;
-			}
-		}
-
-		auto* cf = _config->insertFunction(f, p.second, end);
+		auto* cf = _config->insertFunction(f, start, end);
 		if (_imports.count(start))
 		{
 			cf->setIsDynamicallyLinked();

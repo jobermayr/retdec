@@ -21,6 +21,8 @@ bool isNopInstruction_mips(cs_insn* insn);
 bool isNopInstruction_arm(cs_insn* insn);
 bool isNopInstruction_ppc(cs_insn* insn);
 
+std::string mode2string(const config::Architecture& arch, cs_mode m);
+
 } // namespace capstone_utils
 } // namespace bin2llvmir
 } // namespace retdec

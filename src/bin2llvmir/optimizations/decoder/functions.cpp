@@ -154,5 +154,17 @@ void Decoder::addFunction(utils::Address a, llvm::Function* f)
 	_fnc2addr[f] = a;
 }
 
+/**
+ * Size \p sz is added only if function's \p f size was not set so far.
+ * Use this function in more reliable, higher priority sources first.
+ */
+void Decoder::addFunctionSize(llvm::Function* f, utils::Maybe<std::size_t> sz)
+{
+	if (_fnc2sz.count(f) == 0 && sz.isDefined())
+	{
+		_fnc2sz.emplace(f, sz);
+	}
+}
+
 } // namespace bin2llvmir
 } // namespace retdec

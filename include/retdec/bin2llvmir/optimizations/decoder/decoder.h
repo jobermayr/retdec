@@ -17,7 +17,6 @@
 #include <llvm/IR/Module.h>
 #include <llvm/Pass.h>
 
-#include "decoder_ranges.h"
 #include "retdec/utils/address.h"
 #include "retdec/bin2llvmir/analyses/reaching_definitions.h"
 #include "retdec/bin2llvmir/analyses/static_code/static_code.h"
@@ -27,13 +26,11 @@
 #include "retdec/bin2llvmir/providers/debugformat.h"
 #include "retdec/bin2llvmir/providers/fileimage.h"
 #include "retdec/bin2llvmir/providers/names.h"
+#include "retdec/bin2llvmir/optimizations/decoder/decoder_debug.h"
+#include "retdec/bin2llvmir/optimizations/decoder/decoder_ranges.h"
 #include "retdec/bin2llvmir/optimizations/decoder/jump_targets.h"
 #include "retdec/bin2llvmir/utils/ir_modifier.h"
 #include "retdec/capstone2llvmir/capstone2llvmir.h"
-
-// Debug logs enabled/disabled.
-#include "retdec/bin2llvmir/utils/defs.h"
-#define debug_enabled true
 
 namespace retdec {
 namespace bin2llvmir {
@@ -77,7 +74,7 @@ class Decoder : public llvm::ModulePass
 		void initJumpTargetsExports();
 		void initJumpTargetsDebug();
 		void initJumpTargetsSymbols();
-		void initConfigFunction();
+		void initConfigFunctions();
 		void initStaticCode();
 
 	private:
@@ -142,9 +139,20 @@ class Decoder : public llvm::ModulePass
 				utils::Address a,
 				bool declaration = false);
 		void addFunction(utils::Address a, llvm::Function* f);
+		void addFunctionSize(llvm::Function* f, utils::Maybe<std::size_t> sz);
 
 		std::map<utils::Address, llvm::Function*> _addr2fnc;
 		std::map<llvm::Function*, utils::Address> _fnc2addr;
+		// Function sizes from debug info/symbol table/config/etc.
+		// Used to prevent function splitting.
+		//
+		// TODO: Potential overlaps are not handled.
+		// E.g. ack.arm.gnuarmgcc-4.4.1.O0.g.elf:
+		// __floatundidf @ 0x1645c : size = 128
+		// __floatdidf   @ 0x16470 : size = 108
+		// It looks like there is one function in another.
+		//
+		std::map<llvm::Function*, std::size_t> _fnc2sz;
 
 	// Pattern recognition methods.
 	//
@@ -275,17 +283,6 @@ class Decoder : public llvm::ModulePass
 
 		// TODO: remove, solve better.
 		bool _switchGenerated = false;
-
-		// Function sizes from debug info/symbol table/config/etc.
-		// Used to prevent function splitting.
-		//
-		// TODO: Potential overlaps are not handled.
-		// E.g. ack.arm.gnuarmgcc-4.4.1.O0.g.elf:
-		// __floatundidf @ 0x1645c : size = 128
-		// __floatdidf   @ 0x16470 : size = 108
-		// It looks like there is one function in another.
-		//
-		std::map<llvm::Function*, std::size_t> _fnc2sz;
 };
 
 } // namespace bin2llvmir

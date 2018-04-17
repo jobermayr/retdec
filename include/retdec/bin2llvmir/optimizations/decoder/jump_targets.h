@@ -9,6 +9,7 @@
 
 #include <set>
 
+#include "retdec/bin2llvmir/optimizations/decoder/decoder_debug.h"
 #include "retdec/capstone2llvmir/capstone2llvmir.h"
 #include "retdec/capstone2llvmir/x86/x86.h"
 #include "retdec/utils/address.h"
@@ -16,6 +17,8 @@
 
 namespace retdec {
 namespace bin2llvmir {
+
+class Config;
 
 /**
  * Representation of an address that will be tried to be decoded.
@@ -41,7 +44,6 @@ class JumpTarget
 			IMPORT,
 			EXPORT,
 			DEBUG,
-			SYMBOL_PUBLIC,
 			SYMBOL,
 			STATIC_CODE,
 			LEFTOVER,
@@ -80,6 +82,9 @@ class JumpTarget
 		retdec::utils::Address _fromAddress;
 		/// Disassembler mode that should be used for this jump target.
 		cs_mode _mode = CS_MODE_BIG_ENDIAN;
+
+	public:
+		static Config* config;
 };
 
 /**
@@ -97,7 +102,7 @@ class JumpTargets
 		const JumpTarget& top();
 		void pop();
 
-		void push(
+		const JumpTarget* push(
 				retdec::utils::Address a,
 				JumpTarget::eType t,
 				cs_mode m,
@@ -108,6 +113,9 @@ class JumpTargets
 
 	public:
 		std::set<JumpTarget> _data;
+
+	public:
+		static Config* config;
 };
 
 } // namespace bin2llvmir

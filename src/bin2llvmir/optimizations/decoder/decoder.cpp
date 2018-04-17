@@ -105,23 +105,29 @@ bool Decoder::run()
 
 	decode();
 
-dumpModuleToFile(_module, _config->getOutputDirectory());
+	if (debug_enabled)
+	{
+		dumpModuleToFile(_module, _config->getOutputDirectory());
+	}
 
 	resolvePseudoCalls();
 	patternsRecognize();
 	finalizePseudoCalls();
 
-dumpControFlowToJson(_module, _config->getOutputDirectory());
-dumpModuleToFile(_module, _config->getOutputDirectory());
+	if (debug_enabled)
+	{
+		dumpControFlowToJson(_module, _config->getOutputDirectory());
+		dumpModuleToFile(_module, _config->getOutputDirectory());
+	}
 
-	initConfigFunction();
+	initConfigFunctions();
 
 	return false;
 }
 
 void Decoder::decode()
 {
-	LOG << "\n" << "doDecoding():" << std::endl;
+	LOG << "\n" << "decode():" << std::endl;
 
 	JumpTarget jt;
 	while (getJumpTarget(jt))
