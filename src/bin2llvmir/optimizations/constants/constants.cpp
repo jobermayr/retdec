@@ -25,7 +25,7 @@
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
 #include "retdec/bin2llvmir/utils/global_var.h"
 #include "retdec/bin2llvmir/utils/instruction.h"
-#define debug_enabled false
+const bool debug_enabled = false;
 #include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/bin2llvmir/utils/type.h"
 
@@ -69,9 +69,14 @@ bool ConstantsAnalysis::runOnModule(Module &M)
 		LOG << "[ABORT] config file is not available\n";
 		return false;
 	}
-	dbgf = DebugFormatProvider::getDebugFormat(&M);
 
+	dbgf = DebugFormatProvider::getDebugFormat(&M);
 	m_module = &M;
+
+	if (debug_enabled)
+	{
+		dumpModuleToFile(m_module, config->getOutputDirectory());
+	}
 
 	ReachingDefinitionsAnalysis RDA;
 	RDA.runOnModule(M, config);
@@ -123,6 +128,11 @@ bool ConstantsAnalysis::runOnModule(Module &M)
 	}
 
 	tagFunctionsWithUsedCryptoGlobals();
+
+	if (debug_enabled)
+	{
+		dumpModuleToFile(m_module, config->getOutputDirectory());
+	}
 
 	LOG << "\n[END]   ======================== ConstantsAnalysis:\n";
 	return false;
