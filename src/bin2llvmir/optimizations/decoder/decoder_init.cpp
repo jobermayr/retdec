@@ -692,7 +692,8 @@ void Decoder::initConfigFunctions()
 		else if (_staticFncs.count(start))
 		{
 			cf->setIsStaticallyLinked();
-			f->deleteBody();
+			// Can not delete body here because of main detection.
+			//f->deleteBody();
 		}
 
 		cf->setIsExported(_exports.count(start));
