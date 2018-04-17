@@ -147,21 +147,8 @@ bool Decoder::getJumpTarget(JumpTarget& jt)
 	}
 	else if (!_ranges.primaryEmpty())
 	{
-		// Instructions on some architectures are aligned.
-		auto start = _ranges.primaryFront().getStart();
-		if (_config->isMipsOrPic32()
-				|| _config->isArmOrThumb()
-				|| _config->getConfig().architecture.isPpc())
-		{
-			if (auto m = start % 4)
-			{
-				_ranges.remove(start, start + (4 - m) - 1);
-				start = start + (4 - m);
-			}
-		}
-
 		jt = JumpTarget(
-				start,
+				_ranges.primaryFront().getStart(),
 				JumpTarget::eType::LEFTOVER,
 				_c2l->getBasicMode(),
 				Address());

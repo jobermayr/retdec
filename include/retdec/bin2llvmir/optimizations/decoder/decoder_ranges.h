@@ -35,11 +35,14 @@ class RangesToDecode
 		const utils::AddressRange* getAlternative(utils::Address a) const;
 		const utils::AddressRange* get(utils::Address a) const;
 
+		void setArchitectureInstructionAlignment(unsigned a);
+
 	friend std::ostream& operator<<(std::ostream &os, const RangesToDecode& rs);
 
 	private:
 		utils::AddressRangeContainer _primaryRanges;
 		utils::AddressRangeContainer _alternativeRanges;
+		unsigned archInsnAlign = 0;
 };
 
 } // namespace bin2llvmir

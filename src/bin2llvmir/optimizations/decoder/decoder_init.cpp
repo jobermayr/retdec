@@ -193,6 +193,13 @@ void Decoder::initEnvironmentRegisters()
  */
 void Decoder::initRanges()
 {
+	auto& arch = _config->getConfig().architecture;
+	unsigned a = 0;
+	a = arch.isArmOrThumb() ? 2 : a;
+	a = arch.isMipsOrPic32() ? 4 : a;
+	a = arch.isPpc() ? 4 : a;
+	_ranges.setArchitectureInstructionAlignment(a);
+
 	if (!_config->getConfig().parameters.isSelectedDecodeOnly())
 	{
 		initAllowedRangesWithSegments();

@@ -189,7 +189,7 @@ const JumpTarget* JumpTargets::push(
 		if ((arch.isArmOrThumb() && m == CS_MODE_ARM && a % 4)
 				|| (arch.isArmOrThumb() && m == CS_MODE_THUMB && a % 2)
 				|| (arch.isMipsOrPic32() && a % 4)
-				|| (arch.isMipsOrPic32() && a % 4))
+				|| (arch.isPpc() && a % 4))
 		{
 			LOG << "\t\t" << "[-] JT not aligned @ " << a << std::endl;
 		}
