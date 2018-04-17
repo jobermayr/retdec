@@ -124,6 +124,17 @@ bool getTopVal(
 				<< " + " << ci->getSExtValue() << " = " << tmp << std::endl;
 		topVal = tmp;
 	}
+	else if (isa<SubOperator>(val)
+			&& isa<LoadInst>(skipCasts(cast<SubOperator>(val)->getOperand(0)))
+			&& cast<LoadInst>(skipCasts(cast<SubOperator>(val)->getOperand(0)))->getPointerOperand() == top
+			&& isa<ConstantInt>(cast<SubOperator>(val)->getOperand(1)))
+	{
+		auto* ci = cast<ConstantInt>(cast<SubOperator>(val)->getOperand(1));
+		int tmp = topVal - ci->getSExtValue();
+		LOG << "\t\t" << ai.getAddress() << std::dec << " @ " << topVal
+				<< " + " << ci->getSExtValue() << " = " << tmp << std::endl;
+		topVal = tmp;
+	}
 	else if (isa<BinaryOperator>(val)
 			&& cast<BinaryOperator>(val)->getOpcode() == Instruction::And
 			&& isa<ConstantInt>(cast<BinaryOperator>(val)->getOperand(1)))
