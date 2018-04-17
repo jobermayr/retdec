@@ -292,64 +292,8 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		bbEnd |= getJumpTargetsFromInstruction(oldAddr, res, bytes.second);
 		bbEnd |= instructionBreaksBasicBlock(oldAddr, res);
 
-		if (_c2l->hasDelaySlotTypical(res.capstoneInsn->id))
-		{
-			assert(res.branchCall);
-			assert(_c2l->getDelaySlot(res.capstoneInsn->id));
-			assert(_c2l->getDelaySlot(res.capstoneInsn->id) == 1);
-
-			auto* oldIp = res.branchCall->getParent()->getTerminator();
-			irb.SetInsertPoint(res.branchCall);
-			std::size_t sz = _c2l->getDelaySlot(res.capstoneInsn->id);
-			for (std::size_t i = 0; i < sz; ++i)
-			{
-				auto res = _c2l->translateOne(bytes.first, bytes.second, addr, irb);
-				if (res.failed() || res.llvmInsn == nullptr)
-				{
-					break;
-				}
-				_llvm2capstone->emplace(res.llvmInsn, res.capstoneInsn);
-			}
-			irb.SetInsertPoint(oldIp);
-		}
-		else if (_c2l->hasDelaySlotLikely(res.capstoneInsn->id))
-		{
-			assert(res.branchCall);
-			assert(_c2l->getDelaySlot(res.capstoneInsn->id));
-			assert(_c2l->getDelaySlot(res.capstoneInsn->id) == 1);
-
-			assert(isa<BranchInst>(res.branchCall->getNextNode()));
-			assert(cast<BranchInst>(res.branchCall->getNextNode())->isConditional());
-
-			auto* br = cast<BranchInst>(res.branchCall->getNextNode());
-			if (br && br->isConditional())
-			{
-				auto* nextBb = br->getParent()->getNextNode();
-				auto* newBb = BasicBlock::Create(
-						_module->getContext(),
-						"",
-						br->getFunction(),
-						nextBb);
-
-				auto* target = br->getSuccessor(0);
-				br->setSuccessor(0, newBb);
-				auto* newTerm = BranchInst::Create(target, newBb);
-				irb.SetInsertPoint(newTerm);
-
-				std::size_t sz = _c2l->getDelaySlot(res.capstoneInsn->id);
-				for (std::size_t i = 0; i < sz; ++i)
-				{
-					auto res = _c2l->translateOne(bytes.first, bytes.second, addr, irb);
-					if (res.failed() || res.llvmInsn == nullptr)
-					{
-						break;
-					}
-					_llvm2capstone->emplace(res.llvmInsn, res.capstoneInsn);
-				}
-
-				_likelyBb2Target.emplace(newBb, target);
-			}
-		}
+		handleDelaySlotTypical(addr, res, bytes, irb);
+		handleDelaySlotLikely(addr, res, bytes, irb);
 	}
 	while (!bbEnd);
 
@@ -1120,6 +1064,86 @@ bool Decoder::getJumpTargetSwitch(
 	}
 
 	return true;
+}
+
+void Decoder::handleDelaySlotTypical(
+		utils::Address& addr,
+		capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& res,
+		ByteData& bytes,
+		llvm::IRBuilder<>& irb)
+{
+	if (!_c2l->hasDelaySlotTypical(res.capstoneInsn->id))
+	{
+		return;
+	}
+
+	assert(res.branchCall);
+	assert(_c2l->getDelaySlot(res.capstoneInsn->id));
+	assert(_c2l->getDelaySlot(res.capstoneInsn->id) == 1);
+
+	auto* oldIp = res.branchCall->getParent()->getTerminator();
+
+	irb.SetInsertPoint(res.branchCall);
+	std::size_t sz = _c2l->getDelaySlot(res.capstoneInsn->id);
+	for (std::size_t i = 0; i < sz; ++i)
+	{
+		auto r = _c2l->translateOne(bytes.first, bytes.second, addr, irb);
+		if (r.failed() || r.llvmInsn == nullptr)
+		{
+			break;
+		}
+		_llvm2capstone->emplace(r.llvmInsn, r.capstoneInsn);
+	}
+
+	irb.SetInsertPoint(oldIp);
+}
+
+void Decoder::handleDelaySlotLikely(
+		utils::Address& addr,
+		capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& res,
+		ByteData& bytes,
+		llvm::IRBuilder<>& irb)
+{
+	if (!_c2l->hasDelaySlotLikely(res.capstoneInsn->id))
+	{
+		return;
+	}
+
+	assert(res.branchCall);
+	assert(_c2l->getDelaySlot(res.capstoneInsn->id));
+	assert(_c2l->getDelaySlot(res.capstoneInsn->id) == 1);
+
+	assert(isa<BranchInst>(res.branchCall->getNextNode()));
+	assert(cast<BranchInst>(res.branchCall->getNextNode())->isConditional());
+
+	auto* br = cast<BranchInst>(res.branchCall->getNextNode());
+	if (br && br->isConditional())
+	{
+		auto* nextBb = br->getParent()->getNextNode();
+		auto* newBb = BasicBlock::Create(
+				_module->getContext(),
+				"",
+				br->getFunction(),
+				nextBb);
+
+		auto* target = br->getSuccessor(0);
+		br->setSuccessor(0, newBb);
+		auto* newTerm = BranchInst::Create(target, newBb);
+		irb.SetInsertPoint(newTerm);
+
+		std::size_t sz = _c2l->getDelaySlot(res.capstoneInsn->id);
+		for (std::size_t i = 0; i < sz; ++i)
+		{
+			auto res = _c2l->translateOne(bytes.first, bytes.second, addr, irb);
+			if (res.failed() || res.llvmInsn == nullptr)
+			{
+				break;
+			}
+			_llvm2capstone->emplace(res.llvmInsn, res.capstoneInsn);
+		}
+
+		_likelyBb2Target.emplace(newBb, target);
+	}
 }
 
 void Decoder::resolvePseudoCalls()

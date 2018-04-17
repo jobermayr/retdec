@@ -102,6 +102,17 @@ class Decoder : public llvm::ModulePass
 		bool instructionBreaksBasicBlock(
 				utils::Address addr,
 				capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& tr);
+		void handleDelaySlotTypical(
+				utils::Address& addr,
+				capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& res,
+				ByteData& bytes,
+				llvm::IRBuilder<>& irb);
+		void handleDelaySlotLikely(
+				utils::Address& addr,
+				capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& res,
+				ByteData& bytes,
+				llvm::IRBuilder<>& irb);
+
 
 		void resolvePseudoCalls();
 		void finalizePseudoCalls();
