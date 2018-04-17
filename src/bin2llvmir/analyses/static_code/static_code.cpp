@@ -9,7 +9,7 @@
 
 // Debug logs enabled/disabled.
 #include "retdec/bin2llvmir/utils/defs.h"
-#define debug_enabled true
+bool debug_enabled = false;
 
 using namespace retdec::stacofin;
 using namespace retdec::utils;
@@ -512,7 +512,8 @@ StaticCodeAnalysis::StaticCodeAnalysis(
 		FileImage* i,
 		NameContainer* ns,
 		csh ce,
-		cs_mode md)
+		cs_mode md,
+		bool debug)
 		:
 		_config(c),
 		_image(i),
@@ -521,6 +522,8 @@ StaticCodeAnalysis::StaticCodeAnalysis(
 		_ceMode(md),
 		_ceInsn(cs_malloc(ce))
 {
+	debug_enabled = debug;
+
 	LOG << "\n StaticCodeAnalysis():" << std::endl;
 
 	_sigPaths = selectSignaturePaths(_image, _config);

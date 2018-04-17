@@ -372,6 +372,9 @@ bool Decoder::canSplitFunctionOn(
 	fncStarts.insert(fAddr);
 	fncStarts.insert(addr);
 
+	LOG << "\t\t\t\t\t" << "CAN S: split @ " << fAddr << std::endl;
+	LOG << "\t\t\t\t\t" << "CAN S: split @ " << addr << std::endl;
+
 	bool changed = true;
 	while (changed)
 	{
@@ -379,6 +382,10 @@ bool Decoder::canSplitFunctionOn(
 		for (BasicBlock& b : *f)
 		{
 			Address bAddr = getBasicBlockAddress(&b);
+			if (bAddr.isUndefined())
+			{
+				continue;
+			}
 			auto up = fncStarts.upper_bound(bAddr);
 			--up;
 			Address bFnc = *up;
@@ -386,6 +393,10 @@ bool Decoder::canSplitFunctionOn(
 			for (auto* p : predecessors(&b))
 			{
 				Address pAddr = getBasicBlockAddress(p);
+				if (pAddr.isUndefined())
+				{
+					continue;
+				}
 				auto up = fncStarts.upper_bound(pAddr);
 				--up;
 				Address pFnc = *up;
@@ -399,6 +410,8 @@ bool Decoder::canSplitFunctionOn(
 
 					changed |= newFncStarts.insert(&b).second;
 					changed |= fncStarts.insert(bAddr).second;
+
+					LOG << "\t\t\t\t\t" << "CAN S: split @ " << bAddr << std::endl;
 				}
 			}
 		}

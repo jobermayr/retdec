@@ -81,7 +81,8 @@ class StaticCodeAnalysis
 				FileImage* i,
 				NameContainer* ns,
 				csh ce,
-				cs_mode md);
+				cs_mode md,
+				bool debug = false);
 		~StaticCodeAnalysis();
 
 		const DetectedFunctionsMultimap& getAllDetections() const;

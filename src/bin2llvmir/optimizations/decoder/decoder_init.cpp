@@ -646,7 +646,8 @@ void Decoder::initStaticCode()
 			_image,
 			_names,
 			_c2l->getCapstoneEngine(),
-			_c2l->getBasicMode());
+			_c2l->getBasicMode(),
+			debug_enabled);
 
 	for (auto& p : SCA.getConfirmedDetections())
 	{
