@@ -909,8 +909,6 @@ void Decoder::initConfigFunctions()
 
 		auto* cf = _config->insertFunction(f, start, end);
 
-		cf->setRealName(_names->getPreferredNameForAddress(start));
-
 		if (_imports.count(start))
 		{
 			cf->setIsDynamicallyLinked();
@@ -921,6 +919,12 @@ void Decoder::initConfigFunctions()
 			cf->setIsStaticallyLinked();
 			// Can not delete body here because of main detection.
 			//f->deleteBody();
+		}
+
+		std::string realName = _names->getPreferredNameForAddress(start);
+		if (cf->getName() != realName)
+		{
+			cf->setRealName(realName);
 		}
 
 		cf->setIsExported(_exports.count(start));

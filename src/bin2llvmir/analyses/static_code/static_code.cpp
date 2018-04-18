@@ -643,6 +643,10 @@ utils::Address StaticCodeAnalysis::getAddressFromRef(utils::Address ref)
 	{
 		return getAddressFromRef_arm(ref);
 	}
+	else if (_config->getConfig().architecture.isPpc())
+	{
+		return getAddressFromRef_ppc(ref);
+	}
 	else
 	{
 		assert(false);
@@ -927,6 +931,45 @@ utils::Address StaticCodeAnalysis::getAddressFromRef_arm(utils::Address ref)
 		return ci->getZExtValue();
 	}
 
+	return Address();
+}
+
+utils::Address StaticCodeAnalysis::getAddressFromRef_ppc(utils::Address ref)
+{
+	// If word reference looks ok, use it.
+	//
+	auto* ci = _image->getConstantDefault(ref);
+	if (ci && ci->getZExtValue() == _image->getImage()->getBaseAddress())
+	{
+		return ci->getZExtValue();
+	}
+	else if (ci && _allDetections.count(ci->getZExtValue()))
+	{
+		return ci->getZExtValue();
+	}
+
+	// Try to disassemble the reference data into instruction.
+	//
+	uint64_t addr = ref;
+	auto data = _image->getImage()->getRawSegmentData(ref);
+	if (cs_disasm_iter(_ce, &data.first, &data.second, &addr, _ceInsn))
+	{
+		auto& ppc = _ceInsn->detail->ppc;
+
+		if (_ceInsn->id == PPC_INS_BL
+				&& ppc.op_count == 1
+				&& ppc.operands[0].type == PPC_OP_IMM)
+		{
+			return ppc.operands[0].imm;
+		}
+	}
+
+	// If we get here and reference word exists, always use reference.
+	//
+	if (ci)
+	{
+		return ci->getZExtValue();
+	}
 	return Address();
 }
 

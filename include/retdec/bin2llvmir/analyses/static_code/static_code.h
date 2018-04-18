@@ -95,6 +95,7 @@ class StaticCodeAnalysis
 		utils::Address getAddressFromRef_x86(utils::Address ref);
 		utils::Address getAddressFromRef_mips(utils::Address ref);
 		utils::Address getAddressFromRef_arm(utils::Address ref);
+		utils::Address getAddressFromRef_ppc(utils::Address ref);
 
 		void checkRef(StaticCodeFunction::Reference& ref);
 		void checkRef_x86(StaticCodeFunction::Reference& ref);
