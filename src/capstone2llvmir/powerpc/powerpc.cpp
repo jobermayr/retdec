@@ -2542,8 +2542,7 @@ void Capstone2LlvmIrTranslatorPowerpc_impl::translateB(cs_insn* i, cs_ppc* pi, l
 
 	if (toLR)
 	{
-		// TODO: Conditional return call?
-		generateCondBranchFunctionCall(irb, cond, target);
+		generateCondReturnFunctionCall(irb, cond, target);
 	}
 	else if (toCTR)
 	{
