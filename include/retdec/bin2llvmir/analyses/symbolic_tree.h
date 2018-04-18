@@ -37,7 +37,7 @@ class SymbolicTree
 				ReachingDefinitionsAnalysis& rda,
 				llvm::Value* v,
 				std::map<llvm::Value*, llvm::Value*>* val2val,
-				unsigned maxNodeLevel = 16);
+				unsigned maxNodeLevel = 14);
 
 		SymbolicTree(const SymbolicTree& other) = default;
 		SymbolicTree(SymbolicTree&& other) = default;

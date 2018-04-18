@@ -154,11 +154,16 @@ void SymbolicTree::expandNode(
 		std::unordered_set<llvm::Value*>& processed)
 {
 // TODO: I don't think this is needed.
-//	auto fIt = processed.find(value);
-//	if (fIt != processed.end())
-//	{
-//		return;
-//	}
+// TODO: It is, without it, it wcan be very slow. Probably exponential grow
+// of values in too many levels?
+	if (RDA->wasRun())
+	{
+		auto fIt = processed.find(value);
+		if (fIt != processed.end())
+		{
+			return;
+		}
+	}
 
 	if (User* U = dyn_cast<User>(value))
 	{
