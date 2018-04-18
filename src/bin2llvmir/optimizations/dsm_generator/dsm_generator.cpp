@@ -319,7 +319,21 @@ std::string DsmGenerator::processInstructionDsm(AsmInstruction& ai)
 {
 	std::string ret = ai.getDsm();
 
-	if (auto* c = ai.getInstructionFirst<CallInst>())
+	// Ugly and potentially dangerous hack for MIPS.
+	// Because of delay slots, branches are in different (next) instructions.
+	// The problem is, what if there are some calls, branches, that were not
+	// created with delays slots?
+	//
+	AsmInstruction tmpAi = ai;
+	if (_config->isMipsOrPic32())
+	{
+		if (AsmInstruction nextAi = tmpAi.getNext())
+		{
+			tmpAi = nextAi;
+		}
+	}
+
+	if (auto* c = tmpAi.getInstructionFirst<CallInst>()) // ai
 	{
 		if (auto* f = c->getCalledFunction())
 		{
@@ -330,7 +344,7 @@ std::string DsmGenerator::processInstructionDsm(AsmInstruction& ai)
 			}
 		}
 	}
-	else if (auto* br = ai.getInstructionFirst<BranchInst>())
+	else if (auto* br = tmpAi.getInstructionFirst<BranchInst>()) // ai
 	{
 		bool ok = true;
 		auto* falseDestUse = br->isConditional() ? br->op_end() - 2 : nullptr;
@@ -339,7 +353,7 @@ std::string DsmGenerator::processInstructionDsm(AsmInstruction& ai)
 		{
 			auto* falseDestI = &falseDestBb->front();
 			AsmInstruction falseDestAi(falseDestI);
-			if (falseDestAi == ai)
+			if (falseDestAi == tmpAi) // ai
 			{
 				ok = false;
 			}
@@ -355,7 +369,7 @@ std::string DsmGenerator::processInstructionDsm(AsmInstruction& ai)
 			ok = false;
 		}
 
-		if (ok && trueDestAi.isValid() && trueDestAi != ai)
+		if (ok && trueDestAi.isValid() && trueDestAi != tmpAi) // ai
 		{
 			auto* trueDestFnc = trueDestI->getFunction();
 			auto addr = _config->getFunctionAddress(trueDestFnc);
