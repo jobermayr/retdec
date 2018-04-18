@@ -411,7 +411,9 @@ bool Decoder::getJumpTargetsFromInstruction(
 			{
 				transformToCall(pCall, tFnc);
 			}
-			else if (tBb && tBb->getParent() == pCall->getFunction())
+			else if (tBb
+					&& tBb->getParent() == pCall->getFunction()
+					&& tBb->getPrevNode())
 			{
 				// TODO
 				transformToBranch(pCall, tBb);
@@ -497,7 +499,9 @@ bool Decoder::getJumpTargetsFromInstruction(
 			auto m = determineMode(tr.capstoneInsn, t);
 
 			getOrCreateBranchTarget(t, tBb, tFnc, pCall);
-			if (tBb && tBb->getParent() == pCall->getFunction())
+			if (tBb
+					&& tBb->getParent() == pCall->getFunction()
+					&& tBb->getPrevNode()) // can not be first in function
 			{
 				transformToBranch(pCall, tBb);
 			}
