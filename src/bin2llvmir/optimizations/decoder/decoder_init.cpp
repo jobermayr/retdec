@@ -904,7 +904,8 @@ void Decoder::initConfigFunctions()
 	{
 		Function* f = p.first;
 		Address start = p.second;
-		Address end = getFunctionEndAddress(f) - 1;
+		Address end = getFunctionEndAddress(f);
+		end = end > start ? Address(end - 1) : end;
 
 		auto* cf = _config->insertFunction(f, start, end);
 
