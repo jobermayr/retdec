@@ -291,6 +291,16 @@ retdec::utils::Address MainDetection::getFromContext()
 								c->getCalledFunction());
 					}
 				}
+				// TODO: delay slots one insn farther
+				if (auto ai = AsmInstruction(_module, 0x890021c))
+				{
+					auto* c = ai.getInstructionFirst<CallInst>();
+					if (c && c->getCalledFunction())
+					{
+						mainAddr = _config->getFunctionAddress(
+								c->getCalledFunction());
+					}
+				}
 			}
 			// llvm-mips-elf 3.X
 			//
