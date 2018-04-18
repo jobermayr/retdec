@@ -171,6 +171,7 @@ class Decoder : public llvm::ModulePass
 	private:
 		bool patternsRecognize();
 		bool patternTerminatingCalls();
+		bool patternStaticallyLinked();
 
 	// x86 specifix.
 	//

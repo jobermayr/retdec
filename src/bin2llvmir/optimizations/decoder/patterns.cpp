@@ -22,6 +22,7 @@ bool Decoder::patternsRecognize()
 	bool modified = false;
 
 	modified |= patternTerminatingCalls();
+	modified |= patternStaticallyLinked();
 
 	return modified;
 }
@@ -289,6 +290,69 @@ bool Decoder::patternTerminatingCalls()
 
 			splitFunctionOn(addr);
 			modified = true;
+		}
+	}
+
+	return modified;
+}
+
+/**
+ * Sometimes, statically linked code detection does not recognize all statically
+ * linked functions. We search for the following patterns:
+ *
+ * define <certain_fnc_name>()
+ *     ...
+ *     single function call in the whole body = call to statically linked fnc
+ *     ...
+ */
+bool Decoder::patternStaticallyLinked()
+{
+	bool modified = false;
+
+	for (Function& f : *_module)
+	{
+		auto fncAddr = getFunctionAddress(&f);
+		if (fncAddr.isUndefined())
+		{
+			continue;
+		}
+
+		bool firstCall = true;
+		bool ok = false;
+		for (BasicBlock& b : f)
+		for (Instruction& i : b)
+		{
+			if (auto* c = dyn_cast<CallInst>(&i))
+			{
+				if (_c2l->isAnyPseudoFunctionCall(c))
+				{
+					continue;
+				}
+
+				if (!firstCall)
+				{
+					ok = false;
+					break;
+				}
+				firstCall = false;
+
+				auto targetAddr = getFunctionAddress(c->getCalledFunction());
+				if (targetAddr.isDefined()
+						&& _staticFncs.count(targetAddr))
+				{
+					ok = true;
+				}
+				else
+				{
+					ok = false;
+					break;
+				}
+			}
+		}
+
+		if (ok)
+		{
+			_staticFncs.emplace(fncAddr);
 		}
 	}
 

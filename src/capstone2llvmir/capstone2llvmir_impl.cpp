@@ -584,6 +584,26 @@ llvm::Function* Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::getCondBranchFun
 }
 
 template <typename CInsn, typename CInsnOp>
+bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isAnyPseudoFunction(
+		llvm::Function* f) const
+{
+	return isCallFunction(f)
+			|| isReturnFunction(f)
+			|| isBranchFunction(f)
+			|| isCondBranchFunction(f);
+}
+
+template <typename CInsn, typename CInsnOp>
+bool Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isAnyPseudoFunctionCall(
+		llvm::CallInst* c) const
+{
+	return isCallFunctionCall(c)
+			|| isReturnFunctionCall(c)
+			|| isBranchFunctionCall(c)
+			|| isCondBranchFunctionCall(c);
+}
+
+template <typename CInsn, typename CInsnOp>
 llvm::GlobalVariable* Capstone2LlvmIrTranslator_impl<CInsn, CInsnOp>::isRegister(
 		llvm::Value* v) const
 {

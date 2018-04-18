@@ -124,6 +124,9 @@ class Capstone2LlvmIrTranslator_impl : virtual public Capstone2LlvmIrTranslator
 		virtual llvm::BranchInst* isInConditionCondBranchFunctionCall(llvm::CallInst* c) const override;
 		virtual llvm::Function* getCondBranchFunction() const override;
 
+		virtual bool isAnyPseudoFunction(llvm::Function* f) const override;
+		virtual bool isAnyPseudoFunctionCall(llvm::CallInst* c) const override;
+
 		virtual llvm::GlobalVariable* isRegister(llvm::Value* v) const override;
 		virtual uint32_t getCapstoneRegister(llvm::GlobalVariable* gv) const override;
 //

@@ -96,26 +96,91 @@ uint32_t Capstone2LlvmIrTranslatorX86_impl::getArchByteSize()
 
 //
 //==============================================================================
+// LLVM related getters and query methods - from Capstone2LlvmIrTranslator.
+//==============================================================================
+//
+
+bool Capstone2LlvmIrTranslatorX86_impl::isAnyPseudoFunction(llvm::Function* f) const
+{
+	return Capstone2LlvmIrTranslator_impl::isAnyPseudoFunction(f)
+			|| isX87DataStoreFunction(f)
+			|| isX87TagStoreFunction(f)
+			|| isX87DataLoadFunction(f)
+			|| isX87TagLoadFunction(f);
+}
+
+bool Capstone2LlvmIrTranslatorX86_impl::isAnyPseudoFunctionCall(
+		llvm::CallInst* c) const
+{
+	return Capstone2LlvmIrTranslator_impl::isAnyPseudoFunctionCall(c)
+			|| isX87DataStoreFunctionCall(c)
+			|| isX87TagStoreFunctionCall(c)
+			|| isX87DataLoadFunctionCall(c)
+			|| isX87TagLoadFunctionCall(c);
+}
+
+//
+//==============================================================================
 // x86 specialization methods - from Capstone2LlvmIrTranslatorX86
 //==============================================================================
 //
 
-llvm::Function* Capstone2LlvmIrTranslatorX86_impl::getX87DataStoreFunction()
+bool Capstone2LlvmIrTranslatorX86_impl::isX87DataStoreFunction(llvm::Function* f) const
+{
+	return f == _x87DataStoreFunction;
+}
+
+bool Capstone2LlvmIrTranslatorX86_impl::isX87DataStoreFunctionCall(llvm::CallInst* c) const
+{
+	return c && isX87DataStoreFunction(c->getCalledFunction());
+}
+
+llvm::Function* Capstone2LlvmIrTranslatorX86_impl::getX87DataStoreFunction() const
 {
 	return _x87DataStoreFunction;
 }
 
-llvm::Function* Capstone2LlvmIrTranslatorX86_impl::getX87TagStoreFunction()
+bool Capstone2LlvmIrTranslatorX86_impl::isX87TagStoreFunction(llvm::Function* f) const
+{
+	return f == _x87TagStoreFunction;
+}
+
+bool Capstone2LlvmIrTranslatorX86_impl::isX87TagStoreFunctionCall(llvm::CallInst* c) const
+{
+	return c && isX87TagStoreFunction(c->getCalledFunction());
+}
+
+llvm::Function* Capstone2LlvmIrTranslatorX86_impl::getX87TagStoreFunction() const
 {
 	return _x87TagStoreFunction;
 }
 
-llvm::Function* Capstone2LlvmIrTranslatorX86_impl::getX87DataLoadFunction()
+bool Capstone2LlvmIrTranslatorX86_impl::isX87DataLoadFunction(llvm::Function* f) const
+{
+	return f == _x87DataLoadFunction;
+}
+
+bool Capstone2LlvmIrTranslatorX86_impl::isX87DataLoadFunctionCall(llvm::CallInst* c) const
+{
+	return c && isX87DataLoadFunction(c->getCalledFunction());
+}
+
+llvm::Function* Capstone2LlvmIrTranslatorX86_impl::getX87DataLoadFunction() const
 {
 	return _x87DataLoadFunction;
 }
 
-llvm::Function* Capstone2LlvmIrTranslatorX86_impl::getX87TagLoadFunction()
+bool Capstone2LlvmIrTranslatorX86_impl::isX87TagLoadFunction(llvm::Function* f) const
+{
+	return f == _x87TagLoadFunction;
+}
+
+bool Capstone2LlvmIrTranslatorX86_impl::isX87TagLoadFunctionCall(llvm::CallInst* c) const
+{
+	return c && isX87TagLoadFunction(c->getCalledFunction());
+}
+
+llvm::Function* Capstone2LlvmIrTranslatorX86_impl::getX87TagLoadFunction() const
 {
 	return _x87TagLoadFunction;
 }
@@ -125,7 +190,7 @@ llvm::Function* Capstone2LlvmIrTranslatorX86_impl::getX87TagLoadFunction()
  * in @c _reg2parentMap. Our added registers are not there, but all of them
  * should map to themselves, i.e. if register not in map, we return its number.
  */
-uint32_t Capstone2LlvmIrTranslatorX86_impl::getParentRegister(uint32_t r)
+uint32_t Capstone2LlvmIrTranslatorX86_impl::getParentRegister(uint32_t r) const
 {
 	return r < _reg2parentMap.size() ? _reg2parentMap[r] : r;
 }

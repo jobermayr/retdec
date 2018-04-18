@@ -34,15 +34,32 @@ class Capstone2LlvmIrTranslatorX86_impl :
 		virtual uint32_t getArchByteSize() override;
 //
 //==============================================================================
+// LLVM related getters and query methods - from Capstone2LlvmIrTranslator.
+//==============================================================================
+//
+	public:
+		virtual bool isAnyPseudoFunction(llvm::Function* f) const override;
+		virtual bool isAnyPseudoFunctionCall(llvm::CallInst* c) const override;
+//
+//==============================================================================
 // x86 specialization methods - from Capstone2LlvmIrTranslatorX86
 //==============================================================================
 //
 	public:
-		virtual llvm::Function* getX87DataStoreFunction() override;
-		virtual llvm::Function* getX87TagStoreFunction() override;
-		virtual llvm::Function* getX87DataLoadFunction() override;
-		virtual llvm::Function* getX87TagLoadFunction() override;
-		virtual uint32_t getParentRegister(uint32_t r) override;
+		virtual bool isX87DataStoreFunction(llvm::Function* f) const override;
+		virtual bool isX87DataStoreFunctionCall(llvm::CallInst* c) const override;
+		virtual llvm::Function* getX87DataStoreFunction() const override;
+		virtual bool isX87TagStoreFunction(llvm::Function* f) const override;
+		virtual bool isX87TagStoreFunctionCall(llvm::CallInst* c) const override;
+		virtual llvm::Function* getX87TagStoreFunction() const override;
+		virtual bool isX87DataLoadFunction(llvm::Function* f) const override;
+		virtual bool isX87DataLoadFunctionCall(llvm::CallInst* c) const override;
+		virtual llvm::Function* getX87DataLoadFunction() const override;
+		virtual bool isX87TagLoadFunction(llvm::Function* f) const override;
+		virtual bool isX87TagLoadFunctionCall(llvm::CallInst* c) const override;
+		virtual llvm::Function* getX87TagLoadFunction() const override;
+
+		virtual uint32_t getParentRegister(uint32_t r) const override;
 //
 //==============================================================================
 // Pure virtual methods from Capstone2LlvmIrTranslator_impl
