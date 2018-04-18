@@ -581,7 +581,8 @@ void Decoder::initJumpTargetsConfig()
 			auto* nf = createFunction(jt->getAddress());
 			addFunctionSize(nf, jt->getSize());
 
-			LOG << "\t" << "[+] " << f.getStart() << std::endl;
+			LOG << "\t" << "[+] " << f.getStart() << " @ "
+					<< nf->getName().str() << std::endl;
 		}
 		else
 		{
@@ -602,7 +603,8 @@ void Decoder::initJumpTargetsEntryPoint()
 			Address::getUndef))
 	{
 		_entryPointFunction = createFunction(jt->getAddress());
-		LOG << "\t" << "[+] " << ep << std::endl;
+		LOG << "\t" << "[+] " << ep << " @ "
+				<< _entryPointFunction->getName().str() << std::endl;
 	}
 	else
 	{
@@ -663,7 +665,8 @@ void Decoder::initJumpTargetsImports()
 			}
 			usedNames.insert(imp.getName());
 
-			LOG << "\t" << "[+] " << a << " @ " << imp.getName() << std::endl;
+			LOG << "\t" << "[+] " << a << " @ " << f->getName().str()
+					<< std::endl;
 		}
 		else
 		{
@@ -696,7 +699,8 @@ void Decoder::initJumpTargetsImports()
 				_terminatingFncs.insert(f);
 			}
 
-			LOG << "\t" << "[+] " << a << " @ " << imp->getName() << std::endl;
+			LOG << "\t" << "[+] " << a << " @ " << f->getName().str()
+					<< std::endl;
 		}
 		else
 		{
@@ -741,10 +745,11 @@ void Decoder::initJumpTargetsExports()
 				_c2l->getBasicMode(),
 				Address::getUndef))
 		{
-			createFunction(jt->getAddress());
+			auto* nf = createFunction(jt->getAddress());
 			_exports.emplace(jt->getAddress());
 
-			LOG << "\t" << "[+] " << addr << std::endl;
+			LOG << "\t" << "[+] " << addr << " @ " << nf->getName().str()
+					<< std::endl;
 		}
 		else
 		{
@@ -789,7 +794,8 @@ void Decoder::initJumpTargetsSymbols()
 			_symbols.insert(jt->getAddress());
 			addFunctionSize(nf, sz);
 
-			LOG << "\t" << "[+] " << addr << std::endl;
+			LOG << "\t" << "[+] " << addr << " @ " << nf->getName().str()
+					<< std::endl;
 		}
 		else
 		{
@@ -835,7 +841,8 @@ void Decoder::initJumpTargetsDebug()
 			_debugFncs.emplace(jt->getAddress(), &f);
 			addFunctionSize(nf, sz);
 
-			LOG << "\t" << "[+] " << addr << std::endl;
+			LOG << "\t" << "[+] " << addr << " @ "
+					<< nf->getName().str() << std::endl;
 		}
 		else
 		{
@@ -881,7 +888,8 @@ void Decoder::initStaticCode()
 			// with IDA CFG.
 			//_ranges.remove(f->address, f->address + f->size - 1);
 
-			LOG << "\t" << "[+] " << sf->address << std::endl;
+			LOG << "\t" << "[+] " << sf->address << " @ "
+					<< nf->getName().str() << std::endl;
 		}
 		else
 		{
@@ -899,6 +907,9 @@ void Decoder::initConfigFunctions()
 		Address end = getFunctionEndAddress(f) - 1;
 
 		auto* cf = _config->insertFunction(f, start, end);
+
+		cf->setRealName(_names->getPreferredNameForAddress(start));
+
 		if (_imports.count(start))
 		{
 			cf->setIsDynamicallyLinked();

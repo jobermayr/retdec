@@ -1079,6 +1079,18 @@ bool Decoder::getJumpTargetSwitch(
 	return true;
 }
 
+/**
+ * ; ASM branch insn
+ * ; ASM delay slot insn
+ *
+ * ==>
+ *
+ * ; ASM branch insn
+ *     LLVM IR body without branch
+ * ; ASM delay slot insn
+ *     LLVM IR body
+ *     branch from prev insn
+ */
 void Decoder::handleDelaySlotTypical(
 		utils::Address& addr,
 		capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& res,
@@ -1111,6 +1123,19 @@ void Decoder::handleDelaySlotTypical(
 	irb.SetInsertPoint(oldIp);
 }
 
+/**
+ *     br cond, target_true, target_false
+ *     delay_slot_likely_insn
+ *
+ * ==>
+ *
+ *     br cond, ds_likely_bb, target_false
+ *  ds_likely_bb:
+ *     delay_slot_likely_insn
+ *     br target_true
+ *  target_false:
+ *     ...
+ */
 void Decoder::handleDelaySlotLikely(
 		utils::Address& addr,
 		capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne& res,
@@ -1129,6 +1154,9 @@ void Decoder::handleDelaySlotLikely(
 	assert(isa<BranchInst>(res.branchCall->getNextNode()));
 	assert(cast<BranchInst>(res.branchCall->getNextNode())->isConditional());
 
+	// TODO: This assumes that the pseudo cond branch was solved and cond
+	// branch created, but we should handle likely ds even if it was not.
+	//
 	auto* br = cast<BranchInst>(res.branchCall->getNextNode());
 	if (br && br->isConditional())
 	{
