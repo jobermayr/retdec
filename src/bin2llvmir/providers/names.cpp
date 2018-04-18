@@ -27,6 +27,11 @@ std::string generateFunctionName(utils::Address a, bool ida)
 			: generatedFunctionPrefix + a.toHexString();
 }
 
+std::string generateFunctionNameUnknown(utils::Address a, bool)
+{
+	return generatedFunctionPrefixUnk + a.toHexString();
+}
+
 std::string generateBasicBlockName(utils::Address a)
 {
 	return generatedBasicBlockPrefix + a.toHexString();

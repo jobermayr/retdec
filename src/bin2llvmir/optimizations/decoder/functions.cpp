@@ -115,10 +115,14 @@ llvm::Function* Decoder::createFunction(utils::Address a, bool declaration)
 		return existing->second;
 	}
 
+	bool known = _image->getImage()->hasDataOnAddress(a);
+
 	std::string n = _names->getPreferredNameForAddress(a);
 	if (n.empty())
 	{
-		n = names::generateFunctionName(a, _config->getConfig().isIda());
+		n = known
+				? names::generateFunctionName(a, _config->getConfig().isIda())
+				: names::generateFunctionNameUnknown(a, _config->getConfig().isIda());
 	}
 
 	Function* f = Function::Create(
@@ -138,7 +142,7 @@ llvm::Function* Decoder::createFunction(utils::Address a, bool declaration)
 		fl.insert(fl.begin(), f);
 	}
 
-	if (!declaration)
+	if (!declaration && known)
 	{
 		createBasicBlock(a, f);
 	}

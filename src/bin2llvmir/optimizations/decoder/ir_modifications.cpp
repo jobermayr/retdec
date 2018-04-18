@@ -205,7 +205,7 @@ void Decoder::getOrCreateCallTarget(
 	else
 	{
 		tFnc = createFunction(addr);
-		tBb = &tFnc->front();
+		tBb = tFnc && !tFnc->empty() ? &tFnc->front() : nullptr;
 		LOG << "\t\t\t\t" << "F: createFunction() @ "
 				<< addr << std::endl;
 	}
@@ -268,7 +268,7 @@ void Decoder::getOrCreateBranchTarget(
 	else
 	{
 		tFnc = createFunction(addr);
-		tBb = &tFnc->front();
+		tBb = tFnc && !tFnc->empty() ? &tFnc->front() : nullptr;
 		LOG << "\t\t\t\t" << "B: default @ " << addr << std::endl;
 	}
 
@@ -288,7 +288,7 @@ void Decoder::getOrCreateBranchTarget(
 
 	LOG << "\t\t\t\t" << "B: splitFunctionOn @ " << addr << std::endl;
 	tFnc = splitFunctionOn(addr);
-	tBb = tFnc ? &tFnc->front() : tBb;
+	tBb = tFnc && !tFnc->empty() ? &tFnc->front() : tBb;
 }
 
 /**

@@ -25,6 +25,7 @@ const std::string entryPointName             = "entry_point";
 const std::string generatedImportPrefix      = "imported_function_ord_";
 const std::string generatedFunctionPrefix    = "function_";
 const std::string generatedFunctionPrefixIDA = "ida_";
+const std::string generatedFunctionPrefixUnk = "unknown_";
 const std::string generatedBasicBlockPrefix  = "dec_label_pc_";
 const std::string asm2llvmGv                 = "_asm_program_counter";
 const std::string asm2llvmMd                 = "llvmToAsmGlobalVariableName";
@@ -38,6 +39,7 @@ const std::string pseudoX87dataStoreFunction = "__frontend_reg_store.fpr";
 const std::string pseudoX87tagStoreFunction  = "__frontend_reg_store.fpu_tag";
 
 std::string generateFunctionName(utils::Address a, bool ida = false);
+std::string generateFunctionNameUnknown(utils::Address a, bool ida = false);
 std::string generateBasicBlockName(utils::Address a);
 
 } // namespace names
