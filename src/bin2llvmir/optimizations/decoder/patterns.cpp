@@ -311,6 +311,12 @@ bool Decoder::patternStaticallyLinked()
 
 	for (Function& f : *_module)
 	{
+		if (!(f.getName() == "scanf"
+				|| f.getName() == "printf"))
+		{
+			continue;
+		}
+
 		auto fncAddr = getFunctionAddress(&f);
 		if (fncAddr.isUndefined())
 		{
