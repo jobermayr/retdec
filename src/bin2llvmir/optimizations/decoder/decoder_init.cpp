@@ -193,6 +193,9 @@ void Decoder::initEnvironmentRegisters()
  */
 void Decoder::initRanges()
 {
+	JumpTarget::config = _config;
+	JumpTargets::config = _config;
+
 	auto& arch = _config->getConfig().architecture;
 	unsigned a = 0;
 	a = arch.isArmOrThumb() ? 2 : a;
@@ -200,7 +203,11 @@ void Decoder::initRanges()
 	a = arch.isPpc() ? 4 : a;
 	_ranges.setArchitectureInstructionAlignment(a);
 
-	if (!_config->getConfig().parameters.isSelectedDecodeOnly())
+	if (_config->getConfig().parameters.isSelectedDecodeOnly())
+	{
+		initAllowedRangesWithConfig();
+	}
+	else
 	{
 		initAllowedRangesWithSegments();
 	}
@@ -330,14 +337,214 @@ void Decoder::initAllowedRangesWithSegments()
 	}
 }
 
+void Decoder::initAllowedRangesWithConfig()
+{
+	LOG << "\n" << "initAllowedRangesWithConfig():" << std::endl;
+
+	std::set<std::string> foundFs;
+
+	for (auto &p : _config->getConfig().parameters.selectedRanges)
+	{
+		_ranges.addPrimary(p);
+		LOG << "\t" << "[+] selected range @ " << p << std::endl;
+
+		if (auto* jt = _jumpTargets.push(
+				p.getStart(),
+				JumpTarget::eType::SELECTED_RANGE_START,
+				_c2l->getBasicMode(),
+				Address::getUndef))
+		{
+			auto* nf = createFunction(jt->getAddress());
+			LOG << "\t" << "[+] " << p.getStart() << std::endl;
+		}
+		else
+		{
+			LOG << "\t" << "[-] " << p.getStart() << " (no JT)" << std::endl;
+		}
+	}
+
+	auto& selectedFs = _config->getConfig().parameters.selectedFunctions;
+
+	if (!selectedFs.empty())
+	{
+		for (auto& dfp : _debug->functions)
+		{
+			auto& df = dfp.second;
+			auto fIt = selectedFs.find(df.getName());
+			if (fIt == selectedFs.end())
+			{
+				fIt = selectedFs.find(df.getDemangledName());
+			}
+
+			if (fIt == selectedFs.end())
+			{
+				continue;
+			}
+
+			Address start = df.getStart();
+			Address end = df.getEnd();
+
+			_ranges.addPrimary(start, end-1);
+			LOG << "\t" << "[+] selected range from debug @ "
+					<< AddressRange(start, end-1) << std::endl;
+
+			utils::Maybe<std::size_t> sz;
+			auto tmpSz = dfp.second.getSize();
+			if (tmpSz.isDefined() && tmpSz > 0)
+			{
+				sz = tmpSz.getValue();
+			}
+
+			if (auto* jt = _jumpTargets.push(
+					start,
+					JumpTarget::eType::SELECTED_RANGE_START,
+					df.isThumb() ? CS_MODE_THUMB : _c2l->getBasicMode(),
+					Address::getUndef,
+					sz))
+			{
+				foundFs.insert(*fIt);
+				auto* nf = createFunction(jt->getAddress());
+				addFunctionSize(nf, sz);
+				LOG << "\t" << "[+] " << start << std::endl;
+			}
+			else
+			{
+				LOG << "\t" << "[-] " << start << " (no JT)" << std::endl;
+			}
+		}
+
+		std::map<
+				retdec::utils::Address,
+				std::shared_ptr<const retdec::fileformat::Symbol>> symtab;
+
+		for (const auto* t : _image->getFileFormat()->getSymbolTables())
+		for (const auto& s : *t)
+		{
+			unsigned long long a = 0;
+			if (!s->getRealAddress(a))
+			{
+				continue;
+			}
+
+			auto fIt = symtab.find(a);
+			if (fIt == symtab.end())
+			{
+				symtab.emplace(a, s);
+			}
+			else
+			{
+				if (selectedFs.count(fIt->second->getName())
+						|| selectedFs.count(fIt->second->getNormalizedName())
+						|| selectedFs.count(
+								removeLeadingCharacter(
+										fIt->second->getName(), '_'))
+						|| selectedFs.count(
+								removeLeadingCharacter(
+										fIt->second->getNormalizedName(), '_')))
+				{
+					// name in map is the name we are searching for.
+				}
+				else
+				{
+					symtab[a] = s;
+				}
+			}
+		}
+
+		for (auto sIt = symtab.begin(); sIt != symtab.end(); ++sIt)
+		{
+			auto& s = sIt->second;
+
+			retdec::utils::Address start = sIt->first;
+			if (start.isUndefined())
+			{
+				continue;
+			}
+
+			utils::Maybe<std::size_t> knownSz;
+			unsigned long long size = 0;
+			if (!s->getSize(size))
+			{
+				++sIt;
+				if (sIt == symtab.end())
+				{
+					--sIt;
+					continue;
+				}
+				size = sIt->first - start;
+				--sIt;
+			}
+			else if (size > 0)
+			{
+				knownSz = size;
+			}
+
+			retdec::utils::Address end = start + size;
+			std::string name = s->getNormalizedName();
+
+			// Exact name match.
+			auto fIt = selectedFs.find(name);
+
+			// Without leading '_' name match.
+			if (fIt == selectedFs.end())
+			{
+				auto tmp1 = removeLeadingCharacter(name, '_');
+				for (fIt = selectedFs.begin(); fIt != selectedFs.end(); ++fIt)
+				{
+					std::string tmp2 = removeLeadingCharacter(*fIt, '_');
+
+					if (tmp1 == tmp2)
+						break;
+				}
+			}
+
+			if (fIt != selectedFs.end() && foundFs.find(*fIt) == foundFs.end())
+			{
+				_ranges.addPrimary(start, end-1);
+				LOG << "\t" << "[+] selected range from symbol: "
+						<< start << std::endl;
+
+				if (auto* jt = _jumpTargets.push(
+						start,
+						JumpTarget::eType::SELECTED_RANGE_START,
+						s->isThumbSymbol() ? CS_MODE_THUMB :_c2l->getBasicMode(),
+						Address::getUndef,
+						knownSz))
+				{
+					foundFs.insert(*fIt);
+					auto* nf = createFunction(jt->getAddress());
+					addFunctionSize(nf, knownSz);
+					LOG << "\t" << "[+] " << start << std::endl;
+				}
+				else
+				{
+					LOG << "\t" << "[-] " << start << " (no JT)" << std::endl;
+				}
+			}
+		}
+	}
+
+	// Find out which selected functions have not been found.
+	//
+	auto &sbnf = _config->getConfig().parameters.selectedNotFoundFunctions;
+	std::set_difference(
+			selectedFs.begin(), selectedFs.end(),
+			foundFs.begin(), foundFs.end(),
+			std::inserter(sbnf, sbnf.end())
+	);
+
+	auto* plt = _image->getImage()->getSegment(".plt");
+	if (!_ranges.primaryEmpty() && plt)
+	{
+		_ranges.addPrimary(plt->getAddress(), plt->getPhysicalEndAddress()-1);
+	}
+}
+
 /**
  * Find jump targets to decode.
  */
 void Decoder::initJumpTargets()
 {
-	JumpTarget::config = _config;
-	JumpTargets::config = _config;
-
 	initJumpTargetsConfig();
 	initStaticCode();
 	initJumpTargetsEntryPoint();

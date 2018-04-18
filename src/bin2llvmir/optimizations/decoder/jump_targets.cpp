@@ -120,6 +120,9 @@ std::ostream& operator<<(std::ostream &out, const JumpTarget& jt)
 		case JumpTarget::eType::ENTRY_POINT:
 			t = "ENTRY_POINT";
 			break;
+		case JumpTarget::eType::SELECTED_RANGE_START:
+			t = "SELECTED_RANGE_START";
+			break;
 		case JumpTarget::eType::IMPORT:
 			t = "IMPORT";
 			break;

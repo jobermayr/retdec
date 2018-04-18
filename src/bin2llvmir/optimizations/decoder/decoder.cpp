@@ -135,6 +135,11 @@ void Decoder::decode()
 		LOG << "\t" << "processing : " << jt << std::endl;
 		decodeJumpTarget(jt);
 	}
+
+	if (!_somethingDecoded)
+	{
+		throw std::runtime_error("No instructions were decoded");
+	}
 }
 
 bool Decoder::getJumpTarget(JumpTarget& jt)
@@ -184,6 +189,8 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 	if (bytes.first == nullptr)
 	{
 		LOG << "\t\t" << "found no data -> skip" << std::endl;
+		// TODO: slow, maybe do not even add ranges that do not have data.
+		_ranges.remove(start, start);
 		return;
 	}
 
@@ -287,6 +294,8 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 			}
 			break;
 		}
+
+		_somethingDecoded = true;
 
 		_llvm2capstone->emplace(res.llvmInsn, res.capstoneInsn);
 		bbEnd |= getJumpTargetsFromInstruction(oldAddr, res, bytes.second);

@@ -41,6 +41,7 @@ class JumpTarget
 			// Jump targets from various other sources.
 			CONFIG,
 			ENTRY_POINT,
+			SELECTED_RANGE_START,
 			IMPORT,
 			EXPORT,
 			DEBUG,

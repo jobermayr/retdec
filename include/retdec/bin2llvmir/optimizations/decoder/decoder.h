@@ -67,6 +67,7 @@ class Decoder : public llvm::ModulePass
 		void initEnvironmentRegisters();
 		void initRanges();
 		void initAllowedRangesWithSegments();
+		void initAllowedRangesWithConfig();
 		void initJumpTargets();
 		void initJumpTargetsConfig();
 		void initJumpTargetsEntryPoint();
@@ -294,6 +295,8 @@ class Decoder : public llvm::ModulePass
 
 		// TODO: remove, solve better.
 		bool _switchGenerated = false;
+
+		bool _somethingDecoded = false;
 };
 
 } // namespace bin2llvmir
