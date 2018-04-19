@@ -1029,7 +1029,10 @@ void StaticCodeAnalysis::checkRef(StaticCodeFunction::Reference& ref)
 	// linked, but which has its own section named '.text.<refName>'
 	//
 	auto* seg = _image->getImage()->getSegmentFromAddress(ref.target);
-	if (seg && utils::contains(seg->getName(), ref.name))
+	if (seg
+			&& utils::contains(seg->getName(), ref.name)
+			// Otherwise, this would hit even general reference like ".text".
+			&& utils::startsWith(seg->getName(), ".text."))
 	{
 		ref.ok = true;
 		return;
