@@ -75,13 +75,20 @@ bool MainDetection::run()
 	bool changed = false;
 	Address mainAddr;
 
-	if (mainAddr.isUndefined())
+	if (auto* mf = _module->getFunction("main"))
 	{
-		mainAddr = getFromFunctionNames();
+		if (auto* cf = _config->getConfigFunction(mf))
+		{
+			mainAddr = cf->getStart();
+		}
 	}
 	if (mainAddr.isUndefined())
 	{
 		mainAddr = getFromContext();
+	}
+	if (mainAddr.isUndefined())
+	{
+		mainAddr = getFromFunctionNames();
 	}
 
 	changed = applyResult(mainAddr);
