@@ -848,6 +848,7 @@ bool Decoder::getJumpTargetSwitch(
 	//
 	Address defAddr;
 	BranchInst* brToSwitch = nullptr; // TODO: i don't like how this is used
+	Value* brToSwitchCondVal = nullptr;
 	auto* thisBb = branchCall->getParent();
 
 	Address thisBbAddr = getBasicBlockAddress(thisBb);
@@ -865,6 +866,7 @@ bool Decoder::getJumpTargetSwitch(
 			if (falseAddr.isDefined() && thisBbAddr == falseAddr)
 			{
 				defAddr = trueAddr;
+				brToSwitchCondVal = ConstantInt::getFalse(_module->getContext());
 				LOG << "\t\t\t\t" << "default: branching over -> "
 						<< defAddr << std::endl;
 			}
@@ -872,6 +874,7 @@ bool Decoder::getJumpTargetSwitch(
 			else if (trueAddr.isDefined() && thisBbAddr == trueAddr)
 			{
 				defAddr = falseAddr;
+				brToSwitchCondVal = ConstantInt::getTrue(_module->getContext());
 				LOG << "\t\t\t\t" << "default: branching to -> "
 						<< defAddr << std::endl;
 			}
@@ -891,9 +894,9 @@ bool Decoder::getJumpTargetSwitch(
 	if (cond && thisBb == cond->getSuccessor(0))
 	{
 		// TODO: use known current insn size, not AsmInstruction() -> slow.
+		brToSwitch = nullptr;
 		defAddr = addr + AsmInstruction(branchCall).getByteSize();
 		armCondBr = cond;
-//		brToSwitch = cond;
 	}
 
 	// TODO:
@@ -904,8 +907,9 @@ bool Decoder::getJumpTargetSwitch(
 	// 8D44 loc_8D44:
 	//               switch
 	//
-
-	if (defAddr.isUndefined() || brToSwitch == nullptr)
+	if (defAddr.isUndefined()
+			|| (armCondBr == nullptr
+					&& (brToSwitch == nullptr || brToSwitchCondVal == nullptr)))
 	{
 		LOG << "\t\t\t" << "no default target -> skip" << std::endl;
 		// TODO: detected labels still should become jump targets.
@@ -923,6 +927,8 @@ bool Decoder::getJumpTargetSwitch(
 	// maybe we could check that compared value is indeed index value.
 	//
 	unsigned tableSize = 0;
+if (brToSwitch)
+{
 	SymbolicTree stCond(_RDA, brToSwitch->getCondition());
 	stCond.simplifyNode(_config);
 	auto levelOrd = stCond.getLevelOrder();
@@ -1004,6 +1010,7 @@ bool Decoder::getJumpTargetSwitch(
 			break;
 		}
 	}
+}
 
 	// Get targets from jump table.
 	//
@@ -1100,6 +1107,11 @@ bool Decoder::getJumpTargetSwitch(
 
 	_switchTableStarts[tableAddr].insert(sw);
 	_switchGenerated = true;
+
+	if (brToSwitch && brToSwitchCondVal)
+	{
+		brToSwitch->setCondition(brToSwitchCondVal);
+	}
 
 	if (armCondBr)
 	{
