@@ -50,7 +50,7 @@ Name::Name()
 
 }
 
-Name::Name(Config* c, const std::string& name, eType type) :
+Name::Name(Config* c, const std::string& name, eType type, Lti* lti) :
 		_name(normalizeNamePrefix(name)), // TODO: normalizeNamePrefix()
 		_type(type)
 {
@@ -58,6 +58,8 @@ Name::Name(Config* c, const std::string& name, eType type) :
 	{
 		fixPic32Mangling();
 	}
+
+	_inLti = lti->getLtiFunction(_name) != nullptr;
 }
 
 Name::operator std::string() const
@@ -86,6 +88,14 @@ bool Name::operator<(const Name& o) const
 		else if (o._name.empty())
 		{
 			return true;
+		}
+		else if (_inLti)
+		{
+			return true;
+		}
+		else if (o._inLti)
+		{
+			return false;
 		}
 		// E.g. real case symbol table:
 		// 0x407748 @ .text
@@ -176,14 +186,18 @@ Name Names::_emptyName;
  * Name is not added if \p name is empty.
  * \return \c True if name added, \c false otherwise.
  */
-bool Names::addName(Config* c, const std::string& name, Name::eType type)
+bool Names::addName(
+		Config* c,
+		const std::string& name,
+		Name::eType type,
+		Lti* lti)
 {
 	if (name.empty())
 	{
 		return false;
 	}
 
-	_names.emplace(c, name, type);
+	_names.emplace(c, name, type, lti);
 
 	return true;
 }
@@ -224,13 +238,15 @@ NameContainer::NameContainer(
 		Config* c,
 		DebugFormat* d,
 		FileImage* i,
-		demangler::CDemangler* dm)
+		demangler::CDemangler* dm,
+		Lti* lti)
 		:
 		_module(m),
 		_config(c),
 		_debug(d),
 		_image(i),
-		_demangler(dm)
+		_demangler(dm),
+		_lti(lti)
 {
 	initFromConfig();
 	initFromDebug();
@@ -244,7 +260,8 @@ NameContainer::NameContainer(
 bool NameContainer::addNameForAddress(
 		retdec::utils::Address a,
 		const std::string& name,
-		Name::eType type)
+		Name::eType type,
+		Lti* lti)
 {
 	if (a.isUndefined() || name.empty())
 	{
@@ -252,7 +269,7 @@ bool NameContainer::addNameForAddress(
 	}
 
 	auto& ns = _data[a];
-	return ns.addName(_config, name, type);
+	return ns.addName(_config, name, type, lti ? lti : _lti);
 }
 
 const Names& NameContainer::getNamesForAddress(retdec::utils::Address a)
@@ -495,7 +512,8 @@ NameContainer* NamesProvider::addNames(
 		Config* c,
 		DebugFormat* d,
 		FileImage* i,
-		demangler::CDemangler* dm)
+		demangler::CDemangler* dm,
+		Lti* lti)
 {
 	// Debug info may not be present -> \p d can be nullptr.
 	if (m == nullptr
@@ -506,7 +524,7 @@ NameContainer* NamesProvider::addNames(
 		return nullptr;
 	}
 
-	auto p = _module2names.emplace(m, NameContainer(m, c, d, i, dm));
+	auto p = _module2names.emplace(m, NameContainer(m, c, d, i, dm, lti));
 	return &p.first->second;
 }
 

@@ -14,6 +14,7 @@
 #include "retdec/bin2llvmir/providers/debugformat.h"
 #include "retdec/bin2llvmir/providers/demangler.h"
 #include "retdec/bin2llvmir/providers/fileimage.h"
+#include "retdec/bin2llvmir/providers/lti.h"
 #include "retdec/utils/address.h"
 
 namespace retdec {
@@ -88,7 +89,7 @@ class Name
 
 	public:
 		Name();
-		Name(Config* c, const std::string& name, eType type);
+		Name(Config* c, const std::string& name, eType type, Lti* lti = nullptr);
 
 		operator std::string() const;
 		explicit operator bool() const;
@@ -103,6 +104,7 @@ class Name
 	private:
 		std::string _name;
 		eType _type = eType::INVALID;
+		bool _inLti = false;
 };
 
 /**
@@ -114,7 +116,11 @@ class Names
 		using iterator = typename std::set<Name>::iterator;
 
 	public:
-		bool addName(Config* c, const std::string& name, Name::eType type);
+		bool addName(
+				Config* c,
+				const std::string& name,
+				Name::eType type,
+				Lti* lti = nullptr);
 
 		const Name& getPreferredName();
 
@@ -139,12 +145,14 @@ class NameContainer
 				Config* c,
 				DebugFormat* d,
 				FileImage* i,
-				demangler::CDemangler* dm);
+				demangler::CDemangler* dm,
+				Lti* lti = nullptr);
 
 		bool addNameForAddress(
 				retdec::utils::Address a,
 				const std::string& name,
-				Name::eType type);
+				Name::eType type,
+				Lti* lti = nullptr);
 
 		const Names& getNamesForAddress(retdec::utils::Address a);
 		const Name& getPreferredNameForAddress(retdec::utils::Address a);
@@ -169,6 +177,7 @@ class NameContainer
 		DebugFormat* _debug = nullptr;
 		FileImage* _image = nullptr;
 		demangler::CDemangler* _demangler = nullptr;
+		Lti* _lti = nullptr;
 
 		std::map<retdec::utils::Address, Names> _data;
 		/// <library name without suffix ".dll", map with ordinals>
@@ -186,7 +195,8 @@ class NamesProvider
 				Config* c,
 				DebugFormat* d,
 				FileImage* i,
-				demangler::CDemangler* dm);
+				demangler::CDemangler* dm,
+				Lti* lti);
 		static NameContainer* getNames(llvm::Module* m);
 		static bool getNames(llvm::Module* m, NameContainer*& names);
 		static void clear();

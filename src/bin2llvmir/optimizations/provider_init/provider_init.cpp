@@ -90,7 +90,7 @@ bool ProviderInitialization::runOnModule(Module& m)
 				c->getConfig().getImageBase(),
 				d);
 
-		LtiProvider::addLti(
+		auto* lti = LtiProvider::addLti(
 				&m,
 				c,
 				f->getImage());
@@ -100,7 +100,8 @@ bool ProviderInitialization::runOnModule(Module& m)
 				c,
 				debug,
 				f,
-				d);
+				d,
+				lti);
 
 		AsmInstruction::clear();
 
