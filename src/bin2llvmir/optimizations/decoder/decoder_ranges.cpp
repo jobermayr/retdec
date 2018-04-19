@@ -56,6 +56,88 @@ void RangesToDecode::remove(const utils::AddressRange& r)
 	remove(r.getStart(), r.getEnd());
 }
 
+void RangesToDecode::removeZeroSequences(FileImage* image)
+{
+	removeZeroSequences(image, _primaryRanges);
+	removeZeroSequences(image, _alternativeRanges);
+}
+
+void RangesToDecode::removeZeroSequences(
+		FileImage* image,
+		utils::AddressRangeContainer& rs)
+{
+	static unsigned minSequence = 0x50; // TODO: Maybe should be smaller.
+	retdec::utils::AddressRangeContainer toRemove;
+
+	for (auto& range : rs)
+	{
+		Address start = range.getStart();
+		Address end = range.getEnd();
+		uint64_t size = range.getSize();
+
+		uint64_t iter = 0;
+		Address zeroStart;
+		uint64_t byte = 0;
+		Address addr;
+
+		while (iter < size)
+		{
+			addr = start + iter;
+			if (image->getImage()->get1Byte(addr, byte))
+			{
+				if (byte == 0)
+				{
+					if (zeroStart.isUndefined())
+					{
+						zeroStart = addr;
+					}
+				}
+				else
+				{
+					// +8 -> first few zeroes might be a part of some
+					// instruction. only somewhere after them might the real
+					// sequence start. if we remove them, we make instruction
+					// undecodable.
+					//
+					if (zeroStart.isDefined()
+							&& zeroStart + 8 < addr
+							&& addr - zeroStart >= minSequence)
+					{
+						toRemove.insert(zeroStart+8, addr-1);
+					}
+					zeroStart = Address::getUndef;
+				}
+
+				iter += 1;
+			}
+			else
+			{
+				if (zeroStart.isDefined()
+						&& zeroStart + 8 < end
+						&& end - zeroStart >= minSequence)
+				{
+					toRemove.insert(zeroStart + 8, end);
+				}
+				break;
+			}
+		}
+
+		if (iter >= size
+				&& byte == 0
+				&& zeroStart.isDefined()
+				&& zeroStart + 8 < addr
+				&& addr - zeroStart >= minSequence)
+		{
+			toRemove.insert(zeroStart + 8, addr-1);
+		}
+	}
+
+	for (auto& range : toRemove)
+	{
+		rs.remove(range);
+	}
+}
+
 bool RangesToDecode::primaryEmpty() const
 {
 	return _primaryRanges.empty();

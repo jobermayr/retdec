@@ -122,6 +122,11 @@ bool Decoder::run()
 
 	initConfigFunctions();
 
+	if (debug_enabled)
+	{
+		dumpModuleToFile(_module, _config->getOutputDirectory());
+	}
+
 	return false;
 }
 

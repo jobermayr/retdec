@@ -211,6 +211,8 @@ void Decoder::initRanges()
 	{
 		initAllowedRangesWithSegments();
 	}
+
+	_ranges.removeZeroSequences(_image);
 }
 
 /**
@@ -648,6 +650,23 @@ void Decoder::initJumpTargetsImports()
 		if (isPtr)
 		{
 			ptrs.insert(&imp);
+			continue;
+		}
+
+		bool declaration = _config->getConfig().fileFormat.isPe()
+				|| _config->getConfig().fileFormat.isCoff();
+		if (declaration)
+		{
+			auto* f = createFunction(a, true);
+			_imports.emplace(a);
+			if (_image->isImportTerminating(impTbl, &imp))
+			{
+				_terminatingFncs.insert(f);
+			}
+			usedNames.insert(imp.getName());
+
+			_ranges.remove(a, a+_config->getConfig().architecture.getByteSize()-1);
+
 			continue;
 		}
 

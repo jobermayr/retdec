@@ -10,6 +10,7 @@
 #include <iostream>
 
 #include "retdec/utils/address.h"
+#include "retdec/bin2llvmir/providers/fileimage.h"
 
 namespace retdec {
 namespace bin2llvmir {
@@ -24,6 +25,7 @@ class RangesToDecode
 
 		void remove(utils::Address s, utils::Address e);
 		void remove(const utils::AddressRange& r);
+		void removeZeroSequences(FileImage* image);
 
 		bool primaryEmpty() const;
 		bool alternativeEmpty() const;
@@ -38,6 +40,11 @@ class RangesToDecode
 		void setArchitectureInstructionAlignment(unsigned a);
 
 	friend std::ostream& operator<<(std::ostream &os, const RangesToDecode& rs);
+
+	private:
+		void removeZeroSequences(
+				FileImage* image,
+				utils::AddressRangeContainer& rs);
 
 	private:
 		utils::AddressRangeContainer _primaryRanges;
