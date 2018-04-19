@@ -118,6 +118,7 @@ class StaticCodeAnalysis
 
 		std::set<std::string> _sigPaths;
 		std::map<utils::Address, std::string> _imports;
+		std::set<std::string> _sectionNames;
 
 		DetectedFunctionsMultimap _allDetections;
 		DetectedFunctionsPtrMap _confirmedDetections;

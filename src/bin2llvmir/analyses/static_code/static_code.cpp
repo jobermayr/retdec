@@ -538,6 +538,14 @@ StaticCodeAnalysis::StaticCodeAnalysis(
 		_allDetections.emplace(f.address, StaticCodeFunction(f));
 	}
 
+	for (auto& s : _image->getSegments())
+	{
+		if (!s->getName().empty())
+		{
+			_sectionNames.emplace(s->getName());
+		}
+	}
+
 	LOG << dumpDetectedFunctions(_allDetections) << std::endl;
 	solveReferences();
 	LOG << dumpDetectedFunctions(_allDetections) << std::endl;
@@ -1049,10 +1057,32 @@ void StaticCodeAnalysis::checkRef(StaticCodeFunction::Reference& ref)
 		return;
 	}
 
+	// There is no info in reference about what it is referencing (function,
+	// data object, whole section via its name, etc.).
+	// If reference name is an existing section name, but it is not the name of
+	// section where reference target is, reference is no good.
+	// Otherwise, the following check would for example hit reference with name
+	// ".bss" in section ".rodata".
+	//
+	auto secNameIt = _sectionNames.find(ref.name);
+	if (secNameIt != _sectionNames.end()
+			&& seg->getName() != ref.name)
+	{
+		return;
+	}
+	auto* sec = seg ? seg->getSecSeg() : nullptr;
+	if (sec)
+	{
+		if (ref.name == ".bss" && !sec->isBss()) return;
+		if (ref.name == ".rodata" && !sec->isReadOnly()) return;
+		if (ref.name == ".data" && !sec->isData()) return;
+		// other ...?
+	}
+
+
 	// Reference into section with reference name set to some object name.
 	// This must be the last check, because it can hit anything.
 	//
-	auto* sec = seg ? seg->getSecSeg() : nullptr;
 	if (sec
 			&& (sec->getType() == fileformat::SecSeg::Type::DATA
 // Disabled because we can not distinguish between functions and data objects.
