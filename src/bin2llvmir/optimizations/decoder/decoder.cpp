@@ -542,7 +542,8 @@ bool Decoder::getJumpTargetsFromInstruction(
 			auto nextAddr = addr + tr.size;
 			auto* nextBb = cond->getSuccessor(1);
 
-			if (auto* nBb = getBasicBlockAtAddress(nextAddr))
+			auto* nBb = getBasicBlockAtAddress(nextAddr);
+			if (nBb && nBb->getParent() == cond->getFunction())
 			{
 				auto* oldSucc = cond->getSuccessor(1);
 				oldSucc->replaceAllUsesWith(nBb);
