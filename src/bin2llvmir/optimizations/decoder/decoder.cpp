@@ -43,7 +43,10 @@ Decoder::Decoder() :
 
 Decoder::~Decoder()
 {
-	cs_free(_dryCsInsn, 1);
+	if (_dryCsInsn)
+	{
+		cs_free(_dryCsInsn, 1);
+	}
 }
 
 bool Decoder::runOnModule(Module& m)
