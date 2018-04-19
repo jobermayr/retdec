@@ -785,10 +785,10 @@ utils::Address Decoder::getJumpTarget(
 	st.simplifyNode(_config);
 
 // TODO: doing this will solve more, also it will screw up integration.ack.Test_2015_ThumbGccElf
-//	if (getJumpTargetSwitch(addr, branchCall, val, st))
-//	{
-//		return Address::getUndef;
-//	}
+	if (getJumpTargetSwitch(addr, branchCall, val, st))
+	{
+		return Address::getUndef;
+	}
 
 	if (auto* ci = dyn_cast<ConstantInt>(st.value))
 	{
