@@ -86,6 +86,11 @@ class Decoder : public llvm::ModulePass
 				const JumpTarget& jt,
 				ByteData bytes);
 		cs_mode determineMode(cs_insn* insn, utils::Address& target);
+		capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne
+				translate(
+						ByteData& bytes,
+						utils::Address& addr,
+						llvm::IRBuilder<>& irb);
 
 		bool getJumpTargetsFromInstruction(
 				utils::Address addr,
@@ -192,6 +197,12 @@ class Decoder : public llvm::ModulePass
 	// MIPS specific.
 	//
 	private:
+		bool disasm_mips(
+				csh ce,
+				cs_mode m,
+				ByteData& bytes,
+				uint64_t& a,
+				cs_insn* i);
 		std::size_t decodeJumpTargetDryRun_mips(
 				const JumpTarget& jt,
 				ByteData bytes);

@@ -36,6 +36,25 @@ bool isBadBranch(cs_insn* br)
 	return false;
 }
 
+bool Decoder::disasm_mips(
+		csh ce,
+		cs_mode m,
+		ByteData& bytes,
+		uint64_t& a,
+		cs_insn* i)
+{
+	bool ret = cs_disasm_iter(ce, &bytes.first, &bytes.second, &a, i);
+
+	if (ret == false && (m & CS_MODE_MIPS32))
+	{
+		_c2l->modifyBasicMode(CS_MODE_MIPS64);
+		ret = cs_disasm_iter(ce, &bytes.first, &bytes.second, &a, i);
+		_c2l->modifyBasicMode(CS_MODE_MIPS32);
+	}
+
+	return ret;
+}
+
 std::size_t Decoder::decodeJumpTargetDryRun_mips(
 		const JumpTarget& jt,
 		ByteData bytes)
@@ -47,7 +66,7 @@ std::size_t Decoder::decodeJumpTargetDryRun_mips(
 	bool first = true;
 	unsigned counter = 0;
 	unsigned cfChangePos = 0;
-	while (cs_disasm_iter(ce, &bytes.first, &bytes.second, &addr, _dryCsInsn))
+	while (disasm_mips(ce, _c2l->getBasicMode(), bytes, addr, _dryCsInsn))
 	{
 		++counter;
 

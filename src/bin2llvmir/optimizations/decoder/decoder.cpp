@@ -281,7 +281,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		LOG << "\t\t\t" << "translating = " << addr << std::endl;
 
 		Address oldAddr = addr;
-		auto res = _c2l->translateOne(bytes.first, bytes.second, addr, irb);
+		auto res = translate(bytes, addr, irb);
 		if (res.failed() || res.llvmInsn == nullptr)
 		{
 			if (auto* bb = getBasicBlockAtAddress(addr))
@@ -317,6 +317,30 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 	auto end = addr > start ? Address(addr-1) : start;
 	_ranges.remove(start, end);
 	LOG << "\t\tdecoded range = " << AddressRange(start, end) << std::endl;
+}
+
+capstone2llvmir::Capstone2LlvmIrTranslator::TranslationResultOne
+Decoder::translate(ByteData& bytes, utils::Address& addr, llvm::IRBuilder<>& irb)
+{
+	auto res = _c2l->translateOne(bytes.first, bytes.second, addr, irb);
+
+	// MIPS 64-bit mode can decompile more instructions than the 32-bit mode.
+	// When 32-bit mode is used, some 32-bit instructions that IDA handles fail
+	// to disassemble.
+	// But we cannot always use 64-bit mode, because some other (FPU)
+	// instructions are disassembled differently. Try to swtich modes only if
+	// translations fails.
+	//
+	if (_config->isMipsOrPic32()
+			&& (_c2l->getBasicMode() & CS_MODE_MIPS32)
+			&& res.failed())
+	{
+		_c2l->modifyBasicMode(CS_MODE_MIPS64);
+		res = _c2l->translateOne(bytes.first, bytes.second, addr, irb);
+		_c2l->modifyBasicMode(CS_MODE_MIPS32);
+	}
+
+	return res;
 }
 
 /**
@@ -1121,7 +1145,7 @@ void Decoder::handleDelaySlotTypical(
 	std::size_t sz = _c2l->getDelaySlot(res.capstoneInsn->id);
 	for (std::size_t i = 0; i < sz; ++i)
 	{
-		auto r = _c2l->translateOne(bytes.first, bytes.second, addr, irb);
+		auto r = translate(bytes, addr, irb);
 		if (r.failed() || r.llvmInsn == nullptr)
 		{
 			break;
@@ -1184,7 +1208,7 @@ void Decoder::handleDelaySlotLikely(
 		std::size_t sz = _c2l->getDelaySlot(res.capstoneInsn->id);
 		for (std::size_t i = 0; i < sz; ++i)
 		{
-			auto res = _c2l->translateOne(bytes.first, bytes.second, addr, irb);
+			auto res = translate(bytes, addr, irb);
 			if (res.failed() || res.llvmInsn == nullptr)
 			{
 				break;

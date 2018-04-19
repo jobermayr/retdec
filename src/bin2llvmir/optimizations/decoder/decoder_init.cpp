@@ -77,18 +77,6 @@ void Decoder::initTranslator()
 			_module,
 			basicMode,
 			extraMode);
-
-	// MIPS 64 -it mode can decompile more instructions than the 32-bit mode.
-	// When 32-bit mode is used, some 32-bit instructions that IDA handles fail
-	// to disassemble. Therefore, we init translator with 32-bit mode to get
-	// 32-bit environment and then switch it to 64-bit mode to handle more
-	// instructions. So far, there have been no problems, but it may be
-	// potentially dangerous.
-	//
-	if (a.isMipsOrPic32() && basicMode == CS_MODE_MIPS32)
-	{
-		_c2l->modifyBasicMode(CS_MODE_MIPS64);
-	}
 }
 
 /**
