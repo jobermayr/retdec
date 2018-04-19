@@ -431,13 +431,19 @@ void NameContainer::initFromImage()
 		}
 	}
 
-	for (auto& seg : _image->getSegments())
-	{
-		addNameForAddress(
-				seg->getAddress(),
-				seg->getName(),
-				Name::eType::ENTRY_POINT);
-	}
+	// TODO: if we add this here, we get few more names, but these names may
+	// be used for functions. Which we do not want - we prefer names like
+	// function_<addr> to section names for functions.
+	// If we add this here, functions need some kind of cutoff not to use
+	// names below certain source.
+	//
+//	for (auto& seg : _image->getSegments())
+//	{
+//		addNameForAddress(
+//				seg->getAddress(),
+//				seg->getName(),
+//				Name::eType::ENTRY_POINT);
+//	}
 }
 
 std::string NameContainer::getNameFromImportLibAndOrd(
