@@ -931,6 +931,7 @@ if (brToSwitch)
 {
 	SymbolicTree stCond(_RDA, brToSwitch->getCondition());
 	stCond.simplifyNode(_config);
+
 	auto levelOrd = stCond.getLevelOrder();
 	for (SymbolicTree* n : levelOrd)
 	{
@@ -965,7 +966,7 @@ if (brToSwitch)
 			LOG << "\t\t\t" << "table size (1) = " << tableSize << std::endl;
 			break;
 		}
-		// mips:
+		// mips (???):
 		//>|   %319 = icmp ne i32 %318, 0
 		//		>|   %316 = icmp ult i32 %315, 121
 		//				>|   %314 = and i32 %313, 255
@@ -985,6 +986,30 @@ if (brToSwitch)
 			auto* ci = cast<ConstantInt>(n->ops[0].ops[1].value);
 			tableSize = ci->getZExtValue();
 			LOG << "\t\t\t" << "table size (2) = " << tableSize << std::endl;
+			break;
+		}
+		// TODO: apply this only if it si branching over?
+		// TODO: apply prev (very similar to this) only if branching to?
+		// mips (branching over):
+		//>|   %33 = icmp ne i32 %32, 0
+		//		>|   %22 = icmp ult i32 %20, %21
+		//				>| i32 8
+		//				>|   %19 = add i32 %18, -20
+		//		>| i32 0
+		else if (isa<ICmpInst>(n->value)
+				&& cast<ICmpInst>(n->value)->getPredicate()
+						== ICmpInst::ICMP_NE
+				&& isa<ICmpInst>(n->ops[0].value)
+				&& cast<ICmpInst>(n->ops[0].value)->getPredicate()
+						== ICmpInst::ICMP_ULT
+				&& isa<ConstantInt>(n->ops[0].ops[0].value)
+				&& !cast<ConstantInt>(n->ops[0].ops[0].value)->isZero()
+				&& isa<ConstantInt>(n->ops[1].value)
+				&& cast<ConstantInt>(n->ops[1].value)->isZero())
+		{
+			auto* ci = cast<ConstantInt>(n->ops[0].ops[0].value);
+			tableSize = ci->getZExtValue();
+			LOG << "\t\t\t" << "table size (2.5) = " << tableSize << std::endl;
 			break;
 		}
 		// mips:
@@ -1062,6 +1087,9 @@ if (brToSwitch)
 	{
 		BasicBlock* tBb = nullptr;
 		Function* tFnc = nullptr;
+		// TODO: do not split functions here.
+		// if case in another function, do not use it - it may belong to another
+		// switch table.
 		getOrCreateBranchTarget(c, tBb, tFnc, branchCall);
 		if (tBb && tBb->getParent() == branchCall->getFunction())
 		{
@@ -1076,6 +1104,7 @@ if (brToSwitch)
 
 	Function* tFnc = nullptr;
 	BasicBlock* defBb = nullptr;
+	// TODO: do not split functions here
 	getOrCreateBranchTarget(defAddr, defBb, tFnc, branchCall);
 	if (defBb == nullptr
 			|| defBb->getParent() != branchCall->getFunction())
@@ -1086,6 +1115,7 @@ if (brToSwitch)
 
 	auto* sw = transformToSwitch(branchCall, idx, defBb, casesBbs);
 
+	// TODO: create only for those that were transformed to BBs.
 	for (auto c : cases)
 	{
 		_jumpTargets.push(
