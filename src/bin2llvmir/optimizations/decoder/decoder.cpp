@@ -1037,6 +1037,59 @@ if (brToSwitch)
 	}
 }
 
+	// integration.current.switch.TestEXE (switch-test-msvc-O0.ex)
+	// Two jump tables.
+	//
+	std::vector<unsigned> idxs;
+	unsigned maxIdx = 0;
+	SymbolicTree idxRoot(_RDA, idx);
+	idxRoot.simplifyNode(_config);
+	if (_config->getConfig().architecture.isX86()
+			&& tableSize
+			&& isa<LoadInst>(idxRoot.value)
+			&& cast<LoadInst>(idxRoot.value)->getType()->isIntegerTy()
+			&& idxRoot.ops.size() == 1
+			&& isa<AddOperator>(idxRoot.ops[0].value)
+			&& idxRoot.ops[0].ops.size() == 2
+			&& isa<Instruction>(idxRoot.ops[0].ops[0].value)
+			&& cast<Instruction>(idxRoot.ops[0].ops[0].value)->getType()->isIntegerTy()
+			&& isa<ConstantInt>(idxRoot.ops[0].ops[1].value))
+	{
+		auto* l = cast<LoadInst>(idxRoot.value);
+		auto* it = cast<IntegerType>(l->getType());
+		auto* ci = cast<ConstantInt>(idxRoot.ops[0].ops[1].value);
+		retdec::utils::Address tableAddr2(ci->getZExtValue());
+
+		LOG << "\t\t\t" << "second table addr @ " << tableAddr2 << std::endl;
+
+		// Switch index must not be the table offset.
+		// We have to use the original index.
+		idx = cast<Instruction>(idxRoot.ops[0].ops[0].value);
+
+		while (true)
+		{
+			auto* ci = _image->getConstantInt(it, tableAddr2);
+			if (ci == nullptr)
+			{
+				break;
+			}
+			// A safer condition to end this would be to track constant
+			// (second table size) used in comparison in instruction
+			// before the cond jmp instruction.
+			unsigned idx = ci->getZExtValue();
+			if (tableSize > 0 && idxs.size() == tableSize)
+			{
+				break;
+			}
+
+			LOG << "\t\t\t\t" << idx << std::endl;
+
+			maxIdx = idx > maxIdx ? idx : maxIdx;
+			idxs.push_back(idx);
+			tableAddr2 += getTypeByteSizeInBinary(_module, ci->getType());
+		}
+	}
+
 	// Get targets from jump table.
 	//
 	LOG << "\t\t\t" << "table labels:" << std::endl;
@@ -1068,6 +1121,11 @@ if (brToSwitch)
 		{
 			break;
 		}
+		// idx from zero, there can be one more item than max idx number.
+		if (maxIdx > 0 && cases.size() > maxIdx)
+		{
+			break;
+		}
 		if (nextTableAddr.isUndefined() && tableItemAddr >= nextTableAddr)
 		{
 			break;
@@ -1081,6 +1139,23 @@ if (brToSwitch)
 	}
 	Address tableAddrEnd = tableItemAddr;
 
+	// Put together two tables.
+	//
+	if (!idxs.empty())
+	{
+		std::vector<Address> tmp = std::move(cases);
+		cases.clear();
+
+		for (auto& i : idxs)
+		{
+			if (tmp.size() > i)
+			{
+				cases.push_back(tmp[i]);
+			}
+		}
+	}
+
+	//
 	//
 	std::vector<BasicBlock*> casesBbs;
 	for (auto c : cases)
