@@ -191,6 +191,11 @@ class Decoder : public llvm::ModulePass
 		std::size_t decodeJumpTargetDryRun_arm(
 				const JumpTarget& jt,
 				ByteData bytes);
+		std::size_t decodeJumpTargetDryRun_arm(
+				const JumpTarget& jt,
+				ByteData bytes,
+				cs_mode mode,
+				std::size_t &decodedSz);
 		void patternsPseudoCall_arm(llvm::CallInst*& call, AsmInstruction& pAi);
 		cs_mode determineMode_arm(cs_insn* insn, utils::Address& target);
 

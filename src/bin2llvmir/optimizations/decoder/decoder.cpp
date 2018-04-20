@@ -359,7 +359,7 @@ std::size_t Decoder::decodeJumpTargetDryRun(
 	{
 		return decodeJumpTargetDryRun_x86(jt, bytes);
 	}
-	else if (_config->getConfig().architecture.isArm())
+	else if (_config->isArmOrThumb())
 	{
 		return decodeJumpTargetDryRun_arm(jt, bytes);
 	}

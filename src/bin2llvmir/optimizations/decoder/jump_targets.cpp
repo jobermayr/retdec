@@ -94,6 +94,11 @@ cs_mode JumpTarget::getMode() const
 	return _mode;
 }
 
+void JumpTarget::setMode(cs_mode m) const
+{
+	_mode = m;
+}
+
 std::ostream& operator<<(std::ostream &out, const JumpTarget& jt)
 {
 	std::string t;

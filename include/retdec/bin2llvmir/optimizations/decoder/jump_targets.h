@@ -69,6 +69,7 @@ class JumpTarget
 		eType getType() const;
 		retdec::utils::Address getFromAddress() const;
 		cs_mode getMode() const;
+		void setMode(cs_mode m) const;
 
 	friend std::ostream& operator<<(std::ostream &out, const JumpTarget& jt);
 
@@ -82,7 +83,7 @@ class JumpTarget
 		/// Address from which this jump target was created.
 		retdec::utils::Address _fromAddress;
 		/// Disassembler mode that should be used for this jump target.
-		cs_mode _mode = CS_MODE_BIG_ENDIAN;
+		mutable cs_mode _mode = CS_MODE_BIG_ENDIAN;
 
 	public:
 		static Config* config;

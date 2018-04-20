@@ -46,15 +46,68 @@ std::size_t Decoder::decodeJumpTargetDryRun_arm(
 		const JumpTarget& jt,
 		ByteData bytes)
 {
+	std::size_t decodedSzArm = 0;
+	auto skipArm = decodeJumpTargetDryRun_arm(jt, bytes, CS_MODE_ARM, decodedSzArm);
+
+	std::size_t decodedSzThumb = 0;
+	auto skipThumb = decodeJumpTargetDryRun_arm(jt, bytes, CS_MODE_THUMB, decodedSzThumb);
+
+	// ARM ok.
+	//
+	if (skipArm == 0 && skipThumb)
+	{
+		jt.setMode(CS_MODE_ARM);
+		return skipArm;
+	}
+	// THUMB ok.
+	//
+	else if (skipArm && skipThumb == 0)
+	{
+		jt.setMode(CS_MODE_THUMB);
+		return skipThumb;
+	}
+	// Both OK.
+	//
+	else if (skipArm == 0 && skipThumb == 0)
+	{
+		if (decodedSzArm > decodedSzThumb)
+		{
+			jt.setMode(CS_MODE_ARM);
+		}
+		else if (decodedSzArm < decodedSzThumb)
+		{
+			jt.setMode(CS_MODE_THUMB);
+		}
+		return 0;
+	}
+	// Both bad.
+	//
+	else
+	{
+		return skipArm < skipThumb ? skipArm : skipThumb;
+	}
+}
+
+std::size_t Decoder::decodeJumpTargetDryRun_arm(
+		const JumpTarget& jt,
+		ByteData bytes,
+		cs_mode mode,
+		std::size_t &decodedSz)
+{
+
+	auto basicMode = _c2l->getBasicMode();
+	if (mode != basicMode) _c2l->modifyBasicMode(mode);
+
 	static csh ce = _c2l->getCapstoneEngine();
 
-//	assert(jt.getType() != JumpTarget::eType::LEFTOVER);
-
+	decodedSz = 0;
 	uint64_t addr = jt.getAddress();
 	std::size_t nops = 0;
 	bool first = true;
 	while (cs_disasm_iter(ce, &bytes.first, &bytes.second, &addr, _dryCsInsn))
 	{
+		decodedSz += _dryCsInsn->size;
+
 		if (jt.getType() == JumpTarget::eType::LEFTOVER
 				&& (first || nops > 0)
 				&& capstone_utils::isNopInstruction(
@@ -66,12 +119,14 @@ std::size_t Decoder::decodeJumpTargetDryRun_arm(
 		else if (jt.getType() == JumpTarget::eType::LEFTOVER
 				&& nops > 0)
 		{
+			if (mode != basicMode) _c2l->modifyBasicMode(basicMode);
 			return nops;
 		}
 
 		if (_c2l->isControlFlowInstruction(*_dryCsInsn)
 				|| insnWrittesPc(ce, _dryCsInsn))
 		{
+			if (mode != basicMode) _c2l->modifyBasicMode(basicMode);
 			return false;
 		}
 
@@ -80,6 +135,7 @@ std::size_t Decoder::decodeJumpTargetDryRun_arm(
 
 	if (nops > 0)
 	{
+		if (mode != basicMode) _c2l->modifyBasicMode(basicMode);
 		return nops;
 	}
 
@@ -87,9 +143,11 @@ std::size_t Decoder::decodeJumpTargetDryRun_arm(
 	//
 	if (getBasicBlockAtAddress(addr) && getFunctionAtAddress(addr) == nullptr)
 	{
+		if (mode != basicMode) _c2l->modifyBasicMode(basicMode);
 		return false;
 	}
 
+	if (mode != basicMode) _c2l->modifyBasicMode(basicMode);
 	return true;
 }
 
