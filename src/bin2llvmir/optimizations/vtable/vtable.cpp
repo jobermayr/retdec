@@ -481,9 +481,7 @@ Vtable::Vtable(Address a) :
 
 std::string Vtable::getName() const
 {
-	std::stringstream ss;
-	ss << std::hex << vtableAddress;
-	return "vtable_" + ss.str();
+	return "vtable_" + vtableAddress.toHexString();
 }
 
 std::ostream& operator<<(std::ostream &out, const Vtable &v)
