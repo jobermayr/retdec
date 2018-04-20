@@ -239,7 +239,6 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		if (jt.getType() != JumpTarget::eType::LEFTOVER)
 		{
 			LOG << "\t\t" << "found no bb for jt -> skip" << std::endl;
-			assert(false);
 			return;
 		}
 
@@ -259,7 +258,6 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		}
 		else
 		{
-			assert(false);
 			return;
 		}
 	}
@@ -790,6 +788,28 @@ utils::Address Decoder::getJumpTarget(
 	if (getJumpTargetSwitch(addr, branchCall, val, st))
 	{
 		return Address::getUndef;
+	}
+
+	// TOOD: ugly hack - recognize MIPS import stub functions.
+	// We compute more than we should here -> solve load and jump to _PROCEDURE_LINKAGE_TABLE_.
+	// IDA will either change the loaded word to point to synthetic import section,
+	// or marks it as ?? ?? ?? ?? so it can not be used. We read _PROCEDURE_LINKAGE_TABLE_ address.
+	// Can we use relocations, or something to mark these pointer not to be used.
+	// Problem, this is also used in ihex, where there is even less info.
+	//
+	if (_config->isMipsOrPic32())
+	{
+		AsmInstruction ai1(_module, addr);
+		AsmInstruction ai2 = ai1.getPrev();
+		AsmInstruction ai3 = ai2.getPrev();
+		AsmInstruction ai4 = ai3.getPrev();
+		if (ai4.isInvalid()
+				&& ai1.isValid() && ai1.getDsm() == "jr $t9"
+				&& ai2.isValid() && ai2.getCapstoneInsn()->id == MIPS_INS_LW
+				&& ai3.isValid() && ai3.getCapstoneInsn()->id == MIPS_INS_LUI)
+		{
+			return Address::getUndef;
+		}
 	}
 
 	// If there are loads, try to solve them.

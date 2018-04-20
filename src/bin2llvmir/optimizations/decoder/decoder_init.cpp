@@ -593,6 +593,15 @@ void Decoder::initJumpTargetsEntryPoint()
 			Address::getUndef))
 	{
 		_entryPointFunction = createFunction(jt->getAddress());
+
+		// TODO: bugs.bin2llvmir-branch-analysis-segfault.Test
+		// _image->getImage()->hasDataOnAddress(a) == false -> created fnc is emtpy
+		// But we still can get and decode some data.
+		if (_entryPointFunction && _entryPointFunction->empty())
+		{
+			createBasicBlock(jt->getAddress(), _entryPointFunction);
+		}
+
 		LOG << "\t" << "[+] " << ep << " @ "
 				<< _entryPointFunction->getName().str() << std::endl;
 	}
