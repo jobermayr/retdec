@@ -719,6 +719,12 @@ void Decoder::initJumpTargetsImports()
 
 void Decoder::initJumpTargetsExports()
 {
+	// TODO: These might be THUMBs without us knowing - no odd address.
+	// e.g.
+	// features.macho-archives.TestExtractArchiveDecompilation (archive --ar-index 3)
+	// run dry run and determine arm/thumb.
+	// TODO: also in that sample, it looks like THUMB symbols are -1 not +1.
+
 	LOG << "\n" << "initJumpTargetsExports():" << std::endl;
 
 	auto* exTbl = _image->getFileFormat()->getExportTable();
@@ -802,7 +808,7 @@ void Decoder::initJumpTargetsSymbols()
 			addFunctionSize(nf, sz);
 
 			LOG << "\t" << "[+] " << addr << " @ " << nf->getName().str()
-					<< std::endl;
+					 << " (" << s->getName() << ")" << std::endl;
 		}
 		else
 		{

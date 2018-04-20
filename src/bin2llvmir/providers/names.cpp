@@ -415,6 +415,11 @@ void NameContainer::initFromImage()
 					break;
 			}
 
+			if (_config->isArmOrThumb() && a % 2)
+			{
+				a -= 1;
+			}
+
 			addNameForAddress(a, s->getName(), t);
 		}
 	}

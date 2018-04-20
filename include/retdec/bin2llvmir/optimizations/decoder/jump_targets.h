@@ -43,9 +43,9 @@ class JumpTarget
 			ENTRY_POINT,
 			SELECTED_RANGE_START,
 			IMPORT,
-			EXPORT,
 			DEBUG,
 			SYMBOL,
+			EXPORT,
 			STATIC_CODE,
 			LEFTOVER,
 			// Default jump target.
