@@ -434,7 +434,9 @@ bool Decoder::getJumpTargetsFromInstruction(
 	//
 	if (_c2l->isCallFunctionCall(pCall))
 	{
-		if (auto t = getJumpTarget(addr, pCall, pCall->getArgOperand(0)))
+		auto t = getJumpTarget(addr, pCall, pCall->getArgOperand(0));
+		// TOOD: sometimes we want to enable calls (and other branches) to zero.
+		if (t || (t == 0 && AsmInstruction(_module, 0)))
 		{
 			auto m = determineMode(tr.capstoneInsn, t);
 			getOrCreateCallTarget(t, tFnc, tBb);

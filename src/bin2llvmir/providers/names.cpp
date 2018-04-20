@@ -424,6 +424,11 @@ void NameContainer::initFromImage()
 		unsigned long long ep = 0;
 		if (_image->getFileFormat()->getEpAddress(ep))
 		{
+			if (_config->isArmOrThumb() && ep % 2)
+			{
+				ep -= 1;
+			}
+
 			addNameForAddress(
 					ep,
 					names::entryPointName,
