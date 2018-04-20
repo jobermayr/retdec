@@ -438,6 +438,17 @@ bool Decoder::getJumpTargetsFromInstruction(
 		// TOOD: sometimes we want to enable calls (and other branches) to zero.
 		if (t || (t == 0 && AsmInstruction(_module, 0)))
 		{
+			auto nextAddr = addr + tr.size;
+
+			// TODO: found in x86 macho:
+			//__text:00001EE6    sub     esp, 1Ch
+			//__text:00001EE9    call    $+5         (target = 0x1EEE)
+			//__text:00001EEE    pop     ecx
+			if (t == nextAddr)
+			{
+				return false;
+			}
+
 			auto m = determineMode(tr.capstoneInsn, t);
 			getOrCreateCallTarget(t, tFnc, tBb);
 
@@ -480,8 +491,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 
 			// The created function might be in range that we are currently
 			// decoding -> if so, trim range size.
-			auto nextAddr = addr + tr.size;
-			if (nextAddr < t && t < nextAddr + rangeSize)
+			if (nextAddr <= t && t < nextAddr + rangeSize)
 			{
 				rangeSize = t - nextAddr;
 			}
