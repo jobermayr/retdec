@@ -700,7 +700,13 @@ bool Decoder::getJumpTargetsFromInstruction(
 			if (auto* l = dyn_cast<LoadInst>(&i))
 			{
 				SymbolicTree st(_RDA, l->getPointerOperand(), nullptr, 8);
+
+				// TODO: THIS SHOUDL BE DONE FOR ALL ST TREES EVERYWHERE.
+				// Without this, it uses default register zeroes.
+				st.removeRegisterValues(_config);
+
 				st.simplifyNode(_config);
+
 				if (auto* ci = dyn_cast<ConstantInt>(st.value))
 				{
 					Address t(ci->getZExtValue());
