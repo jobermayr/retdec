@@ -381,7 +381,15 @@ bool Decoder::canSplitFunctionOn(
 		changed = false;
 		for (BasicBlock& b : *f)
 		{
-			Address bAddr = getBasicBlockAddress(&b);
+//			Address bAddr = getBasicBlockAddress(&b);
+			Address bAddr;
+			// TODO: shitty
+			BasicBlock* bPrev = &b;
+			while (bAddr.isUndefined() && bPrev)
+			{
+				bAddr = getBasicBlockAddress(bPrev);
+				bPrev = bPrev->getPrevNode();
+			}
 			if (bAddr.isUndefined())
 			{
 				continue;
@@ -392,7 +400,15 @@ bool Decoder::canSplitFunctionOn(
 
 			for (auto* p : predecessors(&b))
 			{
-				Address pAddr = getBasicBlockAddress(p);
+//				Address pAddr = getBasicBlockAddress(p);
+				Address pAddr;
+				// TODO: shitty
+				BasicBlock* pPrev = p;
+				while (pAddr.isUndefined() && pPrev)
+				{
+					pAddr = getBasicBlockAddress(pPrev);
+					pPrev = pPrev->getPrevNode();
+				}
 				if (pAddr.isUndefined())
 				{
 					continue;
@@ -460,11 +476,6 @@ llvm::Function* Decoder::splitFunctionOn(
 		utils::Address addr,
 		llvm::BasicBlock* splitOnBb)
 {
-	if (addr == 0x104da)
-	{
-		dumpModuleToFile(_module, _config->getOutputDirectory());
-	}
-
 	LOG << "\t\t\t\t" << "S: splitFunctionOn @ " << addr << " on "
 			<< splitOnBb->getName().str() << std::endl;
 

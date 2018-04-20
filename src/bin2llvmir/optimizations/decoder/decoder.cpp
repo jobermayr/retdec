@@ -1184,7 +1184,6 @@ if (brToSwitch)
 		}
 		else
 		{
-			assert(false);
 			return false;
 		}
 	}
