@@ -737,6 +737,42 @@ utils::Address Decoder::getJumpTarget(
 		llvm::Value* val)
 {
 	SymbolicTree st(_RDA, val, nullptr, 16);
+
+	// TODO: better implementation.
+	// PIC code.
+	// User code is calling stub in .plt.
+	// Stub in .plt is computing jmp address (address of import).
+	// 4-form_grabber-b794ce9e.so.elf, .plt:00001BE0 ___ctype_toupper_loc:
+	//   %u1_1be0 = load i32, i32* @ebx
+	//   %u2_1be0 = add i32 %u1_1be0, %u0_1be0
+	//   %u3_1be0 = load i32, i32* %u2_1be0
+	//   call void @__pseudo_br(i32 %u3_1be0)
+	// We do not know the value in @ebx. This should be .got.plt section
+	// start -> fix value in symbolic tree before simplification.
+	//
+	auto* plt = _image->getFileFormat()->getSectionFromAddress(addr);
+	if (plt && plt->getName() == ".plt")
+	{
+		// TODO: do not find this all over again every time.
+		auto* gotplt = _image->getFileFormat()->getSection(".got.plt");
+		if (gotplt)
+		{
+			auto gotpltAddr = gotplt->getAddress();
+			for (auto* n : st.getPostOrder())
+			{
+				if (_config->isGeneralPurposeRegister(n->value)
+						&& n->ops.size() == 1
+						&& isa<ConstantInt>(n->ops[0].value))
+				{
+					auto* ci = cast<ConstantInt>(n->ops[0].value);
+					n->ops[0].value = ConstantInt::get(
+							ci->getType(),
+							gotpltAddr);
+				}
+			}
+		}
+	}
+
 	st.simplifyNode(_config);
 
 	if (auto* ci = dyn_cast<ConstantInt>(st.value))

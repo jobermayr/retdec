@@ -601,19 +601,26 @@ bool FileImage::isImportTerminating(
 {
 	std::string name = imp->getName();
 
-	if (getFileFormat()->isPe() || getFileFormat()->isCoff())
-	{
-		auto libN = impTbl->getLibrary(imp->getLibraryIndex());
-		return (libN == "msvcrt.dll" && name == "exit")
-				|| (libN == "msvcrt.dll" && name == "abort");
-	}
-	else if (getFileFormat()->isElf())
-	{
-		return name == "exit"
-				|| name == "abort";
-	}
+	// TODO: safer
+//	if (getFileFormat()->isPe() || getFileFormat()->isCoff())
+//	{
+//		auto libN = impTbl->getLibrary(imp->getLibraryIndex());
+//		return (libN == "msvcrt.dll" && name == "exit")
+//				|| (libN == "msvcrt.dll" && name == "abort");
+//	}
+//	else if (getFileFormat()->isElf())
+//	{
+//		return name == "exit"
+//				|| name == "abort";
+//	}
 
-	return false;
+	// TODO
+	retdec::utils::NonIterableSet<std::string> exitFncs =
+	{
+		"exit", "_exit", "ExitThread", "abort", "longjmp", "_Exit",
+		"quick_exit", "thrd_exit", "ExitProcess"
+	};
+	return exitFncs.has(name);
 }
 
 //
