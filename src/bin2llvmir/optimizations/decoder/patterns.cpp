@@ -348,6 +348,14 @@ bool Decoder::patternStaticallyLinked()
 				{
 					ok = true;
 				}
+				// TODO: the above is not enough
+				// bugs.thumb-bitcnt-1-integration-test.Test
+				else if (c->getCalledFunction()
+						&& (c->getCalledFunction()->getName() == "vfprintf"
+						|| c->getCalledFunction()->getName() == "__svfscanf_r"))
+				{
+					ok = true;
+				}
 				else
 				{
 					ok = false;
