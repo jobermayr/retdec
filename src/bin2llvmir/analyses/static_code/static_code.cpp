@@ -438,6 +438,29 @@ StaticCodeFunction::StaticCodeFunction(const stacofin::DetectedFunction& df) :
 	}
 }
 
+bool StaticCodeFunction::operator<(const StaticCodeFunction& o) const
+{
+	if (address == o.address)
+	{
+		if (names.empty())
+		{
+			return true;
+		}
+		else if (o.names.empty())
+		{
+			return false;
+		}
+		else
+		{
+			return names.empty() < o.names.empty();
+		}
+	}
+	else
+	{
+		return address < o.address;
+	}
+}
+
 bool StaticCodeFunction::allRefsOk() const
 {
 	for (auto& ref : references)

@@ -46,6 +46,8 @@ class StaticCodeFunction
 
 	public:
 		StaticCodeFunction(const stacofin::DetectedFunction& df);
+		bool operator<(const StaticCodeFunction& o) const;
+
 		bool allRefsOk() const;
 		std::size_t countRefsOk() const;
 		float refsOkShare() const;
@@ -123,7 +125,16 @@ class StaticCodeAnalysis
 		DetectedFunctionsMultimap _allDetections;
 		DetectedFunctionsPtrMap _confirmedDetections;
 		DetectedFunctionsPtrMultimap _rejectedDetections;
-		std::set<StaticCodeFunction*> _worklistDetections;
+
+	private:
+		struct StaticCodeFunctionComp
+		{
+			bool operator()(const StaticCodeFunction* a, const StaticCodeFunction* b) const
+			{
+				return *a < *b;
+			}
+		};
+		std::set<StaticCodeFunction*, StaticCodeFunctionComp> _worklistDetections;
 };
 
 } // namespace bin2llvmir
