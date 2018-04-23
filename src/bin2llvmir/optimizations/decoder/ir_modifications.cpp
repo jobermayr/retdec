@@ -536,7 +536,9 @@ llvm::Function* Decoder::splitFunctionOn(
 	for (BasicBlock& b : *f)
 	{
 		auto* br = dyn_cast<BranchInst>(b.getTerminator());
-		if (br && br->getSuccessor(0)->getParent() != br->getFunction())
+		if (br
+				&& (br->getSuccessor(0)->getParent() != br->getFunction()
+				|| br->getSuccessor(0)->getPrevNode() == nullptr))
 		{
 			auto* callee = br->getSuccessor(0)->getParent();
 			auto* c = CallInst::Create(callee, "", br);
