@@ -14,6 +14,7 @@
 
 #include "retdec/utils/string.h"
 #include "retdec/bin2llvmir/analyses/symbolic_tree.h"
+#include "retdec/bin2llvmir/providers/asm_instruction.h"
 #include "retdec/bin2llvmir/providers/config.h"
 #include "retdec/bin2llvmir/utils/defs.h"
 #include "retdec/bin2llvmir/utils/utils.h"
@@ -477,7 +478,11 @@ void SymbolicTree::_simplifyNode(Config* config)
 			&& cast<ConstantInt>(ops[0].ops[0].value)->isZero())
 	{
 		auto* l = cast<LoadInst>(value);
-		auto addr = config->getFunctionAddress(l->getFunction());
+
+// TODO: none of these is ideal.
+//		auto addr = config->getFunctionAddress(l->getFunction());
+		auto addr = AsmInstruction::getFunctionAddress(l->getFunction());
+
 		auto* ci = cast<ConstantInt>(ops[0].ops[0].value);
 		ops[0].ops[0].value = ConstantInt::get(ci->getType(), addr);
 		*this = std::move(ops[0].ops[0]);

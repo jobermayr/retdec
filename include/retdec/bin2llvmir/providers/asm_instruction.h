@@ -345,6 +345,8 @@ class AsmInstruction
 				llvm::Instruction* inst);
 		static retdec::utils::Address getBasicBlockAddress(
 				llvm::BasicBlock* bb);
+		static retdec::utils::Address getFunctionAddress(
+				llvm::Function* f);
 		static bool isLlvmToAsmInstruction(const llvm::Value* inst);
 		static void clear();
 
