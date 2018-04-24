@@ -540,6 +540,7 @@ bool doExit = false;
 		//					>|   %51 = load i32, i32* @eax, align 4
 		//			>| i32 0
 		//
+		BinaryOperator* binOp = nullptr;
 		if (isa<BinaryOperator>(root.value)
 				&& cast<BinaryOperator>(root.value)->getOpcode() == Instruction::And
 				&& root.ops.size() == 2
@@ -568,52 +569,86 @@ bool doExit = false;
 				&& isa<BinaryOperator>(root.ops[0].ops[0].ops[0].value)
 				&& cast<BinaryOperator>(root.ops[0].ops[0].ops[0].value)->getOpcode() == ICmpInst::Sub)
 		{
-			auto* binOp = cast<BinaryOperator>(root.ops[0].ops[0].ops[0].value);
+			binOp = cast<BinaryOperator>(root.ops[0].ops[0].ops[0].value);
+		}
+		// TODO: Exactly the same as above, but first level operands are
+		// reversed. -reassociate pass was removed. All patterns should not rely
+		// on reassociation, but should somehow try to match agains both operands
+		// of commutative operations (in this case ::And).
+		//
+		else if (isa<BinaryOperator>(root.value)
+				&& cast<BinaryOperator>(root.value)->getOpcode() == Instruction::And
+				&& root.ops.size() == 2
 
-			if (binOp && binOp->getOperand(1)->getType()->isIntegerTy())
+				&& isa<ICmpInst>(root.ops[1].value)
+				&& cast<ICmpInst>(root.ops[1].value)->getPredicate() == ICmpInst::ICMP_EQ
+				&& root.ops[1].ops.size() == 2
+
+				&& isa<ICmpInst>(root.ops[0].value)
+				&& cast<ICmpInst>(root.ops[0].value)->getPredicate() == ICmpInst::ICMP_EQ
+				&& root.ops[0].ops.size() == 2
+
+				&& isa<ICmpInst>(root.ops[1].ops[0].value)
+				&& cast<ICmpInst>(root.ops[1].ops[0].value)->getPredicate() == ICmpInst::ICMP_EQ
+				&& root.ops[1].ops[0].ops.size() == 2
+
+				&& isa<ConstantInt>(root.ops[1].ops[1].value)
+				&& cast<ConstantInt>(root.ops[1].ops[1].value)->getZExtValue() == 0
+
+				&& isa<ICmpInst>(root.ops[0].ops[0].value)
+				&& cast<ICmpInst>(root.ops[0].ops[0].value)->getPredicate() == ICmpInst::ICMP_SLT
+
+				&& isa<ICmpInst>(root.ops[0].ops[1].value)
+				&& cast<ICmpInst>(root.ops[0].ops[1].value)->getPredicate() == ICmpInst::ICMP_SLT
+
+				&& isa<BinaryOperator>(root.ops[1].ops[0].ops[0].value)
+				&& cast<BinaryOperator>(root.ops[1].ops[0].ops[0].value)->getOpcode() == ICmpInst::Sub)
+		{
+			binOp = cast<BinaryOperator>(root.ops[1].ops[0].ops[0].value);
+		}
+		if (binOp && binOp->getOperand(1)->getType()->isIntegerTy())
+		{
+			Value* testedVal = binOp->getOperand(0);
+			Value* subVal = binOp->getOperand(1);
+
+			auto it = inst_begin(br->getFunction());
+			assert(it != inst_end(br->getFunction()));
+			auto* firstI = &*it;
+
+			auto* testedA = new AllocaInst(
+					testedVal->getType(),
+					"",
+					firstI);
+			new StoreInst(testedVal, testedA, binOp);
+
+			auto* subA = new AllocaInst(
+					subVal->getType(),
+					"",
+					firstI);
+			new StoreInst(subVal, subA, binOp);
+
+			auto* testedL = new LoadInst(testedA, "", br);
+			auto* subL = new LoadInst(subA, "", br);
+			auto* conv = convertValueToType(testedL, subL->getType(), br);
+
+			if (!conv->getType()->isIntegerTy() || !subL->getType()->isIntegerTy())
 			{
-				Value* testedVal = binOp->getOperand(0);
-				Value* subVal = binOp->getOperand(1);
-
-				auto it = inst_begin(br->getFunction());
-				assert(it != inst_end(br->getFunction()));
-				auto* firstI = &*it;
-
-				auto* testedA = new AllocaInst(
-						testedVal->getType(),
-						"",
-						firstI);
-				new StoreInst(testedVal, testedA, binOp);
-
-				auto* subA = new AllocaInst(
-						subVal->getType(),
-						"",
-						firstI);
-				new StoreInst(subVal, subA, binOp);
-
-				auto* testedL = new LoadInst(testedA, "", br);
-				auto* subL = new LoadInst(subA, "", br);
-				auto* conv = convertValueToType(testedL, subL->getType(), br);
-
-				if (!conv->getType()->isIntegerTy() || !subL->getType()->isIntegerTy())
-				{
-					continue;
-				}
-
-				auto* newCond = new ICmpInst(
-						br,
-						ICmpInst::ICMP_SGT,
-						conv,
-						subL);
-
-				LOG << "---" << llvmObjToString(br) << std::endl;
-
-				br->replaceUsesOfWith(cond, newCond);
-
-				LOG << "+++" << llvmObjToString(newCond) << std::endl;
-				LOG << "+++" << llvmObjToString(br) << std::endl;
 				continue;
 			}
+
+			auto* newCond = new ICmpInst(
+					br,
+					ICmpInst::ICMP_SGT,
+					conv,
+					subL);
+
+			LOG << "---" << llvmObjToString(br) << std::endl;
+
+			br->replaceUsesOfWith(cond, newCond);
+
+			LOG << "+++" << llvmObjToString(newCond) << std::endl;
+			LOG << "+++" << llvmObjToString(br) << std::endl;
+			continue;
 		}
 
 		// for-simple.c -a x86 -f elf -c gcc -C -O0

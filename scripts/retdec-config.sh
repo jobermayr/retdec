@@ -43,7 +43,8 @@ X86_ORDS_DIR="$INSTALL_SUPPORT_DIR/x86/ords"
 #   * without -internalize -inline -inline-cost -notti -deadargelim -argpromotion -simplify-libcalls -loop-unroll -loop-unswitch -sroa -tailcallelim -functionattrs -memcpyopt -prune-eh
 BIN2LLVMIR_PARAMS_DISABLES="-disable-inlining -disable-simplify-libcalls"
 BIN2LLVMIR_ONLY_PASSES="-instcombine -tbaa -targetlibinfo -basicaa -domtree -simplifycfg -domtree -early-cse -lower-expect -targetlibinfo -tbaa -basicaa -globalopt -mem2reg -instcombine -simplifycfg -basiccg -domtree -early-cse -lazy-value-info -jump-threading -correlated-propagation -simplifycfg -instcombine -simplifycfg -reassociate -domtree -loops -loop-simplify -lcssa -loop-rotate -licm -lcssa -instcombine -scalar-evolution -loop-simplifycfg -loop-simplify -aa -loop-accesses -loop-load-elim -lcssa -indvars -loop-idiom -loop-deletion -memdep -gvn -memdep -sccp -instcombine -lazy-value-info -jump-threading -correlated-propagation -domtree -memdep -dse -dce -bdce -adce -die -simplifycfg -instcombine -strip-dead-prototypes -globaldce -constmerge -constprop -instnamer -domtree -instcombine"
-BIN2LLVMIR_VOLATILIZED_PASSES="-volatilize -instcombine -reassociate -volatilize"
+BIN2LLVMIR_VOLATILIZED_PASSES="-volatilize -instcombine -volatilize"
+
 # Notes:
 #
 # - We run all the passes several times to produce more optimized results. The
