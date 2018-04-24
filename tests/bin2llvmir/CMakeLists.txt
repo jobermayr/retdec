@@ -14,7 +14,6 @@ set(RETDEC_TESTS_BIN2LLVMIR_SOURCES
 	optimizations/stack_pointer_ops/stack_pointer_ops_tests.cpp
 	optimizations/type_conversions/type_conversions_tests.cpp
 	optimizations/unreachable_funcs/unreachable_funcs_tests.cpp
-	optimizations/volatilize/volatilize_tests.cpp
 	providers/asm_instruction_tests.cpp
 	providers/config_tests.cpp
 	providers/debugformat_tests.cpp

@@ -66,7 +66,6 @@ set(BIN2LLVMIR_SOURCES
 	optimizations/syscalls/x86.cpp
 	optimizations/type_conversions/type_conversions.cpp
 	optimizations/unreachable_funcs/unreachable_funcs.cpp
-	optimizations/volatilize/volatilize.cpp
 	optimizations/vtable/rtti_analysis.cpp
 	optimizations/vtable/rtti_gcc.cpp
 	optimizations/vtable/rtti_msvc.cpp
