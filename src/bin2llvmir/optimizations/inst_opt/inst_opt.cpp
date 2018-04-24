@@ -129,8 +129,11 @@ bool InstOpt::runGeneralOpts()
 				{
 					i.replaceAllUsesWith(ConstantInt::get(i.getType(), 0));
 					toErase.insert(&i);
-					op1->replaceAllUsesWith(op0);
-					toErase.insert(op1);
+					if (op0 != op1)
+					{
+						op1->replaceAllUsesWith(op0);
+						toErase.insert(op1);
+					}
 					changed = true;
 				}
 				else if (i.getOpcode() == Instruction::Or
@@ -138,8 +141,11 @@ bool InstOpt::runGeneralOpts()
 				{
 					i.replaceAllUsesWith(op0);
 					toErase.insert(&i);
-					op1->replaceAllUsesWith(op0);
-					toErase.insert(op1);
+					if (op0 != op1)
+					{
+						op1->replaceAllUsesWith(op0);
+						toErase.insert(op1);
+					}
 					changed = true;
 				}
 			}
