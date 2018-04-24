@@ -899,7 +899,8 @@ if [ "$MODE" = "bin" ] || [ "$MODE" = "raw" ]; then
 		CONFIG="$CONFIG_DB"
 	fi
 
-	BIN2LLVMIR_PARAMS=(-provider-init -config-path "$CONFIG" -decoder $BIN2LLVMIR_PARAMS)
+	BIN2LLVMIR_PARAMS=($BIN2LLVMIR_PARAMS)
+	BIN2LLVMIR_PARAMS+=(-config-path "$CONFIG")
 
 	if [ ! -z "$MAX_MEMORY" ]; then
 		BIN2LLVMIR_PARAMS+=(-max-memory "$MAX_MEMORY")
