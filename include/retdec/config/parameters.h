@@ -27,7 +27,6 @@ class Parameters
 		bool isVerboseOutput() const;
 		bool isKeepAllFunctions() const;
 		bool isSelectedDecodeOnly() const;
-		bool isFrontendFunction(const std::string& funcName) const;
 		/// @}
 
 		/// @name Parameters set methods.
@@ -56,7 +55,6 @@ class Parameters
 		std::set<std::string> libraryTypeInfoPaths;
 		std::set<std::string> semanticPaths;
 		std::set<std::string> abiPaths;
-		std::set<std::string> frontendFunctions;
 
 		/// Names of all completed frontend passes.
 		std::set<std::string> completedFrontendPasses;

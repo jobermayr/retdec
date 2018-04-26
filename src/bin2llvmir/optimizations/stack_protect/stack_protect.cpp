@@ -13,7 +13,6 @@
 #include <llvm/IR/Instruction.h>
 #include <llvm/IR/Instructions.h>
 
-#define debug_enabled false
 #include "retdec/utils/string.h"
 #include "retdec/bin2llvmir/optimizations/stack_protect/stack_protect.h"
 #include "retdec/bin2llvmir/utils/utils.h"
@@ -83,11 +82,9 @@ bool StackProtect::run()
 
 bool StackProtect::protectStack()
 {
-	_config->getConfig().parameters.frontendFunctions.insert(_fncName);
-
 	for (auto& F : _module->getFunctionList())
 	for (auto& B : F)
-	for (auto& I : B)
+	for (Instruction& I : B)
 	{
 		auto* a = dyn_cast<AllocaInst>(&I);
 		if (!_config->isStackVariable(a))
@@ -137,7 +134,7 @@ bool StackProtect::protectStack()
 	if (_config->getConfig().isIda()
 			&& _config->getConfig().parameters.isSomethingSelected())
 	{
-		for (auto& F : _module->getFunctionList())
+		for (Function& F : _module->getFunctionList())
 		{
 			if (F.isDeclaration())
 			{
@@ -194,74 +191,35 @@ bool StackProtect::unprotectStack(llvm::Function* f)
 {
 	for (auto& p : _type2fnc)
 	{
-		std::set<Instruction*> toEraseUse;
-		std::set<Instruction*> toErase;
-//		std::set<std::tuple<User*, Value*, Value*>> toReplace;
-
 		auto* fnc = p.second;
-		for (auto* u : fnc->users())
+
+		for (auto uIt = fnc->user_begin(); uIt != fnc->user_end();)
 		{
+			auto* u = *uIt;
+			++uIt;
+
 			CallInst* c = dyn_cast<CallInst>(u);
 			assert(c);
 
-			if (c->use_empty())
+			for (auto uuIt = u->user_begin(); uuIt != u->user_end();)
 			{
-				toErase.insert(c);
+				auto* uu = *uuIt;
+				++uuIt;
+
+				if (auto* s = dyn_cast<StoreInst>(uu))
+				{
+					s->eraseFromParent();
+				}
 			}
-			else if (c->hasOneUse() && isa<StoreInst>(*c->users().begin()))
-			{
-				toErase.insert(c);
-				toEraseUse.insert(cast<StoreInst>(*c->users().begin()));
-			}
-// TODO: When we do this, we remove all protector functions in bin2llvmirl,
-// => there is no need to add them to config and handle them in backeend as well.
-// The problem is that 3 regression tests fail, it looks like backend is
-// behaving differently when values are tagged with undefined functions and when
-// undefined alloca is used. Try to solve it with Petr, because otherwise this
-// is a better solution.
-//
-//			else
-//			{
-//				LoadInst* l = nullptr;
-//				for (auto* uu : c->users())
-//				{
-//					if (auto* s = dyn_cast<StoreInst>(uu))
-//					{
-//						toErase.insert(c);
-//						toEraseUse.insert(s);
-//					}
-//					else
-//					{
-//						if (l == nullptr)
-//						{
-//							auto* a = new AllocaInst(c->getType(), "", c);
-//							l = new LoadInst(a, "", false, c);
-//						}
-//
-//						toReplace.insert(std::make_tuple(uu, c, l));
-//					}
-//				}
-//			}
+
+			c->replaceAllUsesWith(UndefValue::get(c->getType()));
+			c->eraseFromParent();
 		}
 
-//		for (auto& t : toReplace)
-//		{
-//			std::get<0>(t)->replaceUsesOfWith(std::get<1>(t), std::get<2>(t));
-//		}
-
-		for (auto* e : toEraseUse)
-		{
-			e->eraseFromParent();
-		}
-		for (auto* e : toErase)
-		{
-			e->eraseFromParent();
-		}
-
-//		fnc->eraseFromParent();
+		fnc->eraseFromParent();
 	}
 
-	return false;
+	return true;
 }
 
 } // namespace bin2llvmir
