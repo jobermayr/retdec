@@ -1379,14 +1379,14 @@ void StaticCodeAnalysis::confirmFunction(StaticCodeFunction* f)
 
 	// Reject all functions that overlap with the function.
 	//
-	AddressRange range(f->address, f->address + f->size - 1);
+	AddressRange range(f->address, f->address + f->size);
 	auto it = _worklistDetections.begin(), e = _worklistDetections.end();
 	while (it != e)
 	{
 		auto* of = *it;
 		if (of != f)
 		{
-			AddressRange oRange(of->address, of->address + of->size - 1);
+			AddressRange oRange(of->address, of->address + of->size);
 			if (range.overlaps(oRange))
 			{
 				_rejectedDetections.emplace(of->address, of);

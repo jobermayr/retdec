@@ -107,7 +107,7 @@ class AddressRangeContainer
 				const AddressRangeContainer &r);
 
 	private:
-		std::set<AddressRange> ranges;
+		std::set<AddressRange> _ranges;
 };
 
 } // namespace utils

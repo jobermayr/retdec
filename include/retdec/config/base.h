@@ -118,8 +118,9 @@ class AddressRangeJson : public retdec::utils::AddressRange
 				return;
 			}
 
-			setStart(safeGetAddress(val, "start"));
-			setEnd(safeGetAddress(val, "end"));
+			setStartEnd(
+					safeGetAddress(val, "start"),
+					safeGetAddress(val, "end"));
 		}
 };
 

@@ -82,8 +82,9 @@ Function Function::fromJsonValue(const Json::Value& val)
 	ret.setDeclarationString( safeGetString(val, JSON_decStr) );
 	ret.setWrappedFunctionName( safeGetString(val, JSON_wrappedName) );
 	ret.setSourceFileName( safeGetString(val, JSON_srcFileName) );
-	ret.setStart( safeGetAddress(val, JSON_startAddr) );
-	ret.setEnd( safeGetAddress(val, JSON_endAddr) );
+	ret.setStartEnd(
+			safeGetAddress(val, JSON_startAddr),
+			safeGetAddress(val, JSON_endAddr));
 	ret.setStartLine( safeGetAddress(val, JSON_startLine) );
 	ret.setEndLine( safeGetAddress(val, JSON_endLine) );
 	ret.setIsFixed( safeGetBool(val, JSON_fixed) );

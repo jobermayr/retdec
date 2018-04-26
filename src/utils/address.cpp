@@ -153,8 +153,7 @@ AddressRange::AddressRange(const std::string &r)
 	int ret = std::sscanf(r.c_str(), "0x%llx-0x%llx", &f, &s);
 	if (ret == 2 && f <= s)
 	{
-		setStart(f);
-		setEnd(s);
+		setStartEnd(f, s);
 	}
 }
 
@@ -175,7 +174,7 @@ bool AddressRange::operator!=(const AddressRange &o) const
 
 std::ostream& operator<< (std::ostream &out, const AddressRange &r)
 {
-	return out << std::hex << "<" << r.getStart() << "--" << r.getEnd() << ">";
+	return out << std::hex << "<" << r.getStart() << ", " << r.getEnd() << ")";
 }
 
 //
@@ -193,42 +192,42 @@ std::ostream& operator<<(std::ostream &out, const AddressRangeContainer &r)
 
 AddressRangeContainer::iterator AddressRangeContainer::begin()
 {
-	return ranges.begin();
+	return _ranges.begin();
 }
 
 AddressRangeContainer::const_iterator AddressRangeContainer::begin() const
 {
-	return ranges.begin();
+	return _ranges.begin();
 }
 
 AddressRangeContainer::iterator AddressRangeContainer::end()
 {
-	return ranges.end();
+	return _ranges.end();
 }
 
 AddressRangeContainer::const_iterator AddressRangeContainer::end() const
 {
-	return ranges.end();
+	return _ranges.end();
 }
 
 std::size_t AddressRangeContainer::size() const
 {
-	return ranges.size();
+	return _ranges.size();
 }
 
 bool AddressRangeContainer::empty() const
 {
-	return ranges.empty();
+	return _ranges.empty();
 }
 
 void AddressRangeContainer::clear()
 {
-	ranges.clear();
+	_ranges.clear();
 }
 
 bool AddressRangeContainer::operator==(const AddressRangeContainer &o) const
 {
-	return ranges == o.ranges;
+	return _ranges == o._ranges;
 }
 
 bool AddressRangeContainer::operator!=(const AddressRangeContainer &o) const
@@ -239,53 +238,53 @@ bool AddressRangeContainer::operator!=(const AddressRangeContainer &o) const
 std::pair<AddressRangeContainer::iterator,bool> AddressRangeContainer::insert(
 		const AddressRange &r)
 {
-	std::vector<AddressRangeContainer::iterator> betweenOld;
+	AddressRangeContainer::iterator betweenOldFirst = _ranges.end();
+	AddressRangeContainer::iterator betweenOldLast = _ranges.end();
 
-	auto pos = ranges.lower_bound(r);
-	if (pos != ranges.begin())
+	auto pos = _ranges.lower_bound(r);
+	if (pos != _ranges.begin())
 	{
 		--pos; // Move to previous no matter what.
 	}
-	while (pos != ranges.end() && pos->getStart() <= (r.getEnd() + 1))
+	while (pos != _ranges.end() && pos->getStart() <= r.getEnd())
 	{
 		if (pos->contains(r.getStart())
 				|| pos->contains(r.getEnd())
 				|| r.contains(pos->getStart())
 				|| r.contains(pos->getEnd())
-				|| pos->getStart() == (r.getEnd() + 1)
-				|| pos->getEnd() == (r.getStart() - 1))
+				|| pos->getStart() == r.getEnd()
+				|| pos->getEnd() == r.getStart())
 		{
-			betweenOld.push_back(pos);
+			if (betweenOldFirst == _ranges.end())
+			{
+				betweenOldFirst = pos;
+			}
+			betweenOldLast = pos;
 		}
 		++pos;
 	}
 
 	// Not overlapping -> insert brand new.
 	//
-	if (betweenOld.empty())
+	if (betweenOldFirst == _ranges.end())
 	{
-		return ranges.insert(r);
+		return _ranges.insert(r);
 	}
 	// Inserted range fully in some existing range -> do not insert anything.
 	//
-	else if (betweenOld.size() == 1 && (*betweenOld.begin())->contains(r))
+	else if (betweenOldFirst == betweenOldLast && betweenOldFirst->contains(r))
 	{
-		return {*betweenOld.begin(), false};
+		return {betweenOldFirst, false};
 	}
 	// Some other combo -> find min/max, remove all old, insert new.
 	//
 	else
 	{
-		auto min = r.getStart();
-		auto max = r.getEnd();
-		for (auto it : betweenOld)
-		{
-			min = std::min(min, it->getStart());
-			max = std::max(max, it->getEnd());
-		}
-		auto last = betweenOld.back();
-		ranges.erase(betweenOld.front(), ++last);
-		return ranges.insert(AddressRange(min, max));
+		auto min = std::min(r.getStart(), betweenOldFirst->getStart());
+		auto max = std::max(r.getEnd(), betweenOldLast->getEnd());
+
+		_ranges.erase(betweenOldFirst, ++betweenOldLast);
+		return _ranges.insert(AddressRange(min, max));
 	}
 }
 
@@ -298,25 +297,26 @@ std::pair<AddressRangeContainer::iterator,bool> AddressRangeContainer::insert(
 
 const AddressRange* AddressRangeContainer::getRange(Address addr) const
 {
-	if (ranges.empty())
+	if (_ranges.empty())
 	{
 		return nullptr;
 	}
 
-	auto pos = ranges.lower_bound(AddressRange(addr));
+	// c++14 should allow _ranges.lower_bound(addr)
+	auto pos = _ranges.lower_bound(AddressRange(addr, addr));
 
-	if (pos == ranges.end())
+	if (pos == _ranges.end())
 	{
-		auto last = ranges.rbegin();
+		auto last = _ranges.rbegin();
 		return (last->contains(addr)) ? (&(*last)) : (nullptr);
 	}
 
-	if (pos != ranges.begin() && pos->getStart() != addr)
+	if (pos != _ranges.begin() && pos->getStart() != addr)
 	{
 		pos--;
 	}
 
-	return (pos->contains(addr)) ? (&(*pos)) : (nullptr);
+	return pos->contains(addr) ? &(*pos) : nullptr;
 }
 
 bool AddressRangeContainer::contains(Address addr) const
@@ -332,54 +332,33 @@ bool AddressRangeContainer::containsExact(AddressRange r) const
 
 void AddressRangeContainer::remove(const AddressRange &r)
 {
-	std::vector<AddressRangeContainer::iterator> inOld;
-
-	auto pos = ranges.lower_bound(r);
-	if (pos != ranges.begin())
+	auto pos = _ranges.lower_bound(r);
+	if (pos != _ranges.begin())
 	{
 		--pos; // Move to previous no matter what.
 	}
-	while (pos != ranges.end() && pos->getStart() <= r.getEnd())
+	while (pos != _ranges.end() && pos->getStart() <= r.getEnd())
 	{
 		if (pos->contains(r.getStart())
 				|| pos->contains(r.getEnd())
 				|| r.contains(pos->getStart())
 				|| r.contains(pos->getEnd()))
 		{
-			inOld.push_back(pos);
+			AddressRange old = *pos;
+			pos = _ranges.erase(pos);
+			if (old.getStart() < r.getStart())
+			{
+				_ranges.emplace(old.getStart(), r.getStart());
+			}
+			if (old.getEnd() > r.getEnd())
+			{
+				_ranges.emplace(r.getEnd(), old.getEnd());
+			}
 		}
-		++pos;
-	}
-
-	if (inOld.empty())
-	{
-		return;
-	}
-
-	std::vector<AddressRange> newRanges;
-
-	for (auto& it : inOld)
-	{
-		const AddressRange& old = *it;
-
-		if (old.getStart() < r.getStart())
+		else
 		{
-			newRanges.push_back(AddressRange(old.getStart(), r.getStart() - 1));
+			++pos;
 		}
-		if (old.getEnd() > r.getEnd())
-		{
-			newRanges.push_back(AddressRange(r.getEnd() + 1, old.getEnd()));
-		}
-	}
-
-	// Remove all old -- container is set, we can not modify its elements.
-	//
-	auto last = inOld.back();
-	ranges.erase(inOld.front(), ++last);
-
-	for (auto& nr : newRanges)
-	{
-		insert(nr);
 	}
 }
 

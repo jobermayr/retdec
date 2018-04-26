@@ -323,8 +323,7 @@ retdec::config::Function* Config::insertFunction(
 	retdec::config::Function cf(fnc->getName());
 	cf.setDemangledName(dm);
 	cf.setIsFromDebug(fromDebug);
-	cf.setStart(start);
-	cf.setEnd(end);
+	cf.setStartEnd(start, end);
 
 	if (cf.getDemangledName().empty())
 	{

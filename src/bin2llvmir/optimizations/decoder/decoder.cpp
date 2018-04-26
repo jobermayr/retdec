@@ -270,12 +270,14 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 	{
 		LOG << "\t\t" << "found no data -> skip" << std::endl;
 		// TODO: slow, maybe do not even add ranges that do not have data.
-		_ranges.remove(start, start);
+		_ranges.remove(start, start + 1);
 		return;
 	}
 
-	auto toRangeEnd = range->getEnd() + 1 - start;
+	auto toRangeEnd = range->getEnd() - start;
+
 	bytes.second = toRangeEnd < bytes.second ? toRangeEnd : bytes.second;
+
 	if (jt.hasSize() && jt.getSize() < bytes.second)
 	{
 		bytes.second = jt.getSize();
@@ -297,7 +299,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 	{
 		if (auto skipSz = decodeJumpTargetDryRun(jt, bytes))
 		{
-			AddressRange sr(start, start+skipSz-1);
+			AddressRange sr(start, start+skipSz);
 			LOG << "\t\t" << "dry run failed -> skip range = " << sr
 					<< std::endl;
 			_ranges.remove(sr);
@@ -384,7 +386,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 	}
 	while (!bbEnd);
 
-	auto end = addr > start ? Address(addr-1) : start;
+	auto end = addr > start ? addr : Address(start+1);
 	_ranges.remove(start, end);
 	LOG << "\t\tdecoded range = " << AddressRange(start, end) << std::endl;
 }
@@ -783,7 +785,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 				{
 					Address t(ci->getZExtValue());
 					auto sz = getTypeByteSizeInBinary(_module, l->getType());
-					AddressRange r(t, t+sz-1);
+					AddressRange r(t, t+sz);
 					_ranges.remove(r);
 
 					// Trim currently decoding range size if needed.
@@ -1353,7 +1355,7 @@ if (brToSwitch)
 			addr);
 	LOG << "\t\t" << "switch -> (default) " << defAddr << std::endl;
 
-	_ranges.remove(tableAddr, tableAddrEnd - 1);
+	_ranges.remove(tableAddr, tableAddrEnd);
 
 	_switchTableStarts[tableAddr].insert(sw);
 	_switchGenerated = true;

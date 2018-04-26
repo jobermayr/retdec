@@ -25,7 +25,10 @@ namespace bin2llvmir {
 void RangesToDecode::addPrimary(utils::Address s, utils::Address e)
 {
 	s = align(s, archInsnAlign);
-	_primaryRanges.insert(s, e);
+	if (e > s)
+	{
+		_primaryRanges.insert(s, e);
+	}
 }
 
 void RangesToDecode::addPrimary(const utils::AddressRange& r)
@@ -36,7 +39,10 @@ void RangesToDecode::addPrimary(const utils::AddressRange& r)
 void RangesToDecode::addAlternative(utils::Address s, utils::Address e)
 {
 	s = align(s, archInsnAlign);
-	_alternativeRanges.insert(s, e);
+	if (e > s)
+	{
+		_alternativeRanges.insert(s, e);
+	}
 }
 
 void RangesToDecode::addAlternative(const utils::AddressRange& r)
@@ -46,7 +52,7 @@ void RangesToDecode::addAlternative(const utils::AddressRange& r)
 
 void RangesToDecode::remove(utils::Address s, utils::Address e)
 {
-	e = align(e + 1, archInsnAlign) - 1;
+	e = align(e, archInsnAlign);
 	_primaryRanges.remove(s, e);
 	_alternativeRanges.remove(s, e);
 }
@@ -103,7 +109,7 @@ void RangesToDecode::removeZeroSequences(
 							&& zeroStart + 8 < addr
 							&& addr - zeroStart >= minSequence)
 					{
-						toRemove.insert(zeroStart+8, addr-1);
+						toRemove.insert(zeroStart+8, addr);
 					}
 					zeroStart = Address::getUndef;
 				}
@@ -128,7 +134,7 @@ void RangesToDecode::removeZeroSequences(
 				&& zeroStart + 8 < addr
 				&& addr - zeroStart >= minSequence)
 		{
-			toRemove.insert(zeroStart + 8, addr-1);
+			toRemove.insert(zeroStart + 8, addr);
 		}
 	}
 

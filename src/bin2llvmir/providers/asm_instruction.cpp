@@ -357,7 +357,7 @@ std::size_t AsmInstruction::getBitSize() const
 
 bool AsmInstruction::contains(retdec::utils::Address addr) const
 {
-	return isValid() ? getAddress() <= addr && addr <= getEndAddress() : false;
+	return isValid() ? getAddress() <= addr && addr < getEndAddress() : false;
 }
 
 llvm::StoreInst* AsmInstruction::getLlvmToAsmInstruction() const

@@ -374,9 +374,9 @@ void Decoder::initAllowedRangesWithConfig()
 			Address start = df.getStart();
 			Address end = df.getEnd();
 
-			_ranges.addPrimary(start, end-1);
+			_ranges.addPrimary(start, end);
 			LOG << "\t" << "[+] selected range from debug @ "
-					<< AddressRange(start, end-1) << std::endl;
+					<< AddressRange(start, end) << std::endl;
 
 			utils::Maybe<std::size_t> sz;
 			auto tmpSz = dfp.second.getSize();
@@ -490,7 +490,7 @@ void Decoder::initAllowedRangesWithConfig()
 
 			if (fIt != selectedFs.end() && foundFs.find(*fIt) == foundFs.end())
 			{
-				_ranges.addPrimary(start, end-1);
+				_ranges.addPrimary(start, end);
 				LOG << "\t" << "[+] selected range from symbol: "
 						<< start << std::endl;
 
@@ -526,7 +526,7 @@ void Decoder::initAllowedRangesWithConfig()
 	auto* plt = _image->getImage()->getSegment(".plt");
 	if (!_ranges.primaryEmpty() && plt)
 	{
-		_ranges.addPrimary(plt->getAddress(), plt->getPhysicalEndAddress()-1);
+		_ranges.addPrimary(plt->getAddress(), plt->getPhysicalEndAddress());
 	}
 }
 
@@ -662,7 +662,7 @@ void Decoder::initJumpTargetsImports()
 			}
 			usedNames.insert(imp.getName());
 
-			_ranges.remove(a, a+_config->getConfig().architecture.getByteSize()-1);
+			_ranges.remove(a, a+_config->getConfig().architecture.getByteSize());
 
 			continue;
 		}
@@ -908,7 +908,7 @@ void Decoder::initStaticCode()
 
 			// Speed-up decoding, but we will not be able to diff CFG json
 			// with IDA CFG.
-			//_ranges.remove(f->address, f->address + f->size - 1);
+			//_ranges.remove(f->address, f->address + f->size);
 
 			LOG << "\t" << "[+] " << sf->address << " @ "
 					<< nf->getName().str() << std::endl;
@@ -927,7 +927,7 @@ void Decoder::initConfigFunctions()
 		Function* f = p.first;
 		Address start = p.second;
 		Address end = getFunctionEndAddress(f);
-		end = end > start ? Address(end - 1) : end;
+		end = end > start ? end : Address(start + 1);
 
 		auto* cf = _config->insertFunction(f, start, end);
 

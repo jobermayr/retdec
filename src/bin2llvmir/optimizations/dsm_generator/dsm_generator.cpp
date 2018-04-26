@@ -189,19 +189,19 @@ void DsmGenerator::generateCodeSeg(
 	ret << "; section: " << seg->getName() << "\n";
 
 	Address addr;
-	for (addr = seg->getAddress(); addr <= seg->getEndAddress(); )
+	for (addr = seg->getAddress(); addr < seg->getEndAddress(); )
 	{
 		auto fIt = _addr2fnc.find(addr);
 		auto* f = fIt != _addr2fnc.end() ? fIt->second : nullptr;
 		if (f)
 		{
 			generateFunction(f, ret);
-			addr = f->getEnd() > addr ? f->getEnd() + 1 : addr + 1;
+			addr = f->getEnd() > addr ? f->getEnd() : Address(addr + 1);
 			continue;
 		}
 
 		Address nextFncAddr = addr;
-		while (nextFncAddr <= seg->getEndAddress())
+		while (nextFncAddr < seg->getEndAddress())
 		{
 			if (_addr2fnc.count(nextFncAddr))
 			{
@@ -210,7 +210,7 @@ void DsmGenerator::generateCodeSeg(
 			++nextFncAddr;
 		}
 
-		Address last = nextFncAddr-1; // TODO
+		Address last = nextFncAddr;
 		ret << "; data inside code section at "
 				<< addr.toHexPrefixString() << " -- "
 				<< last.toHexPrefixString() << "\n";
@@ -266,7 +266,7 @@ void DsmGenerator::generateFunction(
 					<< next.getAddress().toHexPrefixString() << "\n";
 			generateDataRange(ai.getEndAddress(), next.getAddress(), ret);
 		}
-		else if (next.isInvalid() && ai.getEndAddress() < (fnc->getEnd() + 1))
+		else if (next.isInvalid() && ai.getEndAddress() < fnc->getEnd())
 		{
 			Address end = fnc->getEnd() + 1;
 			ret << "; data inside code section at "
