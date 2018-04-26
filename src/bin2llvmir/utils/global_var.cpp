@@ -141,72 +141,6 @@ bool globalVariableCanBeCreated(
 } // anonymous namespace
 
 /**
- * TODO: This should be private to this module -- impossible to call from
- * other modules. Once all globals are detected in bin2llvmirl, make this
- * private.
- */
-bool getGlobalInfoFromCryptoPatterns(
-		Module* module,
-		Config* config,
-		retdec::utils::Address addr,
-		std::string& name,
-		std::string& description,
-		Type*& type)
-{
-	for (auto& p : config->getConfig().patterns)
-	{
-		if (!p.isTypeCrypto())
-		{
-			continue;
-		}
-
-		for (auto& m : p.matches)
-		{
-			if (m.getAddress() != addr || !m.isSizeDefined())
-			{
-				continue;
-			}
-
-			unsigned elemCount = m.getSize();
-			Type* elemType = Type::getInt8Ty(module->getContext());
-
-			if (m.isEntrySizeDefined())
-			{
-				elemCount /= m.getEntrySize();
-				if (m.isTypeFloatingPoint() && m.getEntrySize() == 8)
-				{
-					elemType = Type::getDoubleTy(module->getContext());
-				}
-				else if (m.isTypeFloatingPoint() && m.getEntrySize() == 2)
-				{
-					elemType = Type::getHalfTy(module->getContext());
-				}
-				else if (m.isTypeFloatingPoint() && m.getEntrySize() == 10)
-				{
-					elemType = Type::getX86_FP80Ty(module->getContext());
-				}
-				else if (m.isTypeFloatingPoint())
-				{
-					elemType = Type::getFloatTy(module->getContext());
-				}
-				else // integral || unknown
-				{
-					elemType = Type::getIntNTy(module->getContext(), m.getEntrySize() * 8);
-				}
-			}
-			auto d = elemCount > 0 ? elemCount : 1;
-			type = ArrayType::get(elemType, d);
-			name = retdec::utils::appendHexRet(p.getName() + "_at", addr);
-			description = p.getDescription();
-
-			return true;
-		}
-	}
-
-	return false;
-}
-
-/**
  * Get global variable from the given address @a addr in @a objf input file.
  * @param module Module in which global variable is created.
  * @param config Config file.
@@ -278,9 +212,7 @@ GlobalVariable* getGlobalVariable(
 	std::string cryptoName;
 	std::string cryptoDesc;
 	Type* cryptoType = nullptr;
-	if (getGlobalInfoFromCryptoPatterns(
-			module,
-			config,
+	if (config->getCryptoPattern(
 			addr,
 			cryptoName,
 			cryptoDesc,

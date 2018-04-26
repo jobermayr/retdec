@@ -92,7 +92,7 @@ FuncSet IndirectlyCalledFuncsAnalysis::getFuncsForIndirectCall(
 		const CallInst &call,
 		const FuncVec &funcsToCheck)
 {
-	assert(isIndirectCall(call) && "Expected an indirect call.");
+	assert(call.getCalledFunction() == nullptr && "Expected an indirect call.");
 
 	FuncSet result;
 	Type *callReturnType = call.getType();

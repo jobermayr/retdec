@@ -502,27 +502,6 @@ TEST_F(TypeTests, OnlyPointerToi8IsACharPointerTypeOtherTypesAreNot)
 }
 
 //
-// isVoidPointerType()
-//
-
-TEST_F(TypeTests, PointerToi8IsAVoidPointerType)
-{
-	EXPECT_TRUE(isVoidPointerType(PointerType::get(Type::getInt8Ty(context), 0)));
-}
-
-TEST_F(TypeTests, NullptrIsNotAVoidPointerType)
-{
-	EXPECT_FALSE(isVoidPointerType(nullptr));
-}
-
-TEST_F(TypeTests, OnlyPointerToi8IsAVoidPointerTypeOtherTypesAreNot)
-{
-	EXPECT_FALSE(isVoidPointerType(Type::getInt16Ty(context)));
-	EXPECT_FALSE(isVoidPointerType(ArrayType::get(Type::getInt8Ty(context), 10)));
-	EXPECT_FALSE(isVoidPointerType(PointerType::get(Type::getInt32Ty(context), 0)));
-}
-
-//
 // convertValueToType()
 //
 

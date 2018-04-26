@@ -114,7 +114,7 @@ IndirectCallsFinder::~IndirectCallsFinder() {}
 * @brief Finds indirect calls.
 */
 void IndirectCallsFinder::visitCallInst(CallInst &callInst) {
-	if (isIndirectCall(callInst)) {
+	if (callInst.getCalledFunction() == nullptr) {
 		indirectCalls.insert(&callInst);
 	}
 }

@@ -26,14 +26,6 @@ class Definition;
 class ReachingDefinitionsAnalysis;
 
 std::set<llvm::Function*> getParentFuncsFor(llvm::User* user);
-bool isDirectCall(const llvm::CallInst& inst);
-bool isDirectCall(const llvm::CallInst* inst);
-bool isIndirectCall(const llvm::CallInst& inst);
-bool isIndirectCall(const llvm::CallInst* inst);
-bool isFncDeclarationCall(const llvm::CallInst& inst);
-bool isFncDeclarationCall(const llvm::CallInst* inst);
-bool isFncDefinitionCall(const llvm::CallInst& inst);
-bool isFncDefinitionCall(const llvm::CallInst* inst);
 
 bool localizeDefinition(
 		const ReachingDefinitionsAnalysis& RDA,
@@ -76,12 +68,6 @@ llvm::Argument* modifyFunctionArgumentType(
 		Config* config,
 		llvm::Argument* arg,
 		llvm::Type* type);
-
-llvm::Function* splitFunctionOn(
-		llvm::Instruction* inst,
-		const std::string& fncName = "");
-
-void insertAtBegin(llvm::Instruction* li, llvm::BasicBlock* bb);
 
 } // namespace bin2llvmir
 } // namespace retdec

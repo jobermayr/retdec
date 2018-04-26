@@ -942,15 +942,6 @@ bool isCharPointerType(const llvm::Type* t)
 	return t ? t == getCharPointerType(t->getContext()) : false;
 }
 
-/**
- * @return @c True if @a t is the same as @c getVoidPointerType() result,
- *         @c false otherwise.
- */
-bool isVoidPointerType(const llvm::Type* t)
-{
-	return t ? t == getVoidPointerType(t->getContext()) : false;
-}
-
 llvm::IntegerType* getDefaultType(llvm::Module* module)
 {
 	unsigned s = 32;

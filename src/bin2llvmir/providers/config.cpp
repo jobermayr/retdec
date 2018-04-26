@@ -85,6 +85,11 @@ retdec::config::Config& Config::getConfig()
 	return _configDB;
 }
 
+const retdec::config::Config& Config::getConfig() const
+{
+	return _configDB;
+}
+
 llvm::Function* Config::getLlvmFunction(Address startAddr)
 {
 	auto fnc = getConfigFunction(startAddr);
@@ -668,6 +673,72 @@ llvm::CallInst* Config::isLlvmAnyUncondBranchPseudoFunctionCall(llvm::Value* c)
 	if (auto* cc = isLlvmReturnPseudoFunctionCall(c)) return cc;
 	if (auto* cc = isLlvmBranchPseudoFunctionCall(c)) return cc;
 	return nullptr;
+}
+
+/**
+ * Get crypto pattern information for address \p addr - fill \p name,
+ * \p description, and \p type, if there is a pattern on address.
+ * \return \c True if pattern was found, \c false otherwise.
+ */
+bool Config::getCryptoPattern(
+		retdec::utils::Address addr,
+		std::string& name,
+		std::string& description,
+		llvm::Type*& type) const
+{
+	for (auto& p : getConfig().patterns)
+	{
+		if (!p.isTypeCrypto())
+		{
+			continue;
+		}
+
+		for (auto& m : p.matches)
+		{
+			if (m.getAddress() != addr || !m.isSizeDefined())
+			{
+				continue;
+			}
+
+			unsigned elemCount = m.getSize();
+			Type* elemType = Type::getInt8Ty(_module->getContext());
+
+			if (m.isEntrySizeDefined())
+			{
+				elemCount /= m.getEntrySize();
+				if (m.isTypeFloatingPoint() && m.getEntrySize() == 8)
+				{
+					elemType = Type::getDoubleTy(_module->getContext());
+				}
+				else if (m.isTypeFloatingPoint() && m.getEntrySize() == 2)
+				{
+					elemType = Type::getHalfTy(_module->getContext());
+				}
+				else if (m.isTypeFloatingPoint() && m.getEntrySize() == 10)
+				{
+					elemType = Type::getX86_FP80Ty(_module->getContext());
+				}
+				else if (m.isTypeFloatingPoint())
+				{
+					elemType = Type::getFloatTy(_module->getContext());
+				}
+				else // integral || unknown
+				{
+					elemType = Type::getIntNTy(
+							_module->getContext(),
+							m.getEntrySize() * 8);
+				}
+			}
+			auto d = elemCount > 0 ? elemCount : 1;
+			type = ArrayType::get(elemType, d);
+			name = retdec::utils::appendHexRet(p.getName() + "_at", addr);
+			description = p.getDescription();
+
+			return true;
+		}
+	}
+
+	return false;
 }
 
 //

@@ -29,6 +29,7 @@ class Config
 
 	public:
 		retdec::config::Config& getConfig();
+		const retdec::config::Config& getConfig() const;
 
 		// Function
 		//
@@ -159,6 +160,11 @@ class Config
 		bool isArmOrThumb() const;
 		llvm::GlobalVariable* getGlobalDummy();
 		utils::FilesystemPath getOutputDirectory();
+		bool getCryptoPattern(
+				retdec::utils::Address addr,
+				std::string& name,
+				std::string& description,
+				llvm::Type*& type) const;
 
 	private:
 		llvm::Module* _module = nullptr;

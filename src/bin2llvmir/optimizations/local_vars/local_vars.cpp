@@ -66,7 +66,7 @@ bool LocalVars::runOnModule(Module& M)
 	{
 		if (CallInst* call = dyn_cast<CallInst>(&I))
 		{
-			if (isIndirectCall(call))
+			if (call->getCalledFunction() == nullptr)
 			{
 				continue;
 			}

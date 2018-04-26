@@ -53,7 +53,6 @@ bool isStringArrayType(const llvm::Type* t);
 bool isStringArrayPointeType(const llvm::Type* t);
 bool isCharType(const llvm::Type* t);
 bool isCharPointerType(const llvm::Type* t);
-bool isVoidPointerType(const llvm::Type* t);
 
 unsigned getDefaultTypeBitSize(llvm::Module* module);
 unsigned getDefaultTypeByteSize(llvm::Module* module);
