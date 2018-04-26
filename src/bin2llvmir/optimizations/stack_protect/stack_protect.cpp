@@ -15,6 +15,7 @@
 
 #include "retdec/utils/string.h"
 #include "retdec/bin2llvmir/optimizations/stack_protect/stack_protect.h"
+#include "retdec/bin2llvmir/providers/names.h"
 #include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/bin2llvmir/utils/type.h"
 
@@ -66,25 +67,26 @@ bool StackProtect::run()
 		return false;
 	}
 
-	bool changed = false;
+	_type2fnc.empty() ? protect() : unprotect();
 
-	if (!_type2fnc.empty())
-	{
-		changed |= unprotectStack(nullptr);
-	}
-	else
-	{
-		changed |= protectStack();
-	}
-
-	return changed;
+	return true;
 }
 
-bool StackProtect::protectStack()
+void StackProtect::protect()
 {
-	for (auto& F : _module->getFunctionList())
-	for (auto& B : F)
-	for (Instruction& I : B)
+	protectStack();
+
+	if (_config->getConfig().isIda()
+			&& _config->getConfig().parameters.isSomethingSelected())
+	{
+		protectRegisters();
+	}
+}
+
+void StackProtect::protectStack()
+{
+	for (Function& F : _module->getFunctionList())
+	for (Instruction& I : instructions(&F))
 	{
 		auto* a = dyn_cast<AllocaInst>(&I);
 		if (!_config->isStackVariable(a))
@@ -92,102 +94,34 @@ bool StackProtect::protectStack()
 			continue;
 		}
 
-		for (auto* u : a->users())
-		{
-			auto* s = dyn_cast<StoreInst>(u);
-			if (s && s->getPointerOperand() == a && s->getParent() == a->getParent())
-			{
-				continue;
-			}
-		}
-
-		Function* fnc = nullptr;
-
-		auto* t = a->getAllocatedType();
-		auto fIt = _type2fnc.find(t);
-		if (fIt != _type2fnc.end())
-		{
-			fnc = fIt->second;
-		}
-		else
-		{
-			FunctionType* ft = FunctionType::get(
-					t,
-					false);
-			fnc = Function::Create(
-					ft,
-					GlobalValue::ExternalLinkage,
-					_fncName + std::to_string(_type2fnc.size()),
-					_module);
-
-			_type2fnc[t] = fnc;
-		}
-
-		auto* c = CallInst::Create(fnc);
-		c->insertAfter(a);
-		auto* conv = convertValueToTypeAfter(c, t, c);
-		assert(isa<Instruction>(conv));
-		auto* s = new StoreInst(conv, a);
-		s->insertAfter(cast<Instruction>(conv));
+		protectValue(a, a->getAllocatedType(), a->getNextNode());
 	}
-
-	if (_config->getConfig().isIda()
-			&& _config->getConfig().parameters.isSomethingSelected())
-	{
-		for (Function& F : _module->getFunctionList())
-		{
-			if (F.isDeclaration())
-			{
-				continue;
-			}
-
-			for (auto& gv : _module->globals())
-			{
-				if (!_config->isRegister(&gv))
-				{
-					continue;
-				}
-
-				Function* fnc = nullptr;
-
-				auto* t = gv.getValueType();
-				auto fIt = _type2fnc.find(t);
-				if (fIt != _type2fnc.end())
-				{
-					fnc = fIt->second;
-				}
-				else
-				{
-					FunctionType* ft = FunctionType::get(
-							t,
-							false);
-					fnc = Function::Create(
-							ft,
-							GlobalValue::ExternalLinkage,
-							_fncName + std::to_string(_type2fnc.size()),
-							_module);
-
-					_type2fnc[t] = fnc;
-				}
-
-				auto it = inst_begin(&F);
-				assert(it != inst_end(&F));
-				auto* firstI = &*it;
-
-				auto* c = CallInst::Create(fnc);
-				c->insertBefore(firstI);
-				auto* conv = convertValueToTypeAfter(c, t, c);
-				assert(isa<Instruction>(conv));
-				auto* s = new StoreInst(conv, &gv);
-				s->insertAfter(cast<Instruction>(conv));
-			}
-		}
-	}
-
-	return true;
 }
 
-bool StackProtect::unprotectStack(llvm::Function* f)
+void StackProtect::protectRegisters()
+{
+	for (Function& F : _module->getFunctionList())
+	{
+		auto it = inst_begin(&F);
+		if (it == inst_end(&F)) // no instructions in function
+		{
+			continue;
+		}
+		Instruction* first = &*it;
+
+		for (GlobalVariable& gv : _module->globals())
+		{
+			if (!_config->isRegister(&gv))
+			{
+				continue;
+			}
+
+			protectValue(&gv, gv.getValueType(), first);
+		}
+	}
+}
+
+void StackProtect::unprotect()
 {
 	for (auto& p : _type2fnc)
 	{
@@ -197,9 +131,6 @@ bool StackProtect::unprotectStack(llvm::Function* f)
 		{
 			auto* u = *uIt;
 			++uIt;
-
-			CallInst* c = dyn_cast<CallInst>(u);
-			assert(c);
 
 			for (auto uuIt = u->user_begin(); uuIt != u->user_end();)
 			{
@@ -212,14 +143,46 @@ bool StackProtect::unprotectStack(llvm::Function* f)
 				}
 			}
 
-			c->replaceAllUsesWith(UndefValue::get(c->getType()));
-			c->eraseFromParent();
+			Instruction* i = cast<Instruction>(u);
+			i->replaceAllUsesWith(UndefValue::get(i->getType()));
+			i->eraseFromParent();
 		}
 
 		fnc->eraseFromParent();
 	}
 
-	return true;
+	_type2fnc.clear();
+}
+
+void StackProtect::protectValue(
+		llvm::Value* val,
+		llvm::Type* t,
+		llvm::Instruction* before)
+{
+	Function* fnc = getOrCreateFunction(t);
+	auto* c = CallInst::Create(fnc);
+	c->insertBefore(before);
+	auto* s = new StoreInst(c, val);
+	s->insertAfter(c);
+}
+
+llvm::Function* StackProtect::getOrCreateFunction(llvm::Type* t)
+{
+	auto fIt = _type2fnc.find(t);
+	return fIt != _type2fnc.end() ? fIt->second : createFunction(t);
+}
+
+llvm::Function* StackProtect::createFunction(llvm::Type* t)
+{
+	FunctionType* ft = FunctionType::get(t, false);
+	auto* fnc = Function::Create(
+			ft,
+			GlobalValue::ExternalLinkage,
+			names::generateFunctionNameUndef(_type2fnc.size()),
+			_module);
+	_type2fnc[t] = fnc;
+
+	return fnc;
 }
 
 } // namespace bin2llvmir

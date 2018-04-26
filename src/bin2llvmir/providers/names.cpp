@@ -42,6 +42,11 @@ std::string generateTempVariableName(utils::Address a, unsigned cntr)
 	return generatedTempVarPrefix + std::to_string(cntr) + "_" + a.toHexString();
 }
 
+std::string generateFunctionNameUndef(unsigned cntr)
+{
+	return generatedUndefFunctionPrefix + std::to_string(cntr);
+}
+
 } // namespace names
 
 //

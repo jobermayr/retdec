@@ -26,14 +26,22 @@ class StackProtect : public llvm::ModulePass
 
 	private:
 		bool run();
-		bool protectStack();
-		bool unprotectStack(llvm::Function* fnc);
+		void protect();
+		void protectStack();
+		void protectRegisters();
+		void unprotect();
+
+		void protectValue(
+				llvm::Value* val,
+				llvm::Type* t,
+				llvm::Instruction* before);
+
+		llvm::Function* getOrCreateFunction(llvm::Type* t);
+		llvm::Function* createFunction(llvm::Type* t);
 
 	private:
 		llvm::Module* _module = nullptr;
 		Config* _config = nullptr;
-
-		std::string _fncName = "__decompiler_undefined_function_";
 		static std::map<llvm::Type*, llvm::Function*> _type2fnc;
 };
 
