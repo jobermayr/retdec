@@ -19,7 +19,7 @@
 #include "retdec/utils/string.h"
 #include "retdec/utils/time.h"
 #include "retdec/bin2llvmir/optimizations/dsm_generator/dsm_generator.h"
-#include "retdec/bin2llvmir/utils/defs.h"
+#include "retdec/bin2llvmir/utils/debug.h"
 #include "retdec/bin2llvmir/utils/type.h"
 
 using namespace retdec::utils;

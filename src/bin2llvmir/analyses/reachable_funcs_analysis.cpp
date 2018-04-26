@@ -89,7 +89,7 @@ public:
 	IndirectCallsFinder();
 	~IndirectCallsFinder();
 
-	CallInstSet getIndirectCallsFor(const FuncSet &funcs);
+	std::set<llvm::CallInst*> getIndirectCallsFor(const std::set<llvm::Function*> &funcs);
 
 private:
 	friend class InstVisitor<IndirectCallsFinder>;
@@ -97,7 +97,7 @@ private:
 
 private:
 	/// Set of indirect calls.
-	CallInstSet indirectCalls;
+	std::set<llvm::CallInst*> indirectCalls;
 };
 
 /**
@@ -122,7 +122,7 @@ void IndirectCallsFinder::visitCallInst(CallInst &callInst) {
 /**
 * @brief Returns all indirect calls that are in @a funcs.
 */
-CallInstSet IndirectCallsFinder::getIndirectCallsFor(const FuncSet& funcs) {
+std::set<llvm::CallInst*> IndirectCallsFinder::getIndirectCallsFor(const std::set<llvm::Function*>& funcs) {
 	for (Function *func : funcs) {
 		visit(*func);
 	}
@@ -178,9 +178,9 @@ ReachableFuncsAnalysis::~ReachableFuncsAnalysis() {}
 * @param[in] module We are considering only functions in this module.
 * @param[in] callGraph We are finding in this call graph.
 */
-FuncSet ReachableFuncsAnalysis::getReachableDefinedFuncsFor(
+std::set<llvm::Function*> ReachableFuncsAnalysis::getReachableDefinedFuncsFor(
 		llvm::Function &func, Module &module, llvm::CallGraph &callGraph) {
-	FuncSet reachableFuncs{&func};
+	std::set<llvm::Function*> reachableFuncs{&func};
 	std::size_t reachableSize(0);
 	ReachableFuncsAnalysis reachableFuncsAnalysis;
 
@@ -213,8 +213,8 @@ FuncSet ReachableFuncsAnalysis::getReachableDefinedFuncsFor(
 *
 * @param[in] module We are considering only globals and functions in this module.
 */
-FuncSet ReachableFuncsAnalysis::getGloballyReachableFuncsFor(llvm::Module &module) {
-	FuncSet reachableFuncs;
+std::set<llvm::Function*> ReachableFuncsAnalysis::getGloballyReachableFuncsFor(llvm::Module &module) {
+	std::set<llvm::Function*> reachableFuncs;
 	for (GlobalVariable &global : module.getGlobalList()) {
 		if (global.hasInitializer() && isa<ConstantStruct>(global.getInitializer())) {
 			ConstantStruct *Struct = cast<ConstantStruct>(global.getInitializer());
@@ -236,9 +236,9 @@ FuncSet ReachableFuncsAnalysis::getGloballyReachableFuncsFor(llvm::Module &modul
 *            this functions.
 * @param[in] callGraph We are finding in this call graph.
 */
-FuncSet ReachableFuncsAnalysis::getDirectlyReachableDefinedFuncsFor(
-		const FuncSet &funcs, llvm::CallGraph &callGraph) const {
-	FuncSet reachableFuncs;
+std::set<llvm::Function*> ReachableFuncsAnalysis::getDirectlyReachableDefinedFuncsFor(
+		const std::set<llvm::Function*> &funcs, llvm::CallGraph &callGraph) const {
+	std::set<llvm::Function*> reachableFuncs;
 	for (Function *func : funcs) {
 		CallGraphNode *funcNode(callGraph[func]);
 		addToSet(getDirectlyReachableDefinedFuncsFor(*funcNode),
@@ -252,9 +252,9 @@ FuncSet ReachableFuncsAnalysis::getDirectlyReachableDefinedFuncsFor(
 * @brief Returns defined functions that are directly reachable from function in
 *        @a reachableFrom.
 */
-FuncSet ReachableFuncsAnalysis::getDirectlyReachableDefinedFuncsFor(
+std::set<llvm::Function*> ReachableFuncsAnalysis::getDirectlyReachableDefinedFuncsFor(
 		llvm::CallGraphNode &reachableFrom) const {
-	FuncSet reachableDefinedFuncs;
+	std::set<llvm::Function*> reachableDefinedFuncs;
 	for (scc_iterator<CallGraphNode *> i = scc_begin(&reachableFrom),
 			e = scc_end(&reachableFrom); i != e; ++i) {
 		// For example we have this code:
@@ -272,7 +272,7 @@ FuncSet ReachableFuncsAnalysis::getDirectlyReachableDefinedFuncsFor(
 		// like main, func and end call graph node. So we need to check if main
 		// is self recursive and we want to add only defined functions. So we
 		// don't want to add end node for example.
-		const CallGraphNodeVec &callNodesVec(*i);
+		const std::vector<llvm::CallGraphNode*> &callNodesVec(*i);
 		for (auto &node : callNodesVec) {
 			// Goes through functions that created one strongly connected
 			// component. But here we don't need to consider that we have
@@ -301,11 +301,11 @@ FuncSet ReachableFuncsAnalysis::getDirectlyReachableDefinedFuncsFor(
 * @brief Returns indirectly reachable functions from @a funcs that are in
 *        @a module.
 */
-FuncSet ReachableFuncsAnalysis::getIndirectlyReachableDefinedFuncsFor(
-		const FuncSet &funcs, Module &module) const {
+std::set<llvm::Function*> ReachableFuncsAnalysis::getIndirectlyReachableDefinedFuncsFor(
+		const std::set<llvm::Function*> &funcs, Module &module) const {
 	IndirectCallsFinder indirectCallsFinder;
 	// Calculate indirect calls for current reachable functions.
-	CallInstSet indirectCalls(indirectCallsFinder.
+	std::set<llvm::CallInst*> indirectCalls(indirectCallsFinder.
 		getIndirectCallsFor(funcs));
 	return IndirectlyCalledFuncsAnalysis::getFuncsForIndirectCalls(
 		indirectCalls, module.getFunctionList());

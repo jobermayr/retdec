@@ -8,7 +8,7 @@
 #include "retdec/utils/string.h"
 
 // Debug logs enabled/disabled.
-#include "retdec/bin2llvmir/utils/defs.h"
+#include "retdec/bin2llvmir/utils/debug.h"
 bool debug_enabled = false;
 
 using namespace retdec::stacofin;

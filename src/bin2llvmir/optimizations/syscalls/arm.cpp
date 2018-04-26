@@ -11,7 +11,7 @@
 #include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/bin2llvmir/optimizations/syscalls/syscalls.h"
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
-#include "retdec/bin2llvmir/utils/defs.h"
+#include "retdec/bin2llvmir/utils/debug.h"
 #include "retdec/bin2llvmir/utils/type.h"
 
 using namespace llvm;

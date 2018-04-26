@@ -16,7 +16,7 @@
 #include "retdec/bin2llvmir/analyses/symbolic_tree.h"
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
 #include "retdec/bin2llvmir/providers/config.h"
-#include "retdec/bin2llvmir/utils/defs.h"
+#include "retdec/bin2llvmir/utils/debug.h"
 #include "retdec/bin2llvmir/utils/utils.h"
 
 using namespace llvm;

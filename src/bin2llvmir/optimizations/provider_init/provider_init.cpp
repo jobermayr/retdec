@@ -17,7 +17,7 @@
 #include "retdec/bin2llvmir/providers/fileimage.h"
 #include "retdec/bin2llvmir/providers/lti.h"
 #include "retdec/bin2llvmir/providers/names.h"
-#include "retdec/bin2llvmir/utils/defs.h"
+#include "retdec/bin2llvmir/utils/debug.h"
 #include "retdec/bin2llvmir/utils/instruction.h"
 
 using namespace llvm;

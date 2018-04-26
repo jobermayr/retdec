@@ -8,7 +8,7 @@
 
 #include "retdec/utils/string.h"
 #include "retdec/bin2llvmir/optimizations/vtable/rtti_analysis.h"
-#include "retdec/bin2llvmir/utils/defs.h"
+#include "retdec/bin2llvmir/utils/debug.h"
 
 using namespace retdec::utils;
 using namespace llvm;

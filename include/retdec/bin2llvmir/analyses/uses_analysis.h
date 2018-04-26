@@ -9,7 +9,7 @@
 
 #include <llvm/IR/GlobalVariable.h>
 
-#include "retdec/bin2llvmir/utils/defs.h"
+#include "retdec/bin2llvmir/utils/debug.h"
 
 namespace retdec {
 namespace bin2llvmir {
@@ -78,11 +78,11 @@ public:
 
 	std::string getName() const { return "UsesAnalysis"; }
 
-	void doUsesAnalysis(const GlobVarSet &globs);
+	void doUsesAnalysis(const std::set<llvm::GlobalVariable*> &globs);
 	const UseInfo *getUseInfo(llvm::BasicBlock &bb, llvm::Instruction &inst);
 
 	static bool hasValueUsesExcept(llvm::Value &value,
-		const InstSet &instSet);
+		const std::set<llvm::Instruction*> &instSet);
 	static bool hasNoUse(llvm::GlobalVariable &glob);
 	static bool hasUsesOnlyInOneFunc(llvm::GlobalVariable &glob);
 	static bool hasSomeUseVolatileLoadOrStore(llvm::GlobalVariable &glob);

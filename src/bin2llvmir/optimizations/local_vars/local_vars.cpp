@@ -14,7 +14,7 @@
 #include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/utils/string.h"
 #include "retdec/bin2llvmir/optimizations/local_vars/local_vars.h"
-#include "retdec/bin2llvmir/utils/defs.h"
+#include "retdec/bin2llvmir/utils/debug.h"
 #include "retdec/bin2llvmir/utils/instruction.h"
 
 using namespace retdec::utils;

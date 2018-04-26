@@ -21,7 +21,7 @@
 #include <llvm/IR/Module.h>
 
 #include "retdec/bin2llvmir/providers/config.h"
-#include "retdec/bin2llvmir/utils/defs.h"
+#include "retdec/bin2llvmir/utils/debug.h"
 
 namespace retdec {
 namespace bin2llvmir {
@@ -98,7 +98,7 @@ class BasicBlockEntry
 		// defsIn is union of prevBBs' defsOuts
 		DefSet defsOut;
 		DefSet genDefs;
-		UnorderedValSet killDefs;
+		std::unordered_set<llvm::Value*> killDefs;
 
 		bool changed = false;
 

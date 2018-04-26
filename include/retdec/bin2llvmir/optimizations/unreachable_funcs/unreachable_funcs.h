@@ -11,7 +11,7 @@
 #include <llvm/Pass.h>
 
 #include "retdec/bin2llvmir/providers/config.h"
-#include "retdec/bin2llvmir/utils/defs.h"
+#include "retdec/bin2llvmir/utils/debug.h"
 
 namespace retdec {
 namespace bin2llvmir {
@@ -40,17 +40,17 @@ public:
 private:
 	void initializeMainFunc(llvm::Module &module);
 	bool optimizationCanRun() const;
-	FuncSet getReachableFuncs(llvm::Function &startFunc,
+	std::set<llvm::Function*> getReachableFuncs(llvm::Function &startFunc,
 		llvm::Module &module) const;
 	void removeFuncsThatCanBeOptimized(
-		const FuncSet &funcsThatCannotBeOptimized,
+		const std::set<llvm::Function*> &funcsThatCannotBeOptimized,
 		llvm::Module &module) const;
-	FuncSet getFuncsThatCannotBeOptimized(
-		const FuncSet &reachableFuncs, llvm::Module &module) const;
-	FuncSet getFuncsThatCanBeOptimized(
-		const FuncSet funcsThatCannotBeOptimized,
+	std::set<llvm::Function*> getFuncsThatCannotBeOptimized(
+		const std::set<llvm::Function*> &reachableFuncs, llvm::Module &module) const;
+	std::set<llvm::Function*> getFuncsThatCanBeOptimized(
+		const std::set<llvm::Function*> funcsThatCannotBeOptimized,
 		llvm::Module &module) const;
-	void removeFuncsFromModule(const FuncSet &funcsToRemove) const;
+	void removeFuncsFromModule(const std::set<llvm::Function*> &funcsToRemove) const;
 
 private:
 	/// Name of the optimization.

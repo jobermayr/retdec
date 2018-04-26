@@ -22,7 +22,7 @@
 #include "retdec/bin2llvmir/analyses/reaching_definitions.h"
 #include "retdec/bin2llvmir/optimizations/simple_types/simple_types.h"
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
-#include "retdec/bin2llvmir/utils/defs.h"
+#include "retdec/bin2llvmir/utils/debug.h"
 #include "retdec/bin2llvmir/utils/instruction.h"
 #include "retdec/bin2llvmir/utils/type.h"
 
@@ -735,7 +735,7 @@ void EqSetContainer::apply(
 		llvm::Module* module,
 		Config* config,
 		FileImage* objf,
-		UnorderedInstSet& instToErase)
+		std::unordered_set<llvm::Instruction*>& instToErase)
 {
 	for (auto& eq : eqSets)
 	{
@@ -840,7 +840,7 @@ void EqSet::insert(llvm::Type* t, eSourcePriority p)
  */
 Type* EqSet::getHigherPriorityType(llvm::Module* module, Type* t1, Type* t2)
 {
-	UnorderedTypeSet seen;
+	std::unordered_set<llvm::Type*> seen;
 	return getHigherPriorityTypePrivate(module, t1, t2, seen);
 }
 
@@ -859,7 +859,7 @@ llvm::Type* EqSet::getHigherPriorityTypePrivate(
 		llvm::Module* module,
 		llvm::Type* t1,
 		llvm::Type* t2,
-		UnorderedTypeSet& seen)
+		std::unordered_set<llvm::Type*>& seen)
 {
 	if (seen.count(t1) || seen.count(t2))
 	{
@@ -1219,7 +1219,7 @@ void EqSet::apply(
 		llvm::Module* module,
 		Config* config,
 		FileImage* objf,
-		UnorderedInstSet& instToErase)
+		std::unordered_set<llvm::Instruction*>& instToErase)
 {
 	if (valSet.empty())
 		return;

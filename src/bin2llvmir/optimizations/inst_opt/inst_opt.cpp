@@ -20,7 +20,7 @@
 #include "retdec/utils/string.h"
 #include "retdec/bin2llvmir/optimizations/inst_opt/inst_opt.h"
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
-#include "retdec/bin2llvmir/utils/defs.h"
+#include "retdec/bin2llvmir/utils/debug.h"
 #include "retdec/bin2llvmir/utils/instruction.h"
 #define debug_enabled false
 #include "retdec/bin2llvmir/utils/utils.h"

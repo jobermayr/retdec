@@ -732,7 +732,7 @@ llvm::Value* changeObjectType(
 		Value* val,
 		Type* toType,
 		Constant* init,
-		UnorderedInstSet* instToErase,
+		std::unordered_set<llvm::Instruction*>* instToErase,
 		bool dbg,
 		bool wideString)
 {

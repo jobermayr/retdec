@@ -13,7 +13,7 @@
 
 #include "retdec/bin2llvmir/providers/config.h"
 #include "retdec/bin2llvmir/providers/fileimage.h"
-#include "retdec/bin2llvmir/utils/defs.h"
+#include "retdec/bin2llvmir/utils/debug.h"
 
 namespace retdec {
 namespace bin2llvmir {
@@ -44,7 +44,7 @@ llvm::Value* changeObjectType(
 		llvm::Value* val,
 		llvm::Type* toType,
 		llvm::Constant* init = nullptr,
-		UnorderedInstSet* instToErase = nullptr,
+		std::unordered_set<llvm::Instruction*>* instToErase = nullptr,
 		bool dbg = false,
 		bool wideString = false);
 

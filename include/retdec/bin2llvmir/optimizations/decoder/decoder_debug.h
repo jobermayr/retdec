@@ -8,7 +8,7 @@
 #define RETDEC_BIN2LLVMIR_OPTIMIZATIONS_DECODER_DECODER_DEBUG_H
 
 // Debug logs enabled/disabled.
-#include "retdec/bin2llvmir/utils/defs.h"
+#include "retdec/bin2llvmir/utils/debug.h"
 const bool debug_enabled = false;
 
 #endif

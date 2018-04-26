@@ -8,7 +8,7 @@
 
 #include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/bin2llvmir/optimizations/class_hierarchy/hierarchy_analysis.h"
-#include "retdec/bin2llvmir/utils/defs.h"
+#include "retdec/bin2llvmir/utils/debug.h"
 
 #define debug_enabled false
 

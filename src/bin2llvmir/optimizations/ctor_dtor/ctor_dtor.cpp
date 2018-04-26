@@ -12,7 +12,7 @@
 
 #include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/bin2llvmir/optimizations/ctor_dtor/ctor_dtor.h"
-#include "retdec/bin2llvmir/utils/defs.h"
+#include "retdec/bin2llvmir/utils/debug.h"
 #include "retdec/bin2llvmir/utils/type.h"
 
 using namespace llvm;

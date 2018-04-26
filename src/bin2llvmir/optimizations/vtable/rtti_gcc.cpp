@@ -8,7 +8,7 @@
 #include <sstream>
 
 #include "retdec/bin2llvmir/optimizations/vtable/rtti_gcc.h"
-#include "retdec/bin2llvmir/utils/defs.h"
+#include "retdec/bin2llvmir/utils/debug.h"
 
 #define debug_enabled false
 

@@ -13,7 +13,7 @@
 #include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/bin2llvmir/optimizations/data_references/data_references.h"
 #include "retdec/bin2llvmir/providers/config.h"
-#include "retdec/bin2llvmir/utils/defs.h"
+#include "retdec/bin2llvmir/utils/debug.h"
 
 using namespace retdec::utils;
 using namespace llvm;

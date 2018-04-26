@@ -49,7 +49,7 @@ void removeFuncFromModule(Function &funcToRemove, CallGraph &callGraph) {
 	callGraph.removeFunctionFromModule(funcToRemoveNode);
 }
 
-bool userCannotBeOptimized(User* user, const FuncSet &funcs)
+bool userCannotBeOptimized(User* user, const std::set<llvm::Function*> &funcs)
 {
 	if (auto* inst = dyn_cast<Instruction>(user)) {
 		auto* pf = inst->getFunction();
@@ -77,7 +77,7 @@ bool userCannotBeOptimized(User* user, const FuncSet &funcs)
 *
 * For more details what can't be optimized @see getFuncsThatCannotBeOptimized().
 */
-bool cannotBeOptimized(Function &func, const FuncSet &funcs) {
+bool cannotBeOptimized(Function &func, const std::set<llvm::Function*> &funcs) {
 	for (auto* u : func.users()) {
 		if (userCannotBeOptimized(u, funcs)) {
 			return true;
@@ -122,7 +122,7 @@ bool UnreachableFuncs::runOnModule(Module &module) {
 	}
 
 	CallGraph &callGraph(getAnalysis<CallGraphWrapperPass>().getCallGraph());
-	FuncSet funcsThatCannotBeOptimized(ReachableFuncsAnalysis::
+	std::set<llvm::Function*> funcsThatCannotBeOptimized(ReachableFuncsAnalysis::
 		getReachableDefinedFuncsFor(*mainFunc, module, callGraph));
 	addToSet(ReachableFuncsAnalysis::getGloballyReachableFuncsFor(module), funcsThatCannotBeOptimized);
 	addToSet(getFuncsThatCannotBeOptimized(funcsThatCannotBeOptimized, module),
@@ -176,9 +176,9 @@ bool UnreachableFuncs::optimizationCanRun() const {
 * @param[in] reachableFuncs Reachable functions.
 * @param[in] module Current module.
 */
-FuncSet UnreachableFuncs::getFuncsThatCannotBeOptimized(
-		const FuncSet &reachableFuncs, Module &module) const {
-	FuncSet result;
+std::set<llvm::Function*> UnreachableFuncs::getFuncsThatCannotBeOptimized(
+		const std::set<llvm::Function*> &reachableFuncs, Module &module) const {
+	std::set<llvm::Function*> result;
 	for (Function &func : module) {
 		if (cannotBeOptimized(func, reachableFuncs)) {
 			result.insert(&func);
@@ -196,9 +196,9 @@ FuncSet UnreachableFuncs::getFuncsThatCannotBeOptimized(
 *
 * @return Functions to optimize.
 */
-FuncSet UnreachableFuncs::getFuncsThatCanBeOptimized(
-		const FuncSet funcsThatCannotBeOptimized, Module &module) const {
-	FuncSet toBeOptimized;
+std::set<llvm::Function*> UnreachableFuncs::getFuncsThatCanBeOptimized(
+		const std::set<llvm::Function*> funcsThatCannotBeOptimized, Module &module) const {
+	std::set<llvm::Function*> toBeOptimized;
 	for (Function &func : module) {
 		if (func.isDeclaration()) {
 			// We don't want to optimize functions only with declaration.
@@ -227,8 +227,8 @@ FuncSet UnreachableFuncs::getFuncsThatCanBeOptimized(
 * @param[in] module Module with functions.
 */
 void UnreachableFuncs::removeFuncsThatCanBeOptimized(
-		const FuncSet &funcsThatCannotBeOptimized, Module &module) const {
-	FuncSet toRemove(getFuncsThatCanBeOptimized(funcsThatCannotBeOptimized,
+		const std::set<llvm::Function*> &funcsThatCannotBeOptimized, Module &module) const {
+	std::set<llvm::Function*> toRemove(getFuncsThatCanBeOptimized(funcsThatCannotBeOptimized,
 		module));
 	removeFuncsFromModule(toRemove);
 }
@@ -239,7 +239,7 @@ void UnreachableFuncs::removeFuncsThatCanBeOptimized(
 * @param[in] funcsToRemove Functions to remove.
 */
 void UnreachableFuncs::removeFuncsFromModule(
-		const FuncSet &funcsToRemove) const {
+		const std::set<llvm::Function*> &funcsToRemove) const {
 	CallGraph &callGraph(getAnalysis<CallGraphWrapperPass>().getCallGraph());
 	for (Function *func : funcsToRemove) {
 		removeFuncFromModule(*func, callGraph);

@@ -13,7 +13,7 @@
 
 #include "retdec/utils/container.h"
 #include "retdec/bin2llvmir/optimizations/select_functions/select_functions.h"
-#include "retdec/bin2llvmir/utils/defs.h"
+#include "retdec/bin2llvmir/utils/debug.h"
 #define debug_enabled false
 #include "retdec/bin2llvmir/utils/utils.h"
 

@@ -11,7 +11,7 @@
 #include <llvm/IR/Instruction.h>
 #include <llvm/IR/Module.h>
 
-#include "retdec/bin2llvmir/utils/defs.h"
+#include "retdec/bin2llvmir/utils/debug.h"
 
 namespace retdec {
 namespace bin2llvmir {
@@ -22,12 +22,12 @@ namespace bin2llvmir {
 class IndirectlyCalledFuncsAnalysis
 {
 	public:
-		static FuncSet getFuncsForIndirectCalls(
-				const CallInstSet &call,
+		static std::set<llvm::Function*> getFuncsForIndirectCalls(
+				const std::set<llvm::CallInst*> &call,
 				llvm::Module::FunctionListType &funcsToCheck);
-		static FuncSet getFuncsForIndirectCall(
+		static std::set<llvm::Function*> getFuncsForIndirectCall(
 				const llvm::CallInst &call,
-				const FuncVec &funcsToCheck);
+				const std::vector<llvm::Function*> &funcsToCheck);
 };
 
 } // namespace bin2llvmir

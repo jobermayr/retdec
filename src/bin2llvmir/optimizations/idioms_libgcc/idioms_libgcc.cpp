@@ -16,7 +16,7 @@
 #include "retdec/utils/string.h"
 #include "retdec/bin2llvmir/analyses/reaching_definitions.h"
 #include "retdec/bin2llvmir/optimizations/idioms_libgcc/idioms_libgcc.h"
-#include "retdec/bin2llvmir/utils/defs.h"
+#include "retdec/bin2llvmir/utils/debug.h"
 #include "retdec/bin2llvmir/utils/instruction.h"
 #include "retdec/bin2llvmir/utils/type.h"
 

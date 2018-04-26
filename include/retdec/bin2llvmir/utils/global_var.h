@@ -14,7 +14,7 @@
 #include "retdec/utils/address.h"
 #include "retdec/bin2llvmir/providers/config.h"
 #include "retdec/bin2llvmir/providers/fileimage.h"
-#include "retdec/bin2llvmir/utils/defs.h"
+#include "retdec/bin2llvmir/utils/debug.h"
 #include "retdec/debugformat/debugformat.h"
 #include "retdec/loader/loader.h"
 
