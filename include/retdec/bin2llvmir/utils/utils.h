@@ -43,7 +43,7 @@ std::string llvmObjToString(const llvm::Module& t);
 void dumpModuleToFile(
 		const llvm::Module* m,
 		utils::FilesystemPath dirName,
-		const std::string fileName = "");
+		const std::string& fileName = "");
 void dumpControFlowToJson(
 		llvm::Module* m,
 		utils::FilesystemPath dirName,

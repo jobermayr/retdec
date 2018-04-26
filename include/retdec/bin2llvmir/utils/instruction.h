@@ -43,8 +43,6 @@ bool localizeDefinition(
 		const Definition* def,
 		llvm::Type* type = nullptr);
 
-llvm::ReturnInst* modifyReturnInst(llvm::ReturnInst* ret, llvm::Value* val);
-
 llvm::CallInst* modifyCallInst(
 		llvm::CallInst* call,
 		llvm::Type* ret,
@@ -55,10 +53,6 @@ llvm::CallInst* modifyCallInst(
 		llvm::Type* ret);
 
 llvm::CallInst* modifyCallInst(
-		llvm::CallInst* call,
-		llvm::ArrayRef<llvm::Value*> args);
-
-llvm::CallInst* addToVariadicCallInst(
 		llvm::CallInst* call,
 		llvm::ArrayRef<llvm::Value*> args);
 

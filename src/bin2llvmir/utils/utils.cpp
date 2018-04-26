@@ -48,7 +48,7 @@ std::string llvmObjToString(const llvm::Module& t)
 void dumpModuleToFile(
 		const llvm::Module* m,
 		utils::FilesystemPath dirName,
-		const std::string fileName)
+		const std::string& fileName)
 {
 	static unsigned cntr = 0;
 	std::string n = fileName.empty()

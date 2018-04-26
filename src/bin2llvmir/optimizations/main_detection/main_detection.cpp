@@ -529,21 +529,7 @@ bool MainDetection::applyResult(retdec::utils::Address mainAddr)
 			changed = true;
 		}
 	}
-	else if (auto ai = AsmInstruction(_module, mainAddr))
-	{
-		LOG << "\t" << "for main"
-				<< " @ " << ai.getAddress() << std::endl;
-
-		irmodif.splitFunctionOn(
-				ai.getLlvmToAsmInstruction(),
-				ai.getAddress(),
-				"main");
-		_names->addNameForAddress(
-				mainAddr,
-				"main",
-				Name::eType::HIGHEST_PRIORITY);
-		changed = true;
-	}
+	// AsmInstruction(_module, mainAddr) -> split?
 
 	return changed;
 }

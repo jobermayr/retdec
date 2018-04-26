@@ -61,7 +61,6 @@ FileImage::FileImage(
 		_image.reset();
 		// && !path.empty() ???
 		throw std::runtime_error("Failed to load input file");
-		return;
 	}
 
 	_image->getFileFormat()->initFromConfig(config->getConfig());

@@ -177,34 +177,6 @@ bool localizeDefinition(
 }
 
 /**
- * Modify return instruction @c ret to return @c val value.
- * @c val value is casted to parent function's return type. If you want to
- * avoid casts, make sure parent function's type is modified before this
- * function is called.
- *
- * At the moment, this will create a new return instruction which replaces the
- * old one. The new return is returned as return value. The old call is
- * destroyed. Therefore, users must be careful not to store pointers to it.
- * Maybe, it would be possible to modify return operands inplace
- * as implemented in @c PHINode::growOperands(). However, this looks very
- * hackish and dangerous.
- */
-llvm::ReturnInst* modifyReturnInst(llvm::ReturnInst* ret, llvm::Value* val)
-{
-	auto* f = ret->getFunction();
-	assert(f);
-	auto* cast = convertValueToType(val, f->getReturnType(), ret);
-	auto* nret = ReturnInst::Create(ret->getContext(), cast, ret);
-	auto* rv = dyn_cast_or_null<Instruction>(ret->getReturnValue());
-	ret->eraseFromParent();
-	if (rv && rv->user_empty())
-	{
-		rv->eraseFromParent();
-	}
-	return nret;
-}
-
-/**
  * Modify @a call instruction to call @a calledVal value with @a args arguments.
  *
  * At the moment, this will create a new call instruction which replaces the old
@@ -333,32 +305,6 @@ llvm::CallInst* modifyCallInst(
 		llvm::ArrayRef<llvm::Value*> args)
 {
 	return modifyCallInst(call, nullptr, args);
-}
-
-/**
- * Add arguments @a args to variadic function call @a call.
- * @return New call instruction which replaced the old @c call.
- */
-llvm::CallInst* addToVariadicCallInst(
-		llvm::CallInst* call,
-		llvm::ArrayRef<llvm::Value*> args)
-{
-	std::vector<llvm::Value*> as;
-	as.reserve(call->getNumArgOperands() + args.size());
-	as.insert( as.end(), call->arg_operands().begin(), call->arg_operands().end() );
-	as.insert( as.end(), args.begin(), args.end() );
-
-	return _modifyCallInst(call, call->getCalledFunction(), as);
-}
-
-void _modifyFunctionArguments(
-		llvm::Function* fnc,
-		llvm::ArrayRef<llvm::Type*> args)
-{
-	for (auto* a : args)
-	{
-		new llvm::Argument(a, "", fnc);
-	}
 }
 
 /**

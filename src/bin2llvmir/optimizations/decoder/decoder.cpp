@@ -671,7 +671,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 					&& tBr->isUnconditional()
 					&& tBr->getSuccessor(0) == cond->getSuccessor(1))
 			{
-				auto* r = ReturnInst::Create(
+				ReturnInst::Create(
 						pCall->getModule()->getContext(),
 						UndefValue::get(pCall->getFunction()->getReturnType()),
 						tBr);
@@ -1367,7 +1367,7 @@ if (brToSwitch)
 
 	if (armCondBr)
 	{
-		auto* newBr = BranchInst::Create(armCondBr->getSuccessor(0), armCondBr);
+		BranchInst::Create(armCondBr->getSuccessor(0), armCondBr);
 		auto* rmSucc = armCondBr->getSuccessor(1);
 		armCondBr->eraseFromParent();
 		rmSucc->eraseFromParent();

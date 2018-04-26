@@ -217,64 +217,6 @@ TEST_F(InstructionTests, isFncDefinitionCallReturnsFalseForNullptr)
 }
 
 //
-// modifyReturnInst
-//
-
-TEST_F(InstructionTests, modifyReturnInstSucceedsWhenFunctionReturnTypeReturned)
-{
-	parseInput(R"(
-		define void @fnc() {
-			ret void
-		}
-	)");
-
-	auto* i32 = Type::getInt32Ty(context);
-	auto* r = ConstantInt::get(i32, 123);
-	auto* fnc = cast<Function>(getValueByName("fnc"));
-	auto c = Config::empty(module.get());
-	modifyFunction(&c, fnc, i32, {});
-	auto* ret = getNthInstruction<ReturnInst>();
-	modifyReturnInst(ret, r);
-
-	std::string exp = R"(
-		@0 = external global i32
-		define i32 @fnc() {
-			ret i32 123
-		}
-		declare void @1()
-	)";
-	checkModuleAgainstExpectedIr(exp);
-}
-
-TEST_F(InstructionTests, modifyReturnInstSucceedsWhenFunctionReturnTypeNotReturned)
-{
-	parseInput(R"(
-		define void @fnc() {
-			ret void
-		}
-	)");
-
-	auto* f = Type::getFloatTy(context);
-	auto* i32 = Type::getInt32Ty(context);
-	auto* r = ConstantInt::get(i32, 123);
-	auto* fnc = cast<Function>(getValueByName("fnc"));
-	auto c = Config::empty(module.get());
-	modifyFunction(&c, fnc, f, {});
-	auto* ret = getNthInstruction<ReturnInst>();
-	modifyReturnInst(ret, r);
-
-	std::string exp = R"(
-		@0 = external global i32
-		define float @fnc() {
-			%1 = bitcast i32 123 to float
-			ret float %1
-		}
-		declare void @1()
-	)";
-	checkModuleAgainstExpectedIr(exp);
-}
-
-//
 // modifyCallInst()
 //
 
@@ -506,41 +448,6 @@ TEST_F(InstructionTests, modifyDirectCallFullModification)
 			%2 = call float %1(i32 123, i32 456)
 			%3 = bitcast float %2 to i32
 			store i32 %3, i32* @r
-			ret void
-		}
-	)";
-	checkModuleAgainstExpectedIr(exp);
-}
-
-//
-// addToVariadicCallInst()
-//
-
-TEST_F(InstructionTests, addToVariadicCallInstAddsNewArguments)
-{
-	parseInput(R"(
-		@r = global i32 0
-		@format = constant [6 x i8] c"\25d \25d\00"
-		declare i32 @scanf (i8*, ...)
-		define void @fnc() {
-			%c = call i32 (i8*, ...) @scanf(i8* getelementptr inbounds([6 x i8], [6 x i8]* @format, i64 0, i64 0))
-			store i32 %c, i32* @r
-			ret void
-		}
-	)");
-	auto* call = getNthInstruction<CallInst>();
-
-	auto* a1 = ConstantInt::get(Type::getInt32Ty(context), 123);
-	auto* a2 = ConstantInt::get(Type::getInt32Ty(context), 456);
-	addToVariadicCallInst(call, {a1, a2});
-
-	std::string exp = R"(
-		@r = global i32 0
-		@format = constant [6 x i8] c"\25d \25d\00"
-		declare i32 @scanf (i8*, ...)
-		define void @fnc() {
-			%1 = call i32 (i8*, ...) @scanf(i8* getelementptr inbounds([6 x i8], [6 x i8]* @format, i64 0, i64 0), i32 123, i32 456)
-			store i32 %1, i32* @r
 			ret void
 		}
 	)";

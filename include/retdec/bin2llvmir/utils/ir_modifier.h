@@ -22,21 +22,12 @@ class IrModifier
 		using StackPair = std::pair<llvm::AllocaInst*, retdec::config::Object*>;
 
 	public:
-		IrModifier();
 		IrModifier(llvm::Module* m, Config* c);
 
 	public:
 		FunctionPair renameFunction(
 				llvm::Function* fnc,
 				const std::string& fncName);
-		FunctionPair splitFunctionOn(
-				llvm::Instruction* inst,
-				retdec::utils::Address start,
-				const std::string& fncName = "");
-		FunctionPair addFunction(
-				retdec::utils::Address start,
-				const std::string& fncName = "");
-		FunctionPair addFunctionUnknown(retdec::utils::Address start);
 
 		StackPair getStackVariable(
 				llvm::Function* fnc,
