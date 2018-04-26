@@ -117,6 +117,8 @@ void Decoder::initEnvironmentAsm2LlvmMapping()
 	auto* mdString = MDString::get(_module->getContext(), a2lGv->getName());
 	auto* mdn = MDNode::get(_module->getContext(), {mdString});
 	nmd->addOperand(mdn);
+
+	_config->setLlvmToAsmMetadata(nmd);
 }
 
 /**

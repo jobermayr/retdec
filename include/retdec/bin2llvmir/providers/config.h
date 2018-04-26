@@ -127,6 +127,8 @@ class Config
 		bool isLlvmToAsmInstruction(const llvm::Value* inst) const;
 		llvm::GlobalVariable* getLlvmToAsmGlobalVariable() const;
 		void setLlvmToAsmGlobalVariable(llvm::GlobalVariable* gv);
+		llvm::NamedMDNode* getLlvmToAsmMetadata() const;
+		void setLlvmToAsmMetadata(llvm::NamedMDNode* md);
 
 		// Pseudo-functions.
 		//
@@ -172,6 +174,7 @@ class Config
 		std::string _configPath;
 		llvm::GlobalVariable* _globalDummy = nullptr;
 		llvm::GlobalVariable* _asm2llvmGv = nullptr;
+		llvm::NamedMDNode* _asm2llvmMd = nullptr;
 		llvm::Function* _callFunction = nullptr;
 		llvm::Function* _returnFunction = nullptr;
 		llvm::Function* _branchFunction = nullptr;

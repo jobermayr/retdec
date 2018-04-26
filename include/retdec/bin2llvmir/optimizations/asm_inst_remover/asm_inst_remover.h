@@ -8,8 +8,6 @@
 #ifndef RETDEC_BIN2LLVMIR_OPTIMIZATIONS_ASM_INST_REMOVER_ASM_INST_REMOVER_H
 #define RETDEC_BIN2LLVMIR_OPTIMIZATIONS_ASM_INST_REMOVER_ASM_INST_REMOVER_H
 
-#include <set>
-
 #include <llvm/IR/Module.h>
 #include <llvm/Pass.h>
 
@@ -28,7 +26,6 @@ class AsmInstructionRemover : public llvm::ModulePass
 
 	private:
 		bool run(llvm::Module& M);
-		bool renameTempVariables(llvm::Module& M);
 
 	private:
 		Config* _config = nullptr;

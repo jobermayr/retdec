@@ -37,6 +37,11 @@ std::string generateBasicBlockName(utils::Address a)
 	return generatedBasicBlockPrefix + a.toHexString();
 }
 
+std::string generateTempVariableName(utils::Address a, unsigned cntr)
+{
+	return generatedTempVarPrefix + std::to_string(cntr) + "_" + a.toHexString();
+}
+
 } // namespace names
 
 //
