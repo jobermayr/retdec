@@ -1,11 +1,11 @@
 /**
-* @file include/retdec/bin2llvmir/optimizations/stack_protect/stack_protect.h
-* @brief Protect stack variables from LLVM optimization passes.
+* @file include/retdec/bin2llvmir/optimizations/value_protect/value_protect.h
+* @brief Protect values from LLVM optimization passes.
 * @copyright (c) 2017 Avast Software, licensed under the MIT license
 */
 
-#ifndef RETDEC_BIN2LLVMIR_OPTIMIZATIONS_STACK_PROTECT_STACK_PROTECT_H
-#define RETDEC_BIN2LLVMIR_OPTIMIZATIONS_STACK_PROTECT_STACK_PROTECT_H
+#ifndef RETDEC_BIN2LLVMIR_OPTIMIZATIONS_VALUE_PROTECT_VALUE_PROTECT_H
+#define RETDEC_BIN2LLVMIR_OPTIMIZATIONS_VALUE_PROTECT_VALUE_PROTECT_H
 
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Module.h>
@@ -16,11 +16,11 @@
 namespace retdec {
 namespace bin2llvmir {
 
-class StackProtect : public llvm::ModulePass
+class ValueProtect : public llvm::ModulePass
 {
 	public:
 		static char ID;
-		StackProtect();
+		ValueProtect();
 		virtual bool runOnModule(llvm::Module& M) override;
 		bool runOnModuleCustom(llvm::Module& M, Config* c);
 

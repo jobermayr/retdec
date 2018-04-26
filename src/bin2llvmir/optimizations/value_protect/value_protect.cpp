@@ -1,23 +1,17 @@
 /**
-* @file src/bin2llvmir/optimizations/stack_protect/stack_protect.cpp
-* @brief Protect stack variables from LLVM optimization passes.
+* @file src/bin2llvmir/optimizations/value_protect/value_protect.cpp
+* @brief Protect values from LLVM optimization passes.
 * @copyright (c) 2017 Avast Software, licensed under the MIT license
 */
 
 #include <cassert>
-#include <iomanip>
-#include <iostream>
-#include <stack>
 
 #include <llvm/IR/InstIterator.h>
 #include <llvm/IR/Instruction.h>
 #include <llvm/IR/Instructions.h>
 
-#include "retdec/utils/string.h"
-#include "retdec/bin2llvmir/optimizations/stack_protect/stack_protect.h"
+#include "retdec/bin2llvmir/optimizations/value_protect/value_protect.h"
 #include "retdec/bin2llvmir/providers/names.h"
-#include "retdec/bin2llvmir/utils/utils.h"
-#include "retdec/bin2llvmir/utils/type.h"
 
 using namespace retdec::utils;
 using namespace llvm;
@@ -25,31 +19,31 @@ using namespace llvm;
 namespace retdec {
 namespace bin2llvmir {
 
-char StackProtect::ID = 0;
+char ValueProtect::ID = 0;
 
-std::map<llvm::Type*, llvm::Function*> StackProtect::_type2fnc;
+std::map<llvm::Type*, llvm::Function*> ValueProtect::_type2fnc;
 
-static RegisterPass<StackProtect> X(
-		"stack-protect",
-		"Stack protection optimization",
+static RegisterPass<ValueProtect> X(
+		"value-protect",
+		"Value protection optimization",
 		false, // Only looks at CFG
 		false // Analysis Pass
 );
 
-StackProtect::StackProtect() :
+ValueProtect::ValueProtect() :
 		ModulePass(ID)
 {
 
 }
 
-bool StackProtect::runOnModule(Module& M)
+bool ValueProtect::runOnModule(Module& M)
 {
 	_module = &M;
 	_config = ConfigProvider::getConfig(&M);
 	return run();
 }
 
-bool StackProtect::runOnModuleCustom(llvm::Module& M, Config* c)
+bool ValueProtect::runOnModuleCustom(llvm::Module& M, Config* c)
 {
 	_module = &M;
 	_config = c;
@@ -60,7 +54,7 @@ bool StackProtect::runOnModuleCustom(llvm::Module& M, Config* c)
  * @return @c True if module @a _module was modified in any way,
  *         @c false otherwise.
  */
-bool StackProtect::run()
+bool ValueProtect::run()
 {
 	if (_config == nullptr)
 	{
@@ -72,7 +66,7 @@ bool StackProtect::run()
 	return true;
 }
 
-void StackProtect::protect()
+void ValueProtect::protect()
 {
 	protectStack();
 
@@ -83,7 +77,7 @@ void StackProtect::protect()
 	}
 }
 
-void StackProtect::protectStack()
+void ValueProtect::protectStack()
 {
 	for (Function& F : _module->getFunctionList())
 	for (Instruction& I : instructions(&F))
@@ -98,7 +92,7 @@ void StackProtect::protectStack()
 	}
 }
 
-void StackProtect::protectRegisters()
+void ValueProtect::protectRegisters()
 {
 	for (Function& F : _module->getFunctionList())
 	{
@@ -121,7 +115,7 @@ void StackProtect::protectRegisters()
 	}
 }
 
-void StackProtect::unprotect()
+void ValueProtect::unprotect()
 {
 	for (auto& p : _type2fnc)
 	{
@@ -154,7 +148,7 @@ void StackProtect::unprotect()
 	_type2fnc.clear();
 }
 
-void StackProtect::protectValue(
+void ValueProtect::protectValue(
 		llvm::Value* val,
 		llvm::Type* t,
 		llvm::Instruction* before)
@@ -166,13 +160,13 @@ void StackProtect::protectValue(
 	s->insertAfter(c);
 }
 
-llvm::Function* StackProtect::getOrCreateFunction(llvm::Type* t)
+llvm::Function* ValueProtect::getOrCreateFunction(llvm::Type* t)
 {
 	auto fIt = _type2fnc.find(t);
 	return fIt != _type2fnc.end() ? fIt->second : createFunction(t);
 }
 
-llvm::Function* StackProtect::createFunction(llvm::Type* t)
+llvm::Function* ValueProtect::createFunction(llvm::Type* t)
 {
 	FunctionType* ft = FunctionType::get(t, false);
 	auto* fnc = Function::Create(

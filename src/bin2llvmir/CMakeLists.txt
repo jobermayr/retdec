@@ -57,7 +57,7 @@ set(BIN2LLVMIR_SOURCES
 	optimizations/simple_types/simple_types.cpp
 	optimizations/stack/stack.cpp
 	optimizations/stack_pointer_ops/stack_pointer_ops.cpp
-	optimizations/stack_protect/stack_protect.cpp
+	optimizations/value_protect/value_protect.cpp
 	optimizations/syscalls/arm.cpp
 	optimizations/syscalls/mips.cpp
 	optimizations/syscalls/syscalls.cpp
