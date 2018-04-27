@@ -42,8 +42,8 @@ class StackAnalysis : public llvm::ModulePass
 
 	private:
 		bool run();
-		bool runOnFunction(ReachingDefinitionsAnalysis& RDA, llvm::Function* f);
-		bool handleInstruction(
+		void runOnFunction(ReachingDefinitionsAnalysis& RDA, llvm::Function* f);
+		void handleInstruction(
 				ReachingDefinitionsAnalysis& RDA,
 				llvm::Instruction* inst,
 				llvm::Value* val,

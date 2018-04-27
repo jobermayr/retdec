@@ -66,25 +66,21 @@ bool StackAnalysis::run()
 		return false;
 	}
 
-	bool changed = false;
-
 	ReachingDefinitionsAnalysis RDA;
 	RDA.runOnModule(*_module, _config);
 
 	for (auto& f : *_module)
 	{
-		changed |= runOnFunction(RDA, &f);
+		runOnFunction(RDA, &f);
 	}
 
-	return changed;
+	return true;
 }
 
-bool StackAnalysis::runOnFunction(
+void StackAnalysis::runOnFunction(
 		ReachingDefinitionsAnalysis& RDA,
 		llvm::Function* f)
 {
-	bool changed = false;
-
 	LOG << "\tfunction : " << f->getName().str() << std::endl;
 
 	std::map<Value*, Value*> val2val;
@@ -107,56 +103,34 @@ bool StackAnalysis::runOnFunction(
 					store->getValueOperand()->getType(),
 					replaceItems,
 					val2val);
-		}
-	}
 
-	for (auto &bb : *f)
-	for (auto &i : bb)
-	{
-		if (LoadInst* load = dyn_cast<LoadInst>(&i))
-		{
-			auto* pt = load->getPointerOperand()->getType()->getPointerElementType();
-			if (pt && pt->isIntegerTy(1))
+			if (isa<GlobalVariable>(store->getPointerOperand()))
 			{
 				continue;
 			}
 
+			handleInstruction(
+					RDA,
+					store,
+					store->getPointerOperand(),
+					store->getValueOperand()->getType(),
+					replaceItems,
+					val2val);
+		}
+		else if (LoadInst* load = dyn_cast<LoadInst>(&i))
+		{
 			if (isa<GlobalVariable>(load->getPointerOperand()))
 			{
 				continue;
 			}
 
-			changed |= handleInstruction(
+			handleInstruction(
 					RDA,
 					load,
 					load->getPointerOperand(),
 					load->getType(),
 					replaceItems,
 					val2val);
-		}
-		else if (StoreInst *store = dyn_cast<StoreInst>(&i))
-		{
-			if (AsmInstruction::isLlvmToAsmInstruction(store))
-			{
-				continue;
-			}
-
-			auto* pt = store->getPointerOperand()->getType()->getPointerElementType();
-			if (pt && pt->isIntegerTy(1))
-			{
-				continue;
-			}
-
-			if (!isa<GlobalVariable>(store->getPointerOperand()))
-			{
-				changed |= handleInstruction(
-						RDA,
-						store,
-						store->getPointerOperand(),
-						store->getValueOperand()->getType(),
-						replaceItems,
-						val2val);
-			}
 		}
 	}
 
@@ -167,47 +141,19 @@ bool StackAnalysis::runOnFunction(
 		auto* l = dyn_cast<LoadInst>(ri.inst);
 		if (s && s->getPointerOperand() == ri.from)
 		{
-			// TODO: if would be better, it else branch here was not needed.
-			// We would only replace load/store pointer operand and the type
-			// propagation would be handled later by som other related analysis.
-			//
-			if (ri.to->getAllocatedType()->isAggregateType())
-			{
-				auto* conv = convertValueToType(
-						ri.to,
-						s->getPointerOperand()->getType(),
-						ri.inst);
-				s->setOperand(s->getPointerOperandIndex(), conv);
-			}
-			else
-			{
-				auto* conv = convertValueToType(
-						s->getValueOperand(),
-						ri.to->getType()->getElementType(),
-						ri.inst);
-				new StoreInst(conv, ri.to, ri.inst);
-				toErase.insert(s);
-				new StoreInst(conv, ri.to, ri.inst);
-				toErase.insert(s);
-			}
+			auto* conv = convertValueToType(
+					s->getValueOperand(),
+					ri.to->getType()->getElementType(),
+					ri.inst);
+			new StoreInst(conv, ri.to, ri.inst);
+			toErase.insert(s);
 		}
 		else if (l && l->getPointerOperand() == ri.from)
 		{
-			if (ri.to->getAllocatedType()->isAggregateType())
-			{
-				auto* conv = convertValueToType(
-						ri.to,
-						l->getPointerOperand()->getType(),
-						ri.inst);
-				l->setOperand(l->getPointerOperandIndex(), conv);
-			}
-			else
-			{
-				auto* nl = new LoadInst(ri.to, "", l);
-				auto* conv = convertValueToType(nl, l->getType(), l);
-				l->replaceAllUsesWith(conv);
-				toErase.insert(l);
-			}
+			auto* nl = new LoadInst(ri.to, "", l);
+			auto* conv = convertValueToType(nl, l->getType(), l);
+			l->replaceAllUsesWith(conv);
+			toErase.insert(l);
 		}
 		else
 		{
@@ -219,11 +165,9 @@ bool StackAnalysis::runOnFunction(
 	{
 		e->eraseFromParent();
 	}
-
-	return changed;
 }
 
-bool StackAnalysis::handleInstruction(
+void StackAnalysis::handleInstruction(
 		ReachingDefinitionsAnalysis& RDA,
 		llvm::Instruction* inst,
 		llvm::Value* val,
@@ -233,6 +177,13 @@ bool StackAnalysis::handleInstruction(
 {
 	LOG << "@ " << AsmInstruction::getInstructionAddress(inst)
 			<< " -- " << llvmObjToString(inst) << std::endl;
+
+	if (val->getType()->isIntegerTy(1)
+			|| (val->getType()->isPointerTy()
+			&& val->getType()->getPointerElementType()->isIntegerTy(1)))
+	{
+		return;
+	}
 
 	SymbolicTree root(RDA, val, &val2val);
 	LOG << root << std::endl;
@@ -251,7 +202,7 @@ bool StackAnalysis::handleInstruction(
 		if (!stackPtr)
 		{
 			LOG << "===> no SP" << std::endl;
-			return false;
+			return;
 		}
 	}
 
@@ -268,7 +219,7 @@ bool StackAnalysis::handleInstruction(
 	auto* ci = dyn_cast_or_null<ConstantInt>(root.value);
 	if (ci == nullptr)
 	{
-		return false;
+		return;
 	}
 
 	if (auto* s = dyn_cast<StoreInst>(inst))
@@ -308,8 +259,6 @@ bool StackAnalysis::handleInstruction(
 	LOG << "===> " << llvmObjToString(a) << std::endl;
 	LOG << "===> " << llvmObjToString(inst) << std::endl;
 	LOG << std::endl;
-
-	return true;
 }
 
 /**
