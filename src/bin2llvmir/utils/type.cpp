@@ -897,14 +897,6 @@ llvm::Value* changeObjectType(
 }
 
 /**
- * @return @c True if @a t is a bool -- i1, @c false otherwise.
- */
-bool isBoolType(const llvm::Type* t)
-{
-	return t ? t->isIntegerTy(1) : false;
-}
-
-/**
  * @return @c True if @a t is a string array -- an array of char elements,
  *         @c false otherwise.
  */
@@ -971,25 +963,13 @@ llvm::IntegerType* getCharType(llvm::LLVMContext& ctx)
 {
 	return Type::getInt8Ty(ctx);
 }
-llvm::IntegerType* getCharType(llvm::LLVMContext* ctx)
-{
-	return ctx ? getCharType(*ctx) : nullptr;
-}
 
 llvm::PointerType* getCharPointerType(llvm::LLVMContext& ctx)
-{
-	return getCharPointerType(&ctx);
-}
-llvm::PointerType* getCharPointerType(llvm::LLVMContext* ctx)
 {
 	return PointerType::get(getCharType(ctx), 0);
 }
 
 llvm::PointerType* getVoidPointerType(llvm::LLVMContext& ctx)
-{
-	return getVoidPointerType(&ctx);
-}
-llvm::PointerType* getVoidPointerType(llvm::LLVMContext* ctx)
 {
 	return PointerType::get(getCharType(ctx), 0);
 }

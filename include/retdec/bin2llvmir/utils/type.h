@@ -48,7 +48,6 @@ llvm::Value* changeObjectType(
 		bool dbg = false,
 		bool wideString = false);
 
-bool isBoolType(const llvm::Type* t);
 bool isStringArrayType(const llvm::Type* t);
 bool isStringArrayPointeType(const llvm::Type* t);
 bool isCharType(const llvm::Type* t);
@@ -59,11 +58,8 @@ unsigned getDefaultTypeByteSize(llvm::Module* module);
 llvm::IntegerType* getDefaultType(llvm::Module* module);
 llvm::PointerType* getDefaultPointerType(llvm::Module* module);
 llvm::IntegerType* getCharType(llvm::LLVMContext& ctx);
-llvm::IntegerType* getCharType(llvm::LLVMContext* ctx);
 llvm::PointerType* getCharPointerType(llvm::LLVMContext& ctx);
-llvm::PointerType* getCharPointerType(llvm::LLVMContext* ctx);
 llvm::PointerType* getVoidPointerType(llvm::LLVMContext& ctx);
-llvm::PointerType* getVoidPointerType(llvm::LLVMContext* ctx);
 
 size_t getTypeByteSizeInBinary(llvm::Module* module, llvm::Type* type);
 size_t getTypeBitSizeInBinary(llvm::Module* module, llvm::Type* type);

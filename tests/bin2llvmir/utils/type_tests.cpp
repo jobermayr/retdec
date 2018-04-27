@@ -357,28 +357,6 @@ TEST_F(TypeTests, stringToLlvmTypeCanHandlePointerToVoid)
 }
 
 //
-// isBoolType()
-//
-
-TEST_F(TypeTests, i1IsABoolType)
-{
-	EXPECT_TRUE(isBoolType(Type::getInt1Ty(context)));
-}
-
-TEST_F(TypeTests, NullptrIsNotABoolTypeButFunctionDoesNotSegfault)
-{
-	EXPECT_FALSE(isBoolType(nullptr));
-}
-
-TEST_F(TypeTests, Onlyi1IsABoolTypeOtherTypesAreNot)
-{
-	EXPECT_FALSE(isBoolType(Type::getInt16Ty(context)));
-	EXPECT_FALSE(isBoolType(Type::getInt64Ty(context)));
-	EXPECT_FALSE(isBoolType(Type::getFloatTy(context)));
-	EXPECT_FALSE(isBoolType(Type::getDoublePtrTy(context)));
-}
-
-//
 // isCharType()
 //
 
@@ -449,35 +427,29 @@ TEST_F(TypeTests, OnlyPointerToi8ArrayIsAStringArrayTypeOtherTypesAreNot)
 
 //
 // getCharType(llvm::LLVMContext&)
-// getCharType(llvm::LLVMContext*)
 //
 
 TEST_F(TypeTests, getCharTypeReturnsi8)
 {
 	EXPECT_TRUE(getCharType(context)->isIntegerTy(8));
-	EXPECT_TRUE(getCharType(&context)->isIntegerTy(8));
 }
 
 //
 // getCharPointerType(llvm::LLVMContext&)
-// getCharPointerType(llvm::LLVMContext*)
 //
 
 TEST_F(TypeTests, getCharPointerTypeReturnsPointerToI8)
 {
 	EXPECT_TRUE(getCharPointerType(context)->getElementType()->isIntegerTy(8));
-	EXPECT_TRUE(getCharPointerType(&context)->getElementType()->isIntegerTy(8));
 }
 
 //
 // getVoidPointerType(llvm::LLVMContext&)
-// getVoidPointerType(llvm::LLVMContext*)
 //
 
 TEST_F(TypeTests, getVoidPointerTypeTypeReturnsPointerToI8)
 {
 	EXPECT_TRUE(getVoidPointerType(context)->getElementType()->isIntegerTy(8));
-	EXPECT_TRUE(getVoidPointerType(&context)->getElementType()->isIntegerTy(8));
 }
 
 //

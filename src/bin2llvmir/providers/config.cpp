@@ -415,7 +415,8 @@ bool Config::isRegister(const llvm::Value* val)
  */
 bool Config::isFlagRegister(const llvm::Value* val)
 {
-	return isRegister(val) && isBoolType(val->getType()->getPointerElementType());
+	return isRegister(val)
+			&& val->getType()->getPointerElementType()->isIntegerTy(1);
 }
 
 /**
