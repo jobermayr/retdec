@@ -58,7 +58,6 @@ VtableAnalysis::~VtableAnalysis()
 
 void VtableAnalysis::getAnalysisUsage(AnalysisUsage &AU) const
 {
-	AU.addRequired<DataReferences>();
 	AU.setPreservesAll();
 }
 
@@ -79,8 +78,6 @@ bool VtableAnalysis::runOnModule(Module &M)
 
 	msvc = config->getConfig().tools.isMsvc();
 	gcc = !msvc;
-
-	RA = &getAnalysis<DataReferences>();
 
 	detectVtablesInData();
 
@@ -129,8 +126,8 @@ void VtableAnalysis::detectVtablesInData()
 			Address item1 = addr + wordSz;
 			Address item2 = item1 + wordSz;
 
-			if (!RA->hasReferenceOnAddress(item1)
-					|| !RA->hasReferenceOnAddress(item2))
+			if (!objf->getImage()->isPointer(item1)
+					|| !objf->getImage()->isPointer(item2))
 			{
 				addr += wordSz;
 				continue;
@@ -193,7 +190,7 @@ VtableGcc *VtableAnalysis::createVtableGcc(Address a)
 	{
 		ret->rttiAddress = tmp;
 
-		ret->rtti = rttiAnalysis.parseGccRtti(objf->getImage(), RA, ret->rttiAddress);
+		ret->rtti = rttiAnalysis.parseGccRtti(objf->getImage(), ret->rttiAddress);
 		if (ret->rtti == nullptr)
 		{
 			LOG << "[FAILED] parsing rtti @ " << ret->rttiAddress
@@ -274,7 +271,6 @@ bool VtableAnalysis::fillVtable(Address a, Vtable &vt)
 {
 	LOG << "\n*** fillVtable() @ " << a << std::endl;
 
-	auto ref = RA->getReferenceFromAddress(a);
 	AddressSet items;
 
 	// TODO: maybe we should check that it is not in possibleVtableAddresses
@@ -283,24 +279,31 @@ bool VtableAnalysis::fillVtable(Address a, Vtable &vt)
 	// together. But if we check it, and some other item will be referenced,
 	// then we split one table into two.
 	//
+	std::uint64_t ptr = 0;
+	auto isPtr = objf->getImage()->isPointer(a, &ptr);
 	while (true)
 	{
-		if (!ref)
+		if (!isPtr)
 		{
 			LOG << "\tnot ref @ " << a << std::endl;
 			break;
+		}
+		if (config->isArmOrThumb() && ptr % 2)
+		{
+			--ptr;
 		}
 		if (processedAddresses.find(a) != processedAddresses.end())
 		{
 			LOG << "\talready processed @ " << a << std::endl;
 			break;
 		}
-		if (ref->seg == nullptr)
+		auto* seg = objf->getImage()->getSegmentFromAddress(ptr);
+		if (seg == nullptr)
 		{
 			LOG << "\tno associated segment @ " << a << std::endl;
 			break;
 		}
-		if (ref->seg->getSecSeg() && !ref->seg->getSecSeg()->isSomeCode())
+		if (seg->getSecSeg() && !seg->getSecSeg()->isSomeCode())
 		{
 			LOG << "\tnot ref to code @ " << a << std::endl;
 			break;
@@ -309,22 +312,22 @@ bool VtableAnalysis::fillVtable(Address a, Vtable &vt)
 		// All items in vtable must be unique.
 		// TODO: does this really hold?
 		//
-		if (items.find(ref->addr) != items.end())
+		if (items.find(ptr) != items.end())
 		{
 			LOG << "[FAILED] items are not unique @ " << a
 				<< std::endl << std::endl;
 			return false;
 		}
 
-		auto* f = config->getLlvmFunction(ref->addr);
+		auto* f = config->getLlvmFunction(ptr);
 
 		LOG << "\t[OK] item @ " << a << std::endl;
-		vt.virtualFncAddresses.push_back( VtableItem(ref->addr, f));
-		items.insert(ref->addr);
+		vt.virtualFncAddresses.push_back(VtableItem(ptr, f));
+		items.insert(ptr);
 		processedAddresses.insert(a);
 
 		a += objf->getFileFormat()->getBytesPerWord();
-		ref = RA->getReferenceFromAddress(a);
+		isPtr = objf->getImage()->isPointer(a, &ptr);
 	}
 
 	if (vt.virtualFncAddresses.empty())

@@ -13,7 +13,6 @@
 #include <llvm/Pass.h>
 
 #include "retdec/utils/address.h"
-#include "retdec/bin2llvmir/optimizations/data_references/data_references.h"
 #include "retdec/bin2llvmir/optimizations/vtable/rtti_analysis.h"
 #include "retdec/bin2llvmir/providers/config.h"
 
@@ -160,7 +159,6 @@ class VtableAnalysis : public llvm::ModulePass
 		llvm::Module *module = nullptr;
 		Config* config = nullptr;
 		FileImage* objf = nullptr;
-		DataReferences* RA = nullptr;
 
 		bool msvc = false;
 		bool gcc = false;

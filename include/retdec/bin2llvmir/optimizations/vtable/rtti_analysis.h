@@ -11,9 +11,9 @@
 #include <set>
 
 #include "retdec/utils/address.h"
-#include "retdec/bin2llvmir/optimizations/data_references/data_references.h"
 #include "retdec/bin2llvmir/optimizations/vtable/rtti_gcc.h"
 #include "retdec/bin2llvmir/optimizations/vtable/rtti_msvc.h"
+#include "retdec/bin2llvmir/providers/fileimage.h"
 
 namespace retdec {
 namespace bin2llvmir {
@@ -25,7 +25,6 @@ class RttiAnalysis
 
 		ClassTypeInfo* parseGccRtti(
 				retdec::loader::Image* objfile,
-				DataReferences* RA,
 				retdec::utils::Address rttiAddr);
 		void processGccRttis();
 

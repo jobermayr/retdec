@@ -28,7 +28,6 @@ RttiAnalysis::~RttiAnalysis()
 
 ClassTypeInfo* RttiAnalysis::parseGccRtti(
 		retdec::loader::Image* objfile,
-		DataReferences* RA,
 		Address rttiAddr)
 {
 	objf = objfile;
@@ -128,10 +127,10 @@ ClassTypeInfo* RttiAnalysis::parseGccRtti(
 	ClassTypeInfo *cti = nullptr;
 
 	ClassTypeInfo* baseRtti = nullptr;
-	if (baseAddr.isDefined() && RA->hasReferenceOnAddress(addrOfBaseAddr)
+	if (baseAddr.isDefined() && objf->isPointer(addrOfBaseAddr)
 			&& baseAddr != rttiAddr)
 	{
-		baseRtti = parseGccRtti(objf, RA, baseAddr);
+		baseRtti = parseGccRtti(objf, baseAddr);
 		if (baseRtti == nullptr)
 		{
 			LOG << "\t[FAILED] parsing base rtti @ " << baseAddr << "\n";
@@ -175,9 +174,9 @@ ClassTypeInfo* RttiAnalysis::parseGccRtti(
 			bcti.baseClassAddr = mbaseAddr;
 
 			baseRtti = nullptr;
-			if (RA->hasReferenceOnAddress(addr) && mbaseAddr != rttiAddr)
+			if (objf->isPointer(addr) && mbaseAddr != rttiAddr)
 			{
-				baseRtti = parseGccRtti(objf, RA, mbaseAddr);
+				baseRtti = parseGccRtti(objf, mbaseAddr);
 			}
 			if (baseRtti == nullptr)
 			{
