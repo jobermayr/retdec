@@ -24,29 +24,6 @@ namespace retdec {
 namespace bin2llvmir {
 
 /**
- * @return Parent functions for @a user if it exists, @c nullptr otherwise.
- */
-std::set<llvm::Function*> getParentFuncsFor(llvm::User* user)
-{
-	std::set<llvm::Function*> ret;
-
-	if (auto* i = dyn_cast_or_null<Instruction>(user))
-	{
-		ret.insert(i->getFunction());
-	}
-	else if (auto* e = dyn_cast_or_null<ConstantExpr>(user))
-	{
-		for (auto* u : e->users())
-		{
-			auto r = getParentFuncsFor(u);
-			ret.insert(r.begin(), r.end());
-		}
-	}
-
-	return ret;
-}
-
-/**
  * @return @c True if @a def was localized using the @a RDA results and @c type
  *         data type.
  */

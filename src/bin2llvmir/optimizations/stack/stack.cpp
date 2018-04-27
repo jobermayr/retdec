@@ -68,8 +68,6 @@ bool StackAnalysis::run()
 
 	bool changed = false;
 
-//dumpModuleToFile(_module);
-
 	ReachingDefinitionsAnalysis RDA;
 	RDA.runOnModule(*_module, _config);
 
@@ -77,8 +75,6 @@ bool StackAnalysis::run()
 	{
 		changed |= runOnFunction(RDA, &f);
 	}
-
-//dumpModuleToFile(_module);
 
 	return changed;
 }
@@ -92,7 +88,6 @@ bool StackAnalysis::runOnFunction(
 	LOG << "\tfunction : " << f->getName().str() << std::endl;
 
 	std::map<Value*, Value*> val2val;
-	std::map<std::string, AllocaInst*> n2a;
 	std::list<ReplaceItem> replaceItems;
 
 	for (auto &bb : *f)
@@ -239,13 +234,6 @@ bool StackAnalysis::handleInstruction(
 	LOG << "@ " << AsmInstruction::getInstructionAddress(inst) << std::endl;
 
 	SymbolicTree root(RDA, val, &val2val);
-
-	if (!root.isConstructedSuccessfully())
-	{
-		LOG << "!isConstructedSuccessfully()" << std::endl;
-		return false;
-	}
-
 	LOG << llvmObjToString(inst) << std::endl;
 	LOG << root << std::endl;
 

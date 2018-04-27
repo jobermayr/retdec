@@ -50,42 +50,19 @@ ConstantsAnalysis::ConstantsAnalysis() :
 
 }
 
-void ConstantsAnalysis::getAnalysisUsage(AnalysisUsage &AU) const
-{
-
-}
-
 bool ConstantsAnalysis::runOnModule(Module &M)
 {
-	LOG << "\n[BEGIN] ======================== ConstantsAnalysis:\n" << std::endl;
-
-	if (!FileImageProvider::getFileImage(&M, objf))
-	{
-		LOG << "[ABORT] object file is not available\n";
-		return false;
-	}
-	if (!ConfigProvider::getConfig(&M, config))
-	{
-		LOG << "[ABORT] config file is not available\n";
-		return false;
-	}
-
-	dbgf = DebugFormatProvider::getDebugFormat(&M);
 	m_module = &M;
-
-	if (debug_enabled)
-	{
-		dumpModuleToFile(m_module, config->getOutputDirectory());
-	}
+	objf = FileImageProvider::getFileImage(&M);
+	config = ConfigProvider::getConfig(&M);
+	dbgf = DebugFormatProvider::getDebugFormat(&M);
 
 	ReachingDefinitionsAnalysis RDA;
 	RDA.runOnModule(M, config);
 
-	setPic32GpValue(RDA);
-
 	for (auto &F : M.getFunctionList())
 	for (auto &B : F)
-	for (auto &I : B)
+	for (Instruction &I : B)
 	{
 		if (StoreInst *store = dyn_cast<StoreInst>(&I))
 		{
@@ -94,32 +71,15 @@ bool ConstantsAnalysis::runOnModule(Module &M)
 				continue;
 			}
 
-			if (store->getPointerOperand()->getType()->isPointerTy() &&
-				store->getPointerOperand()->getType()->getPointerElementType()->isIntegerTy(1))
-			{
-				continue;
-			}
-
 			if (!isa<GlobalVariable>(store->getPointerOperand()))
 			{
 				checkForGlobalInInstruction(RDA, store, store->getPointerOperand());
 			}
+
 			checkForGlobalInInstruction(RDA, store, store->getValueOperand(), true);
-		}
-		else if (CallInst *call = dyn_cast<CallInst>(&I))
-		{
-			unsigned args = call->getNumArgOperands();
-			for (unsigned i=0; i<args; ++i)
-			{
-				checkForGlobalInInstruction(RDA, &I, call->getArgOperand(i));
-			}
 		}
 		else if (auto* load = dyn_cast<LoadInst>(&I))
 		{
-			if (load->getPointerOperand()->getType()->isPointerTy() &&
-				load->getPointerOperand()->getType()->getPointerElementType()->isIntegerTy(1))
-				continue;
-
 			if (isa<GlobalVariable>(load->getPointerOperand()))
 				continue;
 
@@ -129,12 +89,6 @@ bool ConstantsAnalysis::runOnModule(Module &M)
 
 	tagFunctionsWithUsedCryptoGlobals();
 
-	if (debug_enabled)
-	{
-		dumpModuleToFile(m_module, config->getOutputDirectory());
-	}
-
-	LOG << "\n[END]   ======================== ConstantsAnalysis:\n";
 	return false;
 }
 
@@ -146,19 +100,16 @@ void ConstantsAnalysis::checkForGlobalInInstruction(
 {
 	LOG << llvmObjToString(inst) << std::endl;
 
-	// TODO: maybe allow only arch bit sizes? (e.g. 32/64)
-	if (val->getType()->isIntegerTy(1))
+	if (val->getType()->isIntegerTy(1)
+			|| (val->getType()->isPointerTy()
+			&& val->getType()->getPointerElementType()->isIntegerTy(1)))
 	{
 		return;
 	}
 
 	SymbolicTree root(RDA, val);
-	LOG << root << std::endl;
-	if (!root.isConstructedSuccessfully())
-	{
-		return;
-	}
 	root.simplifyNode(config);
+
 	LOG << root << std::endl;
 
 	auto* max = root.getMaxIntValue();
@@ -206,7 +157,7 @@ void ConstantsAnalysis::checkForGlobalInInstruction(
 
 void ConstantsAnalysis::tagFunctionsWithUsedCryptoGlobals()
 {
-	for (auto& lgv : m_module->getGlobalList())
+	for (GlobalVariable& lgv : m_module->getGlobalList())
 	{
 		auto* cgv = config->getConfigGlobalVariable(&lgv);
 		if (cgv == nullptr || cgv->getCryptoDescription().empty())
@@ -216,62 +167,26 @@ void ConstantsAnalysis::tagFunctionsWithUsedCryptoGlobals()
 
 		for (auto* user : lgv.users())
 		{
-			auto pfs = getParentFuncsFor(user);
-			for (auto* f : pfs)
+			if (auto* i = dyn_cast_or_null<Instruction>(user))
 			{
-				auto* cfnc = config->getConfigFunction(f);
-				if (cfnc == nullptr)
+				if (auto* cf = config->getConfigFunction(i->getFunction()))
 				{
-					continue;
+					cf->usedCryptoConstants.insert(cgv->getCryptoDescription());
 				}
-				cfnc->usedCryptoConstants.insert(cgv->getCryptoDescription());
 			}
-		}
-	}
-}
-
-void ConstantsAnalysis::setPic32GpValue(ReachingDefinitionsAnalysis& RDA)
-{
-	if (config == nullptr || !config->isPic32())
-	{
-		return;
-	}
-
-	for (auto& f : m_module->getFunctionList())
-	{
-		GlobalVariable* gp = nullptr;
-		ConstantInt* lastVal = nullptr;
-		for (inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i)
-		{
-			if (auto* s = dyn_cast<StoreInst>(&(*i)))
+			else if (auto* e = dyn_cast_or_null<ConstantExpr>(user))
 			{
-				auto* r = s->getPointerOperand();
-				auto* v = s->getValueOperand();
-
-				if (!config->isRegister(r) || r->getName() != "gp")
+				for (auto* u : e->users())
 				{
-					continue;
+					if (auto* i = dyn_cast_or_null<Instruction>(u))
+					{
+						if (auto* cf = config->getConfigFunction(i->getFunction()))
+						{
+							cf->usedCryptoConstants.insert(cgv->getCryptoDescription());
+						}
+					}
 				}
-
-				SymbolicTree root(RDA, v);
-				if (!root.isConstructedSuccessfully())
-				{
-					continue;
-				}
-				root.simplifyNode(config);
-				auto* ci = dyn_cast_or_null<ConstantInt>(root.value);
-				if (ci == nullptr)
-				{
-					continue;
-				}
-				lastVal = ci;
-				gp = dyn_cast<GlobalVariable>(r);
 			}
-		}
-
-		if (gp && lastVal)
-		{
-			gp->setInitializer(lastVal);
 		}
 	}
 }

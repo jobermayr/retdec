@@ -202,6 +202,40 @@ bool Decoder::run()
 		}
 	}
 
+	// TODO: separate to special function somewhere.
+	//
+	if (_config->isPic32())
+	{
+		if (auto* gp = _module->getNamedGlobal("gp"))
+		{
+			Address lastAddr;
+			StoreInst* lastStore = nullptr;
+
+			for (auto* u : gp->users())
+			{
+				if (auto* s = dyn_cast<StoreInst>(u))
+				{
+					auto addr = AsmInstruction::getInstructionAddress(s);
+					if (lastAddr.isUndefined() || addr > lastAddr)
+					{
+						lastAddr = addr;
+						lastStore = s;
+					}
+				}
+			}
+
+			if (lastStore)
+			{
+				SymbolicTree root(_RDA, lastStore->getValueOperand());
+				root.simplifyNode(_config);
+				if (auto* ci = dyn_cast_or_null<ConstantInt>(root.value))
+				{
+					gp->setInitializer(ci);
+				}
+			}
+		}
+	}
+
 	return false;
 }
 
@@ -798,7 +832,6 @@ bool Decoder::getJumpTargetsFromInstruction(
 					LOG << "\t\t\t\t" << "skip " << r << std::endl;
 				}
 			}
-
 		}
 	}
 

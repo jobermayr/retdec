@@ -25,8 +25,6 @@ namespace bin2llvmir {
 class Definition;
 class ReachingDefinitionsAnalysis;
 
-std::set<llvm::Function*> getParentFuncsFor(llvm::User* user);
-
 bool localizeDefinition(
 		const ReachingDefinitionsAnalysis& RDA,
 		const llvm::Instruction* def,
