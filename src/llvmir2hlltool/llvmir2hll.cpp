@@ -376,6 +376,7 @@ private:
 	retdec::llvmir2hll::PatternFinderRunner::PatternFinders instantiatePatternFinders(
 		const retdec::llvmir2hll::StringVector &pfsIds);
 	ShPtr<retdec::llvmir2hll::PatternFinderRunner> instantiatePatternFinderRunner() const;
+	retdec::llvmir2hll::StringSet getPrefixesOfFuncsToBeRemoved() const;
 
 	bool unreachableFuncsShouldBeRemoved() const;
 	bool unreachableFuncsWereAlreadyRemoved() const;
@@ -442,6 +443,10 @@ bool Decompiler::runOnModule(Module &m) {
 
 	if (Debug) retdec::llvm_support::printPhase("conversion of LLVM IR into BIR");
 	convertLLVMIRToBIR();
+
+	retdec::llvmir2hll::StringSet funcPrefixes(getPrefixesOfFuncsToBeRemoved());
+	if (Debug) retdec::llvm_support::printPhase("removing functions prefixed with [" + joinStrings(funcPrefixes) + "]");
+	removeFuncsPrefixedWith(funcPrefixes);
 
 	if (!KeepLibraryFunctions) {
 		if (Debug) retdec::llvm_support::printPhase("removing functions from standard libraries");
@@ -1043,6 +1048,13 @@ ShPtr<retdec::llvmir2hll::PatternFinderRunner> Decompiler::instantiatePatternFin
 		return ShPtr<retdec::llvmir2hll::PatternFinderRunner>(new retdec::llvmir2hll::CLIPatternFinderRunner(llvm::errs()));
 	}
 	return ShPtr<retdec::llvmir2hll::PatternFinderRunner>(new retdec::llvmir2hll::NoActionPatternFinderRunner());
+}
+
+/**
+* @brief Returns the prefixes of functions to be removed.
+*/
+retdec::llvmir2hll::StringSet Decompiler::getPrefixesOfFuncsToBeRemoved() const {
+	return config->getPrefixesOfFuncsToBeRemoved();
 }
 
 /**

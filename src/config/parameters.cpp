@@ -19,6 +19,7 @@ const std::string JSON_staticSigPaths           = "staticSignPaths";
 const std::string JSON_libraryTypeInfoPaths     = "libraryTypeInfoPaths";
 const std::string JSON_abiPaths                 = "abiPaths";
 const std::string JSON_selectedFunctions        = "selectedFunctions";
+const std::string JSON_frontendFunctions        = "frontendFunctions";
 const std::string JSON_selectedNotFoundFncs     = "selectedNotFoundFncs";
 const std::string JSON_selectedRanges           = "selectedRanges";
 const std::string JSON_selectedInteresting      = "selectedInteresting";
@@ -61,6 +62,22 @@ bool Parameters::isSelectedDecodeOnly() const { return _selectedDecodeOnly; }
 bool Parameters::isSomethingSelected() const
 {
 	return ( !selectedFunctions.empty() || !selectedRanges.empty());
+}
+
+/**
+ * Find out if the provided function name is among helper frontend function names.
+ * @param funcName Function name to check.
+ * @return @c True if any frontend function is substring in @a funcName.
+ *         @c False otherwise.
+ */
+bool Parameters::isFrontendFunction(const std::string& funcName) const
+{
+	for (auto& n : frontendFunctions)
+	{
+		if (funcName.find(n) != std::string::npos)
+			return true;
+	}
+	return false;
 }
 
 void Parameters::setIsVerboseOutput(bool b)
@@ -130,6 +147,7 @@ Json::Value Parameters::getJsonValue() const
 	params[JSON_libraryTypeInfoPaths]     = getJsonStringValueVisit(libraryTypeInfoPaths);
 	params[JSON_abiPaths]                 = getJsonStringValueVisit(abiPaths);
 	params[JSON_selectedFunctions]        = getJsonStringValueVisit(selectedFunctions);
+	params[JSON_frontendFunctions]        = getJsonStringValueVisit(frontendFunctions);
 	params[JSON_selectedNotFoundFncs]     = getJsonStringValueVisit(selectedNotFoundFunctions);
 	params[JSON_completedFrontendPasses]  = getJsonStringValueVisit(completedFrontendPasses);
 
@@ -161,6 +179,7 @@ void Parameters::readJsonValue(const Json::Value& val)
 	readJsonStringValueVisit(libraryTypeInfoPaths, val[JSON_libraryTypeInfoPaths]);
 	readJsonStringValueVisit(abiPaths, val[JSON_abiPaths]);
 	readJsonStringValueVisit(selectedFunctions, val[JSON_selectedFunctions]);
+	readJsonStringValueVisit(frontendFunctions, val[JSON_frontendFunctions]);
 	readJsonStringValueVisit(selectedNotFoundFunctions, val[JSON_selectedNotFoundFncs]);
 	readJsonStringValueVisit(completedFrontendPasses, val[JSON_completedFrontendPasses]);
 }

@@ -415,6 +415,10 @@ std::string JSONConfig::getDebugNameForLocalVar(const std::string &func,
 	return v && v->isFromDebug() ? v->getRealName() : std::string();
 }
 
+StringSet JSONConfig::getPrefixesOfFuncsToBeRemoved() const {
+	return impl->config.parameters.frontendFunctions;
+}
+
 std::string JSONConfig::getFrontendRelease() const {
 	return impl->config.getFrontendVersion();
 }

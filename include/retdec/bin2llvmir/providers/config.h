@@ -44,6 +44,9 @@ class Config
 		retdec::utils::Address getFunctionAddress(
 				const llvm::Function* fnc);
 
+		bool isFrontendFunction(const llvm::Value* val);
+		bool isFrontendFunctionCall(const llvm::Value* val);
+
 		// Register
 		//
 		const retdec::config::Object* getConfigRegister(

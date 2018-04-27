@@ -68,6 +68,9 @@ bool ValueProtect::run()
 
 void ValueProtect::protect()
 {
+	_config->getConfig().parameters.frontendFunctions.insert(
+			names::generatedUndefFunctionPrefix);
+
 	protectStack();
 
 	if (_config->getConfig().isIda()
@@ -138,11 +141,16 @@ void ValueProtect::unprotect()
 			}
 
 			Instruction* i = cast<Instruction>(u);
-			i->replaceAllUsesWith(UndefValue::get(i->getType()));
-			i->eraseFromParent();
+			if (i->user_empty())
+			{
+				i->eraseFromParent();
+			}
 		}
 
-		fnc->eraseFromParent();
+		if (fnc->user_empty())
+		{
+			fnc->eraseFromParent();
+		}
 	}
 
 	_type2fnc.clear();
