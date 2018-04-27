@@ -60,11 +60,13 @@ bool ConstantsAnalysis::runOnModule(Module &M)
 	ReachingDefinitionsAnalysis RDA;
 	RDA.runOnModule(M, config);
 
-	for (auto &F : M.getFunctionList())
-	for (auto &B : F)
-	for (Instruction &I : B)
+	for (Function& f : M.getFunctionList())
+	for (inst_iterator I = inst_begin(&f), E = inst_end(&f); I != E;)
 	{
-		if (StoreInst *store = dyn_cast<StoreInst>(&I))
+		Instruction& i = *I;
+		++I;
+
+		if (StoreInst *store = dyn_cast<StoreInst>(&i))
 		{
 			if (AsmInstruction::isLlvmToAsmInstruction(store))
 			{
@@ -80,7 +82,7 @@ bool ConstantsAnalysis::runOnModule(Module &M)
 
 			checkForGlobalInInstruction(RDA, store, store->getPointerOperand());
 		}
-		else if (auto* load = dyn_cast<LoadInst>(&I))
+		else if (auto* load = dyn_cast<LoadInst>(&i))
 		{
 			if (isa<GlobalVariable>(load->getPointerOperand()))
 			{

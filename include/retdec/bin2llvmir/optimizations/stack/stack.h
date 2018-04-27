@@ -42,13 +42,11 @@ class StackAnalysis : public llvm::ModulePass
 
 	private:
 		bool run();
-		void runOnFunction(ReachingDefinitionsAnalysis& RDA, llvm::Function* f);
 		void handleInstruction(
 				ReachingDefinitionsAnalysis& RDA,
 				llvm::Instruction* inst,
 				llvm::Value* val,
 				llvm::Type* type,
-				std::list<ReplaceItem>& _replaceItems,
 				std::map<llvm::Value*, llvm::Value*>& val2val);
 		retdec::config::Object* getDebugStackVariable(
 				llvm::Function* fnc,

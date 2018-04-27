@@ -8,6 +8,7 @@
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Instruction.h>
 #include <llvm/IR/Instructions.h>
+#include <llvm/IR/InstIterator.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Operator.h>
@@ -71,95 +72,56 @@ bool StackAnalysis::run()
 
 	for (auto& f : *_module)
 	{
-		runOnFunction(RDA, &f);
-	}
-
-	return true;
-}
-
-void StackAnalysis::runOnFunction(
-		ReachingDefinitionsAnalysis& RDA,
-		llvm::Function* f)
-{
-	LOG << "\tfunction : " << f->getName().str() << std::endl;
-
-	std::map<Value*, Value*> val2val;
-	std::list<ReplaceItem> replaceItems;
-
-	for (auto &bb : *f)
-	for (auto &i : bb)
-	{
-		if (StoreInst *store = dyn_cast<StoreInst>(&i))
+		std::map<Value*, Value*> val2val;
+		for (inst_iterator I = inst_begin(f), E = inst_end(f); I != E;)
 		{
-			if (AsmInstruction::isLlvmToAsmInstruction(store))
+			Instruction& i = *I;
+			++I;
+
+			if (StoreInst *store = dyn_cast<StoreInst>(&i))
 			{
-				continue;
+				if (AsmInstruction::isLlvmToAsmInstruction(store))
+				{
+					continue;
+				}
+
+				handleInstruction(
+						RDA,
+						store,
+						store->getValueOperand(),
+						store->getValueOperand()->getType(),
+						val2val);
+
+				if (isa<GlobalVariable>(store->getPointerOperand()))
+				{
+					continue;
+				}
+
+				handleInstruction(
+						RDA,
+						store,
+						store->getPointerOperand(),
+						store->getValueOperand()->getType(),
+						val2val);
 			}
-
-			handleInstruction(
-					RDA,
-					store,
-					store->getValueOperand(),
-					store->getValueOperand()->getType(),
-					replaceItems,
-					val2val);
-
-			if (isa<GlobalVariable>(store->getPointerOperand()))
+			else if (LoadInst* load = dyn_cast<LoadInst>(&i))
 			{
-				continue;
-			}
+				if (isa<GlobalVariable>(load->getPointerOperand()))
+				{
+					continue;
+				}
 
-			handleInstruction(
-					RDA,
-					store,
-					store->getPointerOperand(),
-					store->getValueOperand()->getType(),
-					replaceItems,
-					val2val);
-		}
-		else if (LoadInst* load = dyn_cast<LoadInst>(&i))
-		{
-			if (isa<GlobalVariable>(load->getPointerOperand()))
-			{
-				continue;
+				handleInstruction(
+						RDA,
+						load,
+						load->getPointerOperand(),
+						load->getType(),
+						val2val);
 			}
-
-			handleInstruction(
-					RDA,
-					load,
-					load->getPointerOperand(),
-					load->getType(),
-					replaceItems,
-					val2val);
 		}
 	}
 
-	for (auto& ri : replaceItems)
-	{
-		auto* s = dyn_cast<StoreInst>(ri.inst);
-		auto* l = dyn_cast<LoadInst>(ri.inst);
-		if (s && s->getPointerOperand() == ri.from)
-		{
-			auto* conv = convertValueToType(
-					s->getValueOperand(),
-					ri.to->getType()->getElementType(),
-					ri.inst);
-			new StoreInst(conv, ri.to, ri.inst);
-			s->eraseFromParent();
-		}
-		else if (l && l->getPointerOperand() == ri.from)
-		{
-			auto* nl = new LoadInst(ri.to, "", l);
-			auto* conv = convertValueToType(nl, l->getType(), l);
-			l->replaceAllUsesWith(conv);
-			l->eraseFromParent();
-		}
-		else
-		{
-			auto* conv = convertValueToType(ri.to, ri.from->getType(), ri.inst);
-			ri.inst->replaceUsesOfWith(ri.from, conv);
-		}
-	}
+	return false;
 }
 
 void StackAnalysis::handleInstruction(
@@ -167,11 +129,9 @@ void StackAnalysis::handleInstruction(
 		llvm::Instruction* inst,
 		llvm::Value* val,
 		llvm::Type* type,
-		std::list<ReplaceItem>& replaceItems,
 		std::map<llvm::Value*, llvm::Value*>& val2val)
 {
-	LOG << "@ " << AsmInstruction::getInstructionAddress(inst)
-			<< " -- " << llvmObjToString(inst) << std::endl;
+	LOG << llvmObjToString(inst) << std::endl;
 
 	if (val->getType()->isIntegerTy(1)
 			|| (val->getType()->isPointerTy()
@@ -249,11 +209,33 @@ void StackAnalysis::handleInstruction(
 		ca->setRealName(debugSv->getName());
 	}
 
-	replaceItems.push_back(ReplaceItem{inst, val, a});
-
 	LOG << "===> " << llvmObjToString(a) << std::endl;
 	LOG << "===> " << llvmObjToString(inst) << std::endl;
 	LOG << std::endl;
+
+	auto* s = dyn_cast<StoreInst>(inst);
+	auto* l = dyn_cast<LoadInst>(inst);
+	if (s && s->getPointerOperand() == val)
+	{
+		auto* conv = convertValueToType(
+				s->getValueOperand(),
+				a->getType()->getElementType(),
+				inst);
+		new StoreInst(conv, a, inst);
+		s->eraseFromParent();
+	}
+	else if (l && l->getPointerOperand() == val)
+	{
+		auto* nl = new LoadInst(a, "", l);
+		auto* conv = convertValueToType(nl, l->getType(), l);
+		l->replaceAllUsesWith(conv);
+		l->eraseFromParent();
+	}
+	else
+	{
+		auto* conv = convertValueToType(a, val->getType(), inst);
+		inst->replaceUsesOfWith(val, conv);
+	}
 }
 
 /**
