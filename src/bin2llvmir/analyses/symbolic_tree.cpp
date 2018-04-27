@@ -338,84 +338,8 @@ void SymbolicTree::removeStackLoads(Config* config)
 
 void SymbolicTree::simplifyNode(Config* config)
 {
-// TODO: I don't think this is needed.
-//	simplifyNodeLoadStore();
-
 	_simplifyNode(config);
-
 	fixLevel();
-}
-
-//>|   %371 = load i32, i32* @gp, align 4
-//        >|   store i32 %298, i32* @gp, align 4
-//                >|   %298 = load i32, i32* %stack_var_-4776
-//                        >|   store i32 %18, i32* %stack_var_-4776
-//                                >|   %18 = load i32, i32* @gp, align 4
-//                                        >|   store i32 %4, i32* @gp, align 4
-//                                                >|   %4 = add i32 %3, %2
-//                                                        >|   %3 = load i32, i32* @t9, align 4
-//                                                                >|   store i32 4223068, i32* @t9, align 4
-//                                                                        >| i32 4223068
-//                                                        >|   %2 = load i32, i32* @gp, align 4
-//                                                                >|   store i32 %1, i32* @gp, align 4
-//                                                                        >|   %1 = add i32 %0, -9372
-//                                                                                >|   %0 = load i32, i32* @gp, align 4
-//                                                                                        >|   store i32 393216, i32* @gp, align 4
-//                                                                                                >| i32 393216
-//                                                                                >| i32 -9372
-//        >|   store i32 %351, i32* @gp, align 4
-//                >|   %351 = load i32, i32* %stack_var_-4776
-//                        >|   store i32 %18, i32* %stack_var_-4776
-void SymbolicTree::simplifyNodeLoadStore()
-{
-	for (auto &o : ops)
-	{
-		o.simplifyNodeLoadStore();
-	}
-
-	auto* l = dyn_cast<LoadInst>(value);
-	if (l == nullptr || ops.size() != 2) // TODO: generalize for ops.size() > 1
-	{
-		return;
-	}
-
-	SymbolicTree* op0 = &ops[0];
-	std::set<Value*> op0Vals;
-
-	while (isa<LoadInst>(op0->value)
-			|| isa<StoreInst>(op0->value)
-			|| isa<CastInst>(op0->value))
-	{
-		op0Vals.insert(op0->value);
-		if (op0->ops.size() == 1)
-		{
-			op0 = &op0->ops[0];
-		}
-		else
-		{
-			break;
-		}
-	}
-
-	SymbolicTree* op1 = &ops[1];
-	while (isa<LoadInst>(op1->value)
-			|| isa<StoreInst>(op1->value)
-			|| isa<CastInst>(op1->value))
-	{
-		if (op0Vals.count(op1->value))
-		{
-			*this = std::move(ops[0]);
-			return;
-		}
-		else if (op1->ops.size() == 1)
-		{
-			op1 = &op1->ops[0];
-		}
-		else
-		{
-			return;
-		}
-	}
 }
 
 void SymbolicTree::_simplifyNode(Config* config)

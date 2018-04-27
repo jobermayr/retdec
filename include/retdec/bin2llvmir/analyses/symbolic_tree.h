@@ -88,7 +88,6 @@ class SymbolicTree
 		void propagateFlags();
 
 		void _simplifyNode(Config* config);
-		void simplifyNodeLoadStore();
 		void fixLevel(unsigned level = 0);
 
 		void _getPreOrder(std::vector<SymbolicTree*>& res) const;
