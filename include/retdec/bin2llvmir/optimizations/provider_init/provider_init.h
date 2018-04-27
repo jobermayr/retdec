@@ -8,7 +8,6 @@
 #define RETDEC_BIN2LLVMIR_OPTIMIZATIONS_PROVIDER_INIT_PROVIDER_INIT_H
 
 #include <llvm/IR/Module.h>
-#include <llvm/Pass.h>
 
 namespace retdec {
 namespace bin2llvmir {
