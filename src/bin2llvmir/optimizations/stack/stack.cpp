@@ -134,7 +134,6 @@ void StackAnalysis::runOnFunction(
 		}
 	}
 
-	std::set<Instruction*> toErase;
 	for (auto& ri : replaceItems)
 	{
 		auto* s = dyn_cast<StoreInst>(ri.inst);
@@ -146,24 +145,20 @@ void StackAnalysis::runOnFunction(
 					ri.to->getType()->getElementType(),
 					ri.inst);
 			new StoreInst(conv, ri.to, ri.inst);
-			toErase.insert(s);
+			s->eraseFromParent();
 		}
 		else if (l && l->getPointerOperand() == ri.from)
 		{
 			auto* nl = new LoadInst(ri.to, "", l);
 			auto* conv = convertValueToType(nl, l->getType(), l);
 			l->replaceAllUsesWith(conv);
-			toErase.insert(l);
+			l->eraseFromParent();
 		}
 		else
 		{
 			auto* conv = convertValueToType(ri.to, ri.from->getType(), ri.inst);
 			ri.inst->replaceUsesOfWith(ri.from, conv);
 		}
-	}
-	for (auto* e : toErase)
-	{
-		e->eraseFromParent();
 	}
 }
 

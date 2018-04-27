@@ -71,17 +71,21 @@ bool ConstantsAnalysis::runOnModule(Module &M)
 				continue;
 			}
 
-			if (!isa<GlobalVariable>(store->getPointerOperand()))
+			checkForGlobalInInstruction(RDA, store, store->getValueOperand(), true);
+
+			if (isa<GlobalVariable>(store->getPointerOperand()))
 			{
-				checkForGlobalInInstruction(RDA, store, store->getPointerOperand());
+				continue;
 			}
 
-			checkForGlobalInInstruction(RDA, store, store->getValueOperand(), true);
+			checkForGlobalInInstruction(RDA, store, store->getPointerOperand());
 		}
 		else if (auto* load = dyn_cast<LoadInst>(&I))
 		{
 			if (isa<GlobalVariable>(load->getPointerOperand()))
+			{
 				continue;
+			}
 
 			checkForGlobalInInstruction(RDA, load, load->getPointerOperand());
 		}
