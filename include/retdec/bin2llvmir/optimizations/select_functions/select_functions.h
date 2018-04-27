@@ -27,7 +27,6 @@ class SelectFunctions : public llvm::ModulePass
 		bool runOnModuleCustom(llvm::Module& M, Config* c);
 
 	private:
-		bool findNotReturningFunctions(llvm::Module& M);
 		bool run(llvm::Module& M);
 
 	private:

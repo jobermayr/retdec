@@ -59,15 +59,13 @@ bool SelectFunctions::run(Module& M)
 
 	if (!_config->getConfig().parameters.isSomethingSelected())
 	{
-		return findNotReturningFunctions(M);
+		return false;
 	}
 
 	bool changed = false;
 
-//	dumpModuleToFile(&M);
-
 	LOG << "functions:" << std::endl;
-	for (auto& f : M.getFunctionList())
+	for (Function& f : M.getFunctionList())
 	{
 		if (f.isDeclaration())
 		{
@@ -146,62 +144,7 @@ bool SelectFunctions::run(Module& M)
 		changed = true;
 	}
 
-	changed |= findNotReturningFunctions(M);
-
 	return changed;
-}
-
-/**
- * TODO: just experimental. if it works, move it to a separate analysis.
- */
-bool SelectFunctions::findNotReturningFunctions(llvm::Module& M)
-{
-	retdec::utils::NonIterableSet<std::string> exitFncs =
-	{
-		"exit", "_exit", "ExitThread", "abort", "longjmp", "_Exit",
-		"quick_exit", "thrd_exit", "ExitProcess"
-	};
-
-	for (auto& f : M.getFunctionList())
-	{
-		if (f.isDeclaration() || f.empty())
-		{
-			continue;
-		}
-
-		retdec::utils::NonIterableSet<BasicBlock*> seen;
-		auto* bb = &(f.front());
-		while (bb && seen.hasNot(bb))
-		{
-			for (Instruction& i : *bb)
-			{
-				auto* c = dyn_cast<CallInst>(&i);
-				if (c && c->getCalledFunction())
-				{
-					auto* cf = c->getCalledFunction();
-					std::string n = cf->getName();
-					if (exitFncs.has(n))
-					{
-						f.setDoesNotReturn();
-						bb = nullptr;
-						break;
-					}
-				}
-			}
-
-			if (bb == nullptr)
-			{
-				break;
-			}
-			else
-			{
-				seen.insert(bb);
-				bb = bb->getSingleSuccessor();
-			}
-		}
-	}
-
-	return false;
 }
 
 } // namespace bin2llvmir
