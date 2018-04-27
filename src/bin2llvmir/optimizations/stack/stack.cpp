@@ -231,30 +231,21 @@ bool StackAnalysis::handleInstruction(
 		std::list<ReplaceItem>& replaceItems,
 		std::map<llvm::Value*, llvm::Value*>& val2val)
 {
-	LOG << "@ " << AsmInstruction::getInstructionAddress(inst) << std::endl;
+	LOG << "@ " << AsmInstruction::getInstructionAddress(inst)
+			<< " -- " << llvmObjToString(inst) << std::endl;
 
 	SymbolicTree root(RDA, val, &val2val);
-	LOG << llvmObjToString(inst) << std::endl;
 	LOG << root << std::endl;
 
-	bool stackPtr = false;
-	auto post = root.getPostOrder();
 	if (!root.isVal2ValMapUsed())
 	{
-		for (SymbolicTree* n : post)
+		bool stackPtr = false;
+		for (SymbolicTree* n : root.getPostOrder())
 		{
 			if (_config->isStackPointerRegister(n->value))
 			{
 				stackPtr = true;
 				break;
-			}
-			else if (auto* l = dyn_cast<LoadInst>(n->value))
-			{
-				if (_config->isStackPointerRegister(l->getPointerOperand()))
-				{
-					stackPtr = true;
-					break;
-				}
 			}
 		}
 		if (!stackPtr)
@@ -265,64 +256,6 @@ bool StackAnalysis::handleInstruction(
 	}
 
 	auto* debugSv = getDebugStackVariable(inst->getFunction(), root);
-
-	auto& arch = _config->getConfig().architecture;
-
-	for (SymbolicTree* n : root.getPostOrder())
-	{
-		auto* l = dyn_cast<LoadInst>(n->value);
-		if (l == nullptr || !_config->isRegister(l->getPointerOperand()) ||
-				(l->getPointerOperand()->getName() != "esp"
-						&& l->getPointerOperand()->getName() != "rsp"
-						&& (!(l->getPointerOperand()->getName() == "r1" && arch.isPpc()))
-						&& l->getPointerOperand()->getName() != "sp"))
-		{
-			continue;
-		}
-
-		// TODO: who if there are more constants? e.g. 0 and -56.
-		// tight now, first pass takes only non-zeros, second takes also zeros.
-		//
-		for (SymbolicTree& op : n->ops)
-		{
-			if (isa<ConstantInt>(op.value)
-					&& !cast<ConstantInt>(op.value)->isZero())
-			{
-				n->value = op.value;
-				n->ops.clear();
-				break;
-			}
-		}
-		for (SymbolicTree& op : n->ops)
-		{
-			if (isa<ConstantInt>(op.value))
-			{
-				n->value = op.value;
-				n->ops.clear();
-				break;
-			}
-		}
-	}
-
-	for (SymbolicTree* n : root.getPreOrder())
-	{
-		auto* l = dyn_cast<LoadInst>(n->value);
-		if (l == nullptr || n->ops.size() != 2)
-		{
-			continue;
-		}
-
-		SymbolicTree root0(RDA, n->ops[0].value, &val2val);
-		root0.simplifyNode(_config);
-		SymbolicTree root1(RDA, n->ops[1].value, &val2val);
-		root1.simplifyNode(_config);
-
-		if (isa<ConstantInt>(root0.value) && root0.value == root1.value)
-		{
-			n->ops.pop_back();
-			break;
-		}
-	}
 
 	root.simplifyNode(_config);
 	LOG << root << std::endl;
@@ -379,6 +312,10 @@ bool StackAnalysis::handleInstruction(
 	return true;
 }
 
+/**
+ * Find a value that is being added to the stack pointer register in \p root.
+ * Find a debug variable with offset equal to this value.
+ */
 retdec::config::Object* StackAnalysis::getDebugStackVariable(
 		llvm::Function* fnc,
 		SymbolicTree& root)
@@ -387,8 +324,7 @@ retdec::config::Object* StackAnalysis::getDebugStackVariable(
 	{
 		return nullptr;
 	}
-	auto addr = _config->getFunctionAddress(fnc);
-	auto* debugFnc = _dbgf->getFunction(addr);
+	auto* debugFnc = _dbgf->getFunction(_config->getFunctionAddress(fnc));
 	if (debugFnc == nullptr)
 	{
 		return nullptr;
@@ -401,8 +337,7 @@ retdec::config::Object* StackAnalysis::getDebugStackVariable(
 	}
 	else
 	{
-		auto pre = root.getPreOrder();
-		for (SymbolicTree* n : pre)
+		for (SymbolicTree* n : root.getLevelOrder())
 		{
 			if (isa<AddOperator>(n->value)
 					&& n->ops.size() == 2
@@ -419,7 +354,6 @@ retdec::config::Object* StackAnalysis::getDebugStackVariable(
 			}
 		}
 	}
-
 	if (baseOffset.isUndefined())
 	{
 		return nullptr;
@@ -432,7 +366,6 @@ retdec::config::Object* StackAnalysis::getDebugStackVariable(
 		{
 			continue;
 		}
-
 		if (var.getStorage().getStackOffset() == baseOffset)
 		{
 			return &var;
