@@ -44,8 +44,6 @@ SymbolicTree::SymbolicTree(
 		:
 		value(v)
 {
-	assert(value != nullptr);
-
 	if (val2val)
 	{
 		auto fIt = val2val->find(value);
@@ -80,8 +78,6 @@ SymbolicTree::SymbolicTree(
 		user(u),
 		_level(nodeLevel)
 {
-	assert(value != nullptr);
-
 	if (val2val)
 	{
 		auto fIt = val2val->find(value);
@@ -95,7 +91,6 @@ SymbolicTree::SymbolicTree(
 
 	if (getLevel() == maxNodeLevel)
 	{
-		//_failed = true; // ???
 		return;
 	}
 
@@ -154,9 +149,6 @@ void SymbolicTree::expandNode(
 		unsigned maxNodeLevel,
 		std::unordered_set<llvm::Value*>& processed)
 {
-// TODO: I don't think this is needed.
-// TODO: It is, without it, it wcan be very slow. Probably exponential grow
-// of values in too many levels?
 	if (RDA->wasRun())
 	{
 		auto fIt = processed.find(value);
@@ -246,10 +238,6 @@ void SymbolicTree::expandNode(
 						val2val);
 			}
 		}
-	}
-	else
-	{
-		// nothing
 	}
 }
 
