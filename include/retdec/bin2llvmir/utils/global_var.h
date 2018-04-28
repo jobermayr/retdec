@@ -21,14 +21,6 @@
 namespace retdec {
 namespace bin2llvmir {
 
-bool getGlobalInfoFromCryptoPatterns(
-		llvm::Module* module,
-		Config* config,
-		retdec::utils::Address addr,
-		std::string& name,
-		std::string& description,
-		llvm::Type*& type);
-
 llvm::GlobalVariable* getGlobalVariable(
 		llvm::Module* module,
 		Config* config,
