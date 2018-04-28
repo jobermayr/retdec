@@ -437,9 +437,15 @@ llvm::Constant* FileImage::getConstant(
 	std::uint64_t val = 0;
 	auto res = _image->getWord(addr, val);
 	auto* seg = res ? _image->getSegmentFromAddress(val) : nullptr;
-	//    if (res && config && config->getLlvmFunction(val) == nullptr && seg && seg->getSecSeg() && !seg->getSecSeg()->isCode())
 	auto* srcSeg = _image->getSegmentFromAddress(addr);
-	if (res && config && config->getLlvmFunction(val) == nullptr && seg && seg->getSecSeg() && !seg->getSecSeg()->isCode() && srcSeg && !srcSeg->getSecSeg()->isCode())
+	if (res
+			&& config
+			&& config->getLlvmFunction(val) == nullptr
+			&& seg
+			&& seg->getSecSeg()
+			&& !seg->getSecSeg()->isCode()
+			&& srcSeg
+			&& !srcSeg->getSecSeg()->isCode())
 	{
 		std::vector<Constant*> refGvs;
 		while (1)
@@ -530,70 +536,6 @@ llvm::Constant* FileImage::getConstant(
 	return c;
 }
 
-/**
- * There is a function retdec::fileformat::getSymbolTables()
- * which gets the first symbol on a specified address.
- *
- * However, sometimes there are multiple symbols for one address.
- * E.g. ".text" and "_scanf". This function tries to decide which one is
- * preferred and return it.
- * If there is only one symbol, it is simply returned.
- * If there is no symbol, @c nullptr is returned.
- */
-const retdec::fileformat::Symbol* FileImage::getPreferredSymbol(
-		retdec::utils::Address addr)
-{
-	std::set<const retdec::fileformat::Symbol*> syms;
-
-	for (const auto* t : _image->getFileFormat()->getSymbolTables())
-	for (const auto& s : *t)
-	{
-		unsigned long long a = 0;
-		if (!s->getRealAddress(a))
-		{
-			continue;
-		}
-
-		if (addr == a)
-		{
-			syms.insert(s.get());
-		}
-	}
-
-	const retdec::fileformat::Symbol* ret = nullptr;
-
-	for (auto* s : syms)
-	{
-		const auto& retName = ret->getName();
-		const auto& sName = s->getName();
-		if (ret == nullptr
-				|| retName.empty()
-				|| retName.front() == '.'
-				|| sName.empty()
-				|| sName.front() == '_')
-		{
-			ret = s;
-		}
-	}
-
-	// TODO: direct config provider usage + ugly statis.
-	//
-	static bool lowered = false;
-	auto* c = ConfigProvider::getConfig(_module);
-	if (c && ret == nullptr && c->getConfig().architecture.isArmOrThumb())
-	{
-		if (!lowered)
-		{
-			lowered = true;
-			ret = getPreferredSymbol(addr - 1);
-			lowered = false;
-			return ret;
-		}
-	}
-
-	return ret;
-}
-
 bool FileImage::isImportTerminating(
 		const fileformat::ImportTable* impTbl,
 		const fileformat::Import* imp) const
@@ -613,7 +555,6 @@ bool FileImage::isImportTerminating(
 //				|| name == "abort";
 //	}
 
-	// TODO
 	retdec::utils::NonIterableSet<std::string> exitFncs =
 	{
 		"exit", "_exit", "ExitThread", "abort", "longjmp", "_Exit",

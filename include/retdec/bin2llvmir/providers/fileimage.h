@@ -72,8 +72,6 @@ class FileImage
 				retdec::utils::Address addr = retdec::utils::Address::getUndef);
 
 	public:
-		const retdec::fileformat::Symbol* getPreferredSymbol(
-				retdec::utils::Address addr);
 		bool isImportTerminating(
 				const fileformat::ImportTable* impTbl,
 				const fileformat::Import* imp) const;
