@@ -17,10 +17,6 @@
 namespace retdec {
 namespace bin2llvmir {
 
-/**
- * TODO:
- * At the moment, this is very similar to ConstantsAnalysis -> merge together.
- */
 class StackAnalysis : public llvm::ModulePass
 {
 	public:
@@ -31,14 +27,6 @@ class StackAnalysis : public llvm::ModulePass
 				llvm::Module& m,
 				Config* c,
 				DebugFormat* dbgf = nullptr);
-
-	private:
-		struct ReplaceItem
-		{
-			llvm::Instruction* inst;
-			llvm::Value* from;
-			llvm::AllocaInst* to;
-		};
 
 	private:
 		bool run();
