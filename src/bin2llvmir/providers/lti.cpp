@@ -17,7 +17,6 @@
 #include "retdec/ctypes/union_type.h"
 #include "retdec/ctypes/unknown_type.h"
 #include "retdec/ctypes/void_type.h"
-#include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/utils/string.h"
 #include "retdec/bin2llvmir/providers/lti.h"
 #include "retdec/bin2llvmir/utils/type.h"
@@ -348,8 +347,6 @@ llvm::FunctionType* Lti::getLlvmFunctionType(const std::string& name)
 	auto* ft = dyn_cast<FunctionType>(getLlvmType(ltiFnc->getType()));
 	assert(ft);
 
-	// TODO: I do not like this, why does
-	// retdec::ctypes::FunctionType::isVarArg no work?
 	std::string declaration = ltiFnc->getDeclaration();
 	if (declaration.find("...") != std::string::npos
 			&& !ft->isVarArg())
