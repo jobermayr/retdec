@@ -78,21 +78,6 @@ bool globalVariableCanBeCreated(
 	}
 	auto* seg = objf->getImage()->getSegmentFromAddress(addr);
 
-	// TODO: how to protect agains very small, but "valid" memory, numbers.
-	// sometimes, data are mapped to very low addresses.
-	//
-	if (addr < 0x4000)
-	{
-		if (seg && seg->getSecSeg()->isSomeData() && seg->containsAddress(addr))
-		{
-			// ok
-		}
-		else
-		{
-			return false;
-		}
-	}
-
 	// TODO: it would be greate to use this info here, but vtable analysis
 	// can not handle it at the moment -> some features.cpp tests fail.
 	//

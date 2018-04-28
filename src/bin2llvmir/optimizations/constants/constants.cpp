@@ -122,10 +122,9 @@ void ConstantsAnalysis::checkForGlobalInInstruction(
 	auto* maxC = max ? dyn_cast_or_null<ConstantInt>(max->value) : nullptr;
 	Instruction* userI = max ? dyn_cast_or_null<Instruction>(max->user) : nullptr;
 
-	if (max && maxC)
-	if (userI || max == &root) // TODO: see comment in store
+	if (max && maxC && maxC->getZExtValue() != 0)
+	if (userI || max == &root)
 	if (objf->getImage()->hasDataOnAddress(maxC->getZExtValue()))
-	if (maxC->getZExtValue() != 0)
 	{
 		auto* ngv = getGlobalVariable(
 				m_module,
