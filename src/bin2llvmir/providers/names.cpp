@@ -61,7 +61,7 @@ Name::Name()
 }
 
 Name::Name(Config* c, const std::string& name, eType type, Lti* lti) :
-		_name(normalizeNamePrefix(name)), // TODO: normalizeNamePrefix()
+		_name(normalizeNamePrefix(name)),
 		_type(type)
 {
 	if (c->isPic32())
@@ -82,9 +82,6 @@ Name::operator bool() const
 	return _type != eType::INVALID;
 }
 
-/**
- * TODO: Better, more elegent and robust name ordering solution.
- */
 bool Name::operator<(const Name& o) const
 {
 	if (_type == o._type)
@@ -142,10 +139,6 @@ Name::eType Name::getType() const
 	return _type;
 }
 
-/**
- * TODO: What is this? How to solve it better? Use demangler?
- * It is removing all leading '_'.
- */
 void Name::fixPic32Mangling()
 {
 	if (_name.empty()) return;
