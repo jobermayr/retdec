@@ -87,6 +87,8 @@ class AsmInstruction
 
 		llvm::BasicBlock* getBasicBlock() const;
 		llvm::Function* getFunction() const;
+		llvm::Module* getModule() const;
+		llvm::LLVMContext& getContext() const;
 		std::vector<llvm::Instruction*> getInstructions();
 		std::vector<llvm::BasicBlock*> getBasicBlocks();
 

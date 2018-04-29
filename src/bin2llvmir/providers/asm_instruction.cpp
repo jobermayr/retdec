@@ -637,6 +637,24 @@ llvm::Function* AsmInstruction::getFunction() const
 	return _llvmToAsmInstr ? _llvmToAsmInstr->getFunction() : nullptr;
 }
 
+/**
+ * @return Module where LLVM to ASM instruction belongs, or @c nullptr
+ *         if ASM instruction not valid.
+ */
+llvm::Module* AsmInstruction::getModule() const
+{
+	return _llvmToAsmInstr ? _llvmToAsmInstr->getModule() : nullptr;
+}
+
+/**
+ * @return Context where LLVM to ASM instruction belongs
+ *         Use only on valid assembly instructions.
+ */
+llvm::LLVMContext& AsmInstruction::getContext() const
+{
+	return _llvmToAsmInstr->getContext();
+}
+
 std::vector<llvm::Instruction*> AsmInstruction::getInstructions()
 {
 	std::vector<llvm::Instruction*> ret;

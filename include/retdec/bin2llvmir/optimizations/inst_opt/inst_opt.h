@@ -36,7 +36,6 @@ class InstOpt : public llvm::ModulePass
 		void removeInstructionNames();
 		bool run();
 		bool runGeneralOpts();
-		bool fixX86RepAnalysis();
 
 	private:
 		llvm::Module* _module = nullptr;
