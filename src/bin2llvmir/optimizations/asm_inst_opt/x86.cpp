@@ -6,7 +6,7 @@
 
 #include <llvm/IR/PatternMatch.h>
 
-#include "retdec/bin2llvmir/optimizations/asm_inst_optimizer/asm_inst_optimizer.h"
+#include "retdec/bin2llvmir/optimizations/asm_inst_opt/x86.h"
 #include "retdec/bin2llvmir/utils/type.h"
 
 using namespace llvm;

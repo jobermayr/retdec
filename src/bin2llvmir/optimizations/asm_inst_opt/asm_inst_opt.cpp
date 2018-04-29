@@ -4,10 +4,8 @@
  * @copyright (c) 2017 Avast Software, licensed under the MIT license
  */
 
-#include <llvm/IR/PatternMatch.h>
-
-#include "retdec/bin2llvmir/optimizations/asm_inst_optimizer/asm_inst_optimizer.h"
-#include "retdec/bin2llvmir/optimizations/asm_inst_optimizer/x86.h"
+#include "retdec/bin2llvmir/optimizations/asm_inst_opt/asm_inst_opt.h"
+#include "retdec/bin2llvmir/optimizations/asm_inst_opt/x86.h"
 
 using namespace llvm;
 

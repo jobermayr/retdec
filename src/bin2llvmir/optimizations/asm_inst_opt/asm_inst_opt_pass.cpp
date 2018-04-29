@@ -4,8 +4,8 @@
  * @copyright (c) 2017 Avast Software, licensed under the MIT license
  */
 
-#include "retdec/bin2llvmir/optimizations/asm_inst_optimizer/asm_inst_optimizer_pass.h"
-#include "retdec/bin2llvmir/optimizations/asm_inst_optimizer/asm_inst_optimizer.h"
+#include "retdec/bin2llvmir/optimizations/asm_inst_opt/asm_inst_opt_pass.h"
+#include "retdec/bin2llvmir/optimizations/asm_inst_opt/asm_inst_opt.h"
 
 using namespace llvm;
 
@@ -24,11 +24,6 @@ static RegisterPass<AsmInstructionOptimizer> X(
 
 AsmInstructionOptimizer::AsmInstructionOptimizer() :
 		ModulePass(ID)
-{
-
-}
-
-AsmInstructionOptimizer::~AsmInstructionOptimizer()
 {
 
 }
