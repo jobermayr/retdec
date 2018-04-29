@@ -11,7 +11,6 @@
 
 #include "retdec/utils/conversion.h"
 #include "retdec/utils/string.h"
-#include "retdec/bin2llvmir/optimizations/asm_inst_optimizer/asm_inst_optimizer.h"
 #include "retdec/bin2llvmir/optimizations/decoder/decoder.h"
 #include "retdec/bin2llvmir/utils/capstone.h"
 #include "retdec/bin2llvmir/utils/instruction.h"
@@ -129,14 +128,6 @@ bool Decoder::run()
 	if (debug_enabled)
 	{
 		dumpModuleToFile(_module, _config->getOutputDirectory());
-	}
-
-	for (auto& f : *_module)
-	{
-		for (auto ai = AsmInstruction(&f); ai.isValid(); ai = ai.getNext())
-		{
-			asm_inst_opt::optimize(ai, _config->getConfig().architecture);
-		}
 	}
 
 	// TODO: Instruction optimization: move somewhere else.

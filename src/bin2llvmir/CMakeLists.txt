@@ -10,6 +10,7 @@ set(BIN2LLVMIR_SOURCES
 	analyses/traversal/traversal_analysis.cpp
 	analyses/uses_analysis.cpp
 	analyses/var_depend_analysis.cpp
+	optimizations/asm_inst_optimizer/asm_inst_optimizer_pass.cpp
 	optimizations/asm_inst_optimizer/asm_inst_optimizer.cpp
 	optimizations/asm_inst_optimizer/x86.cpp
 	optimizations/asm_inst_remover/asm_inst_remover.cpp
