@@ -4,8 +4,8 @@
 * @copyright (c) 2017 Avast Software, licensed under the MIT license
 */
 
-#include "retdec/bin2llvmir/optimizations/asm_inst_remover/asm_inst_remover.h"
 #include "bin2llvmir/utils/llvmir_tests.h"
+#include "retdec/bin2llvmir/optimizations/asm_inst_remover/asm_inst_remover.h"
 
 using namespace ::testing;
 using namespace llvm;
