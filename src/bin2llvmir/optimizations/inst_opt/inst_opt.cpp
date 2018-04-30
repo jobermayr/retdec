@@ -112,6 +112,10 @@ bool truncZext(llvm::Instruction* insn)
 				"",
 				zext);
 	}
+	if (a == nullptr)
+	{
+		return false;
+	}
 
 	a->takeName(zext);
 	zext->replaceAllUsesWith(a);
