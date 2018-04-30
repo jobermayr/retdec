@@ -27,10 +27,14 @@ namespace inst_opt {
 bool addZero(llvm::Instruction* insn)
 {
 	Value* val;
-	uint64_t zero = 0;
+	uint64_t zero;
 
 	if (!(match(insn, m_Add(m_Value(val), m_ConstantInt(zero)))
 			|| match(insn, m_Add(m_ConstantInt(zero), m_Value(val)))))
+	{
+		return false;
+	}
+	if (zero != 0)
 	{
 		return false;
 	}
@@ -47,9 +51,13 @@ bool addZero(llvm::Instruction* insn)
  */
 bool subZero(llvm::Instruction* insn)
 {
-	uint64_t zero = 0;
+	uint64_t zero;
 
 	if (!match(insn, m_Sub(m_Value(), m_ConstantInt(zero))))
+	{
+		return false;
+	}
+	if (zero != 0)
 	{
 		return false;
 	}

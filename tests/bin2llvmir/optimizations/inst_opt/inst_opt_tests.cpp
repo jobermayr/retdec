@@ -104,6 +104,32 @@ TEST_F(OptimizeTests, addZeroVal)
 	EXPECT_TRUE(ret);
 }
 
+TEST_F(OptimizeTests, addValVal)
+{
+	parseInput(R"(
+		@reg = global i32 0
+		define i32 @fnc() {
+			%a = load i32, i32* @reg
+			%b = add i32 %a, 10
+			ret i32 %b
+		}
+	)");
+	auto* i = getInstructionByName("b");
+
+	bool ret = inst_opt::optimize(i);
+
+	std::string exp = R"(
+		@reg = global i32 0
+		define i32 @fnc() {
+			%a = load i32, i32* @reg
+			%b = add i32 %a, 10
+			ret i32 %b
+		}
+	)";
+	checkModuleAgainstExpectedIr(exp);
+	EXPECT_FALSE(ret);
+}
+
 //
 // sub zero
 //
@@ -131,6 +157,32 @@ TEST_F(OptimizeTests, subValZero)
 	)";
 	checkModuleAgainstExpectedIr(exp);
 	EXPECT_TRUE(ret);
+}
+
+TEST_F(OptimizeTests, subValVal)
+{
+	parseInput(R"(
+		@reg = global i32 0
+		define i32 @fnc() {
+			%a = load i32, i32* @reg
+			%b = sub i32 %a, 10
+			ret i32 %b
+		}
+	)");
+	auto* i = getInstructionByName("b");
+
+	bool ret = inst_opt::optimize(i);
+
+	std::string exp = R"(
+		@reg = global i32 0
+		define i32 @fnc() {
+			%a = load i32, i32* @reg
+			%b = sub i32 %a, 10
+			ret i32 %b
+		}
+	)";
+	checkModuleAgainstExpectedIr(exp);
+	EXPECT_FALSE(ret);
 }
 
 //
