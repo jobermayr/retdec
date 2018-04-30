@@ -452,7 +452,7 @@ bool StaticCodeFunction::operator<(const StaticCodeFunction& o) const
 		}
 		else
 		{
-			return names.empty() < o.names.empty();
+			return getName() < o.getName();
 		}
 	}
 	else
@@ -577,7 +577,6 @@ StaticCodeAnalysis::StaticCodeAnalysis(
 	{
 		_worklistDetections.insert(&p.second);
 	}
-
 
 	confirmWithoutRefs();
 	confirmAllRefsOk();
@@ -1374,6 +1373,8 @@ void StaticCodeAnalysis::confirmFunction(StaticCodeFunction* f)
 		{
 			_rejectedDetections.emplace(of->address, of);
 			_worklistDetections.erase(of);
+			LOG << "\t\t\t" << "rejecting #1 " << of->getName() << " @ "
+					<< of->address << std::endl;
 		}
 	}
 
@@ -1391,6 +1392,8 @@ void StaticCodeAnalysis::confirmFunction(StaticCodeFunction* f)
 			{
 				_rejectedDetections.emplace(of->address, of);
 				it = _worklistDetections.erase(it);
+				LOG << "\t\t\t" << "rejecting #2 " << of->getName() << " @ "
+						<< of->address << std::endl;
 				continue;
 			}
 		}
