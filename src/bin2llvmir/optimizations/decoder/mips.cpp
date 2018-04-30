@@ -130,5 +130,42 @@ std::size_t Decoder::decodeJumpTargetDryRun_mips(
 	return true;
 }
 
+void Decoder::initializeGpReg_mips()
+{
+	if (!_config->isPic32())
+	{
+		return;
+	}
+
+	if (auto* gp = _module->getNamedGlobal("gp"))
+	{
+		Address lastAddr;
+		StoreInst* lastStore = nullptr;
+
+		for (auto* u : gp->users())
+		{
+			if (auto* s = dyn_cast<StoreInst>(u))
+			{
+				auto addr = AsmInstruction::getInstructionAddress(s);
+				if (lastAddr.isUndefined() || addr > lastAddr)
+				{
+					lastAddr = addr;
+					lastStore = s;
+				}
+			}
+		}
+
+		if (lastStore)
+		{
+			SymbolicTree root(_RDA, lastStore->getValueOperand());
+			root.simplifyNode(_config);
+			if (auto* ci = dyn_cast_or_null<ConstantInt>(root.value))
+			{
+				gp->setInitializer(ci);
+			}
+		}
+	}
+}
+
 } // namespace bin2llvmir
 } // namespace retdec

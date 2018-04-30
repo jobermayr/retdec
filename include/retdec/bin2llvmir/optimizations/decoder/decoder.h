@@ -211,6 +211,7 @@ class Decoder : public llvm::ModulePass
 		std::size_t decodeJumpTargetDryRun_mips(
 				const JumpTarget& jt,
 				ByteData bytes);
+		void initializeGpReg_mips();
 
 	// PowerPC specific.
 	//
