@@ -199,7 +199,6 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 	if (bytes.first == nullptr)
 	{
 		LOG << "\t\t" << "found no data -> skip" << std::endl;
-		// TODO: slow, maybe do not even add ranges that do not have data.
 		_ranges.remove(start, start + 1);
 		return;
 	}
@@ -308,9 +307,6 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 		_somethingDecoded = true;
 
 		_llvm2capstone->emplace(res.llvmInsn, res.capstoneInsn);
-
-//AsmInstruction ai(res.llvmInsn);
-//asm_inst_opt::optimize(ai, _config->getConfig().architecture);
 
 		bbEnd |= getJumpTargetsFromInstruction(oldAddr, res, bytes.second);
 		bbEnd |= instructionBreaksBasicBlock(oldAddr, res);
