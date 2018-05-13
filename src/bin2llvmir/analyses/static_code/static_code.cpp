@@ -545,7 +545,7 @@ StaticCodeAnalysis::StaticCodeAnalysis(
 		_ceMode(md),
 		_ceInsn(cs_malloc(ce))
 {
-	debug_enabled = debug;
+	debug_enabled |= debug;
 
 	LOG << "\n StaticCodeAnalysis():" << std::endl;
 
