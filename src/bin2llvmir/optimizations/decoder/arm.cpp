@@ -70,14 +70,8 @@ std::size_t Decoder::decodeJumpTargetDryRun_arm(
 	//
 	else if (skipArm == 0 && skipThumb == 0)
 	{
-		if (decodedSzArm > decodedSzThumb)
-		{
-			jt.setMode(CS_MODE_ARM);
-		}
-		else if (decodedSzArm < decodedSzThumb)
-		{
-			jt.setMode(CS_MODE_THUMB);
-		}
+		// Prefer ARM.
+		jt.setMode(CS_MODE_ARM);
 		return 0;
 	}
 	// Both bad.
@@ -196,7 +190,6 @@ void Decoder::patternsPseudoCall_arm(llvm::CallInst*& call, AsmInstruction& ai)
 			call->eraseFromParent();
 			call = nc;
 		}
-//		; 0x113a0
 	}
 }
 
