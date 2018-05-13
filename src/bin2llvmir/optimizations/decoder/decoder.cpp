@@ -191,6 +191,8 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 	if (range == nullptr)
 	{
 		LOG << "\t\t" << "found no range -> skip" << std::endl;
+		// TODO: arm-pe-ff7e029f2539e37ee590a3cb029762b6
+		_ranges.remove(start, start + 1);
 		return;
 	}
 	LOG << "\t\t" << "found range = " << *range << std::endl;
