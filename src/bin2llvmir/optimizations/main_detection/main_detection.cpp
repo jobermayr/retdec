@@ -91,7 +91,10 @@ bool MainDetection::run()
 		mainAddr = getFromFunctionNames();
 	}
 
-	changed = applyResult(mainAddr);
+	if (!_config->getConfig().isIda())
+	{
+		changed = applyResult(mainAddr);
+	}
 
 	// Delete statically linked functions bodies only after main detection run.
 	// TODO: This is not ideal here, very random, move main detection to decoding?

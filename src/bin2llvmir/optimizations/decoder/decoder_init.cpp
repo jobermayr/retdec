@@ -538,7 +538,10 @@ void Decoder::initAllowedRangesWithConfig()
 void Decoder::initJumpTargets()
 {
 	initJumpTargetsConfig();
-	initStaticCode();
+	if (!_config->getConfig().isIda())
+	{
+		initStaticCode();
+	}
 	initJumpTargetsEntryPoint();
 	initJumpTargetsImports();
 	initJumpTargetsDebug();
@@ -927,6 +930,12 @@ void Decoder::initConfigFunctions()
 	for (auto& p : _fnc2addr)
 	{
 		Function* f = p.first;
+
+		if (_config->getConfigFunction(p.second)) // functions from IDA
+		{
+			continue;
+		}
+
 		Address start = p.second;
 		Address end = getFunctionEndAddress(f);
 		end = end > start ? end : Address(start + 1);
