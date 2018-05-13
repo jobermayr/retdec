@@ -438,6 +438,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 	{
 		auto t = getJumpTarget(addr, pCall, pCall->getArgOperand(0));
 		// TOOD: sometimes we want to enable calls (and other branches) to zero.
+
 		if (t || (t == 0 && AsmInstruction(_module, 0)))
 		{
 			auto nextAddr = addr + tr.size;
@@ -739,7 +740,7 @@ utils::Address Decoder::getJumpTarget(
 		llvm::CallInst* branchCall,
 		llvm::Value* val)
 {
-	SymbolicTree st(_RDA, val, nullptr, 16);
+	SymbolicTree st(_RDA, val, nullptr, 20);
 
 	// TODO: better implementation.
 	// PIC code.
