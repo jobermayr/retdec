@@ -36,6 +36,58 @@ TEST_F(AddressTests, InitializedAddressIsDefined)
 	EXPECT_TRUE(a.isDefined());
 }
 
+TEST_F(AddressTests, stringCtorPrefixHexa)
+{
+	Address a("0x1234");
+	EXPECT_FALSE(a.isUndefined());
+	EXPECT_TRUE(a.isDefined());
+	EXPECT_EQ(0x1234, a.getValue());
+}
+
+TEST_F(AddressTests, stringCtorNoPrefixDecimal)
+{
+	Address a("1234");
+	EXPECT_FALSE(a.isUndefined());
+	EXPECT_TRUE(a.isDefined());
+	EXPECT_EQ(1234, a.getValue());
+}
+
+TEST_F(AddressTests, stringCtorBadIsUndefined1)
+{
+	Address a("");
+	EXPECT_TRUE(a.isUndefined());
+}
+
+TEST_F(AddressTests, stringCtorBadIsUndefined2)
+{
+	Address a("0x");
+	EXPECT_TRUE(a.isUndefined());
+}
+
+TEST_F(AddressTests, stringCtorBadIsUndefined3)
+{
+	Address a("jak55");
+	EXPECT_TRUE(a.isUndefined());
+}
+
+TEST_F(AddressTests, stringCtorBadIsUndefined4)
+{
+	Address a("55jak");
+	EXPECT_TRUE(a.isUndefined());
+}
+
+TEST_F(AddressTests, stringCtorBadIsUndefined5)
+{
+	Address a("0xjak55");
+	EXPECT_TRUE(a.isUndefined());
+}
+
+TEST_F(AddressTests, stringCtorBadIsUndefined6)
+{
+	Address a("0x55 jak");
+	EXPECT_TRUE(a.isUndefined());
+}
+
 TEST_F(AddressTests, AssignmentWorks)
 {
 	unsigned val = 1234;

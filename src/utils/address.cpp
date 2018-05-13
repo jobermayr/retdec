@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "retdec/utils/address.h"
+#include "retdec/utils/string.h"
 
 namespace retdec {
 namespace utils {
@@ -24,13 +25,31 @@ namespace utils {
 const uint64_t Address::getUndef = ULLONG_MAX;
 
 Address::Address() :
-		address( Address::getUndef )
+		address(Address::getUndef)
 {
 }
 
 Address::Address(uint64_t a) :
 		address(a)
 {
+}
+
+Address::Address(const std::string &a) :
+		address(Address::getUndef)
+{
+	try
+	{
+		size_t idx = 0;
+		unsigned long long ull = std::stoull(a, &idx, 0);
+		if (idx == a.size()) // no leftovers
+		{
+			address = ull;
+		}
+	}
+	catch (const std::invalid_argument&)
+	{
+		// nothing -> undefined value.
+	}
 }
 
 Address::operator uint64_t() const

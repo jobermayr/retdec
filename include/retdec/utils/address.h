@@ -22,6 +22,7 @@ class Address
 	public:
 		Address();
 		Address(uint64_t a);
+		explicit Address(const std::string &a);
 		operator uint64_t() const;
 		explicit operator bool() const;
 

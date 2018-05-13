@@ -132,10 +132,10 @@ Json::Value Function::getJsonValue() const
 	if (!getDeclarationString().empty()) fnc[JSON_decStr] = getDeclarationString();
 	if (!getWrappedFunctionName().empty()) fnc[JSON_wrappedName] = getWrappedFunctionName();
 	if (!getSourceFileName().empty()) fnc[JSON_srcFileName] = getSourceFileName();
-	if (getStart().isDefined()) fnc[JSON_startAddr] = getStart().getValue();
-	if (getEnd().isDefined()) fnc[JSON_endAddr] = getEnd().getValue();
-	if (getStartLine().isDefined()) fnc[JSON_startLine] = getStartLine().getValue();
-	if (getEndLine().isDefined()) fnc[JSON_endLine] = getEndLine().getValue();
+	if (getStart().isDefined()) fnc[JSON_startAddr] = toJsonValue(getStart());
+	if (getEnd().isDefined()) fnc[JSON_endAddr] = toJsonValue(getEnd());
+	if (getStartLine().isDefined()) fnc[JSON_startLine] = toJsonValue(getStartLine());
+	if (getEndLine().isDefined()) fnc[JSON_endLine] = toJsonValue(getEndLine());
 	if (isFixed()) fnc[JSON_fixed] = isFixed();
 	if (isFromDebug()) fnc[JSON_fromDebug] = isFromDebug();
 	if (isConstructor()) fnc[JSON_isConstructor] = isConstructor();
