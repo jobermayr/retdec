@@ -44,6 +44,7 @@ class FileInformation
 		ExportTable exportTable;                       ///< information about exports
 		ResourceTable resourceTable;                   ///< information about resources in input file
 		CertificateTable certificateTable;             ///< information about certificates
+		ElfCore elfCoreInfo;                           ///< information about ELF core files
 		LoaderInfo loaderInfo;                         ///< information about loaded image
 		std::vector<DataDirectory> directories;        ///< information about data directories
 		std::vector<FileSegment> segments;             ///< information about segments in file
@@ -51,11 +52,12 @@ class FileInformation
 		std::vector<SymbolTable> symbolTables;         ///< symbol tables
 		std::vector<RelocationTable> relocationTables; ///< relocation tables
 		std::vector<DynamicSection> dynamicSections;   ///< information about dynamic sections
+		std::vector<ElfNotes> elfNotes;                ///< information about ELF sections
 		std::vector<Pattern> cryptoPatterns;           ///< detected crypto patterns
 		std::vector<Pattern> malwarePatterns;          ///< detected malware patterns
 		std::vector<Pattern> otherPatterns;            ///< other detected patterns
 		Strings strings;                               ///< detected strings
-		retdec::utils::Maybe<bool> signatureVerified; ///< indicates whether the signature is present and if it is verified
+		retdec::utils::Maybe<bool> signatureVerified;  ///< indicates whether the signature is present and if it is verified
 		DotnetInfo dotnetInfo;                         ///< .NET information
 	public:
 		retdec::cpdetect::ToolInformation toolInfo; ///< detected tools
@@ -146,6 +148,7 @@ class FileInformation
 		std::string getRichHeaderRecordMinorVersionStr(std::size_t position) const;
 		std::string getRichHeaderRecordBuildVersionStr(std::size_t position) const;
 		std::string getRichHeaderRecordNumberOfUsesStr(std::size_t position) const;
+		std::string getRichHeaderRawBytesStr() const;
 		bool hasRichHeaderRecords() const;
 		/// @}
 
@@ -383,6 +386,12 @@ class FileInformation
 		std::string isSignatureVerifiedStr(const std::string& t = "true", const std::string& f = "false") const;
 		/// @}
 
+		/// @name Getter of @a elfNotes and associtated structures
+		/// @{
+		const std::vector<ElfNotes>& getElfNotes() const;
+		const ElfCore& getElfCoreInfo() const;
+		/// @}
+
 		/// @name Getters of @a compilerOrPackerInfo
 		/// @{
 		std::size_t getNumberOfDetectedCompilers() const;
@@ -400,7 +409,8 @@ class FileInformation
 		std::string getNumberOfLoadedSegmentsStr(std::ios_base &(* format)(std::ios_base &)) const;
 		const LoadedSegment& getLoadedSegment(std::size_t index) const;
 		const std::string& getLoaderStatusMessage() const;
-		/// @}
+		const retdec::fileformat::LoaderErrorInfo & getLoaderErrorInfo() const;
+	    /// @}
 
 		/// @name Getters of @a dotnetInfo
 		/// @{
@@ -492,6 +502,7 @@ class FileInformation
 		void setSignatureVerified(bool verified);
 		void setLoadedBaseAddress(unsigned long long baseAddress);
 		void setLoaderStatusMessage(const std::string& statusMessage);
+		void setLoaderErrorInfo(const retdec::fileformat::LoaderErrorInfo & ldrErrInfo);
 		void setDotnetUsed(bool set);
 		void setDotnetRuntimeVersion(std::uint64_t majorVersion, std::uint64_t minorVersion);
 		void setDotnetMetadataHeaderAddress(std::uint64_t address);
@@ -520,6 +531,9 @@ class FileInformation
 		void addSymbolTable(SymbolTable &table);
 		void addRelocationTable(RelocationTable &table);
 		void addDynamicSection(DynamicSection &section);
+		void addElfNotes(ElfNotes &notes);
+		void addFileMapEntry(const FileMapEntry& entry);
+		void addAuxVectorEntry(const std::string& name, std::size_t value);
 		void addCryptoPattern(Pattern &pattern);
 		void removeRedundantCryptoRules();
 		void sortCryptoPatternMatches();

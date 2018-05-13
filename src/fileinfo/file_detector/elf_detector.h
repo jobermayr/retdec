@@ -24,6 +24,7 @@ class ElfDetector : public FileDetector
 		/// @{
 		void getFileVersion();
 		void getFileHeaderInfo();
+		void getOsAbiInfoNote();
 		void getOsAbiInfo();
 		void getFlags();
 		void getSegments();
@@ -31,6 +32,8 @@ class ElfDetector : public FileDetector
 		void getRelocationTable(const ELFIO::section *sec);
 		void getDynamicSection(const ELFIO::section *sec);
 		void getSections();
+		void getNotes();
+		void getCoreInfo();
 		/// @}
 	protected:
 		/// @name Detection methods

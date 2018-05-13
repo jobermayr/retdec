@@ -763,6 +763,16 @@ std::string FileInformation::getRichHeaderRecordNumberOfUsesStr(std::size_t posi
 }
 
 /**
+ * Get rich header raw bytes as string
+ * @return Raw bytes of rich header as string
+ */
+std::string FileInformation::getRichHeaderRawBytesStr() const
+{
+	auto rawBytes = richHeader.getRawBytes();
+	return std::string{rawBytes.begin(), rawBytes.end()};
+}
+
+/**
  * Find out if there are any records in rich header
  * @return @c true if rich header is not empty, @c false otherwise
  */
@@ -2612,6 +2622,24 @@ std::string FileInformation::isSignatureVerifiedStr(const std::string& t, const 
 }
 
 /**
+ * Get ELF notes
+ * @return vector with ELF notes
+ */
+const std::vector<ElfNotes>& FileInformation::getElfNotes() const
+{
+	return elfNotes;
+}
+
+/**
+ * Get ELF core info
+ * @return ELF core info
+ */
+const ElfCore& FileInformation::getElfCoreInfo() const
+{
+	return elfCoreInfo;
+}
+
+/**
  * Get number of detected compilers or packers
  * @return Number of detected compilers or packers
  */
@@ -2714,6 +2742,15 @@ const LoadedSegment& FileInformation::getLoadedSegment(std::size_t index) const
 const std::string& FileInformation::getLoaderStatusMessage() const
 {
 	return loaderInfo.getStatusMessage();
+}
+
+/**
+* Gets loader error message.
+* @return The error message of the loader.
+*/
+const retdec::fileformat::LoaderErrorInfo & FileInformation::getLoaderErrorInfo() const
+{
+	return loaderInfo.getLoaderErrorInfo();
 }
 
 /**
@@ -3484,6 +3521,15 @@ void FileInformation::setLoaderStatusMessage(const std::string& statusMessage)
 }
 
 /**
+* Sets loader error message.
+* @param statusMessage The loader error message.
+*/
+void FileInformation::setLoaderErrorInfo(const retdec::fileformat::LoaderErrorInfo & ldrErrInfo)
+{
+	loaderInfo.setLoaderErrorInfo(ldrErrInfo);
+}
+
+/**
  * Sets whether .NET information are used.
  * @param set @c true if used, otherwise @c false.
  */
@@ -3702,6 +3748,25 @@ void FileInformation::addRelocationTable(RelocationTable &table)
 void FileInformation::addDynamicSection(DynamicSection &section)
 {
 	dynamicSections.push_back(section);
+}
+
+/**
+ * Add ELF notes
+ * @param notes Loaded ELF notes
+ */
+void FileInformation::addElfNotes(ElfNotes& notes)
+{
+	elfNotes.push_back(notes);
+}
+
+void FileInformation::addFileMapEntry(const FileMapEntry& entry)
+{
+	elfCoreInfo.addFileMapEntry(entry);
+}
+
+void FileInformation::addAuxVectorEntry(const std::string& name, std::size_t value)
+{
+	elfCoreInfo.addAuxVectorEntry(name, value);
 }
 
 /**

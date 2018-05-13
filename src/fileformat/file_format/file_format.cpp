@@ -117,7 +117,7 @@ bool isAddressFromRegion(const SecSeg *actualRegion, const SecSeg *newRegion, st
  * @param loadFlags Load flags
  */
 FileFormat::FileFormat(std::istream &inputStream, LoadFlags loadFlags) : loadedBytes(&bytes),
-	loadFlags(loadFlags), fileStream(inputStream)
+	loadFlags(loadFlags), fileStream(inputStream), _ldrErrInfo()
 {
 	stateIsValid = !inputStream.fail();
 	init();
@@ -129,7 +129,7 @@ FileFormat::FileFormat(std::istream &inputStream, LoadFlags loadFlags) : loadedB
  * @param loadFlags Load flags
  */
 FileFormat::FileFormat(std::string pathToFile, LoadFlags loadFlags) : loadedBytes(&bytes),
-	loadFlags(loadFlags), filePath(pathToFile), fileStream(auxStream)
+	loadFlags(loadFlags), filePath(pathToFile), fileStream(auxStream), _ldrErrInfo()
 {
 	auxStream.open(filePath, std::ifstream::binary);
 	stateIsValid = auxStream.is_open();
@@ -156,6 +156,7 @@ void FileFormat::init()
 	richHeader = nullptr;
 	pdbInfo = nullptr;
 	certificateTable = nullptr;
+	elfCoreInfo = nullptr;
 	fileFormat = Format::UNDETECTABLE;
 	stateIsValid = readFile(fileStream, bytes) && stateIsValid;
 	if (getLoadFlags() & LoadFlags::NO_FILE_HASHES)
@@ -245,6 +246,7 @@ void FileFormat::clear()
 	delete richHeader;
 	delete pdbInfo;
 	delete certificateTable;
+	delete elfCoreInfo;
 
 	for(auto *item : sections)
 	{
@@ -654,26 +656,26 @@ bool FileFormat::haveReadOnlyDataOnAddress(unsigned long long address) const
 
 /**
  * Get number of bits in one nibble
- * @return Number of bits in one nibble or zero if this feature is not
- *    supported for target architecture of input file.
- *
- * Supported architectures are defined as enumeration type Architecture.
+ * @return Number of bits in one nibble
+ * @note This assumes architectures with 8-bit bytes and may break if some
+ *    exotic architecture is encountered.
  */
 std::size_t FileFormat::getNibbleLength() const
 {
-	return isUnknownArch() ? 0 : 4;
+	//return isUnknownArch() ? 0 : 4;
+	return 4;
 }
 
 /**
  * Get number of bits in one byte
- * @return Number of bits in one byte or zero if this feature is not
- *    supported for target architecture of input file.
- *
- * Supported architectures are defined as enumeration type Architecture.
+ * @return Number of bits in one byte
+ * @note This assumes architectures with 8-bit bytes and may break if some
+ *    exotic architecture is encountered.
  */
 std::size_t FileFormat::getByteLength() const
 {
-	return isUnknownArch() ? 0 : 8;
+	//return isUnknownArch() ? 0 : 8;
+	return 8;
 }
 
 /**
@@ -698,6 +700,15 @@ std::size_t FileFormat::getWordLength() const
 std::size_t FileFormat::getNumberOfNibblesInByte() const
 {
 	return !getNibbleLength() ? 0 : !(getByteLength() % getNibbleLength()) ? getByteLength() / getNibbleLength() : 0;
+}
+
+/**
+* Get reference to the loader error info
+* @return The LoaderErrorInfo structire
+*/
+const LoaderErrorInfo & FileFormat::getLoaderErrorInfo() const
+{
+	return _ldrErrInfo;
 }
 
 /**
@@ -1510,6 +1521,15 @@ const CertificateTable* FileFormat::getCertificateTable() const
 }
 
 /**
+ * Get information about ELF core file
+ * @return Pointer to ELF core info of @c nullptr if file has no certificates
+ */
+const ElfCoreInfo* FileFormat::getElfCoreInfo() const
+{
+	return elfCoreInfo;
+}
+
+/**
  * Get symbol with name @a name
  * @param name Name of symbol to get
  * @return Pointer to symbol with name @a name or @c nullptr if such symbol is not found
@@ -1820,6 +1840,15 @@ const unsigned char* FileFormat::getLoadedBytesData() const
 const std::vector<String>& FileFormat::getStrings() const
 {
 	return strings;
+}
+
+/**
+ * Get all detected notes
+ * @return Reference to notes
+ */
+const std::vector<ElfNoteSecSeg>&FileFormat::getElfNoteSecSegs() const
+{
+	return noteSecSegs;
 }
 
 const std::set<std::uint64_t> &FileFormat::getUnknownRelocations() const

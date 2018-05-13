@@ -22,6 +22,20 @@ namespace retdec {
 namespace fileformat {
 
 /**
+* LoaderErrorInfo - common structure that contains loader error code, error message and user-friendly error message
+*/
+
+struct LoaderErrorInfo
+{
+	LoaderErrorInfo() : loaderErrorCode(0), loaderError(nullptr), loaderErrorUserFriendly(nullptr)
+	{}
+
+	std::uint32_t loaderErrorCode;               // Loader error code, cast to uint32_t
+	const char * loaderError;
+	const char * loaderErrorUserFriendly;
+};
+
+/**
  * FileFormat - abstract class for parsing files
  */
 class FileFormat : public retdec::utils::ByteValueStorage, private retdec::utils::NonCopyable
@@ -58,6 +72,7 @@ class FileFormat : public retdec::utils::ByteValueStorage, private retdec::utils
 		std::vector<DynamicTable*> dynamicTables;                         ///< tables with dynamic records
 		std::vector<unsigned char> bytes;                                 ///< content of file as bytes
 		std::vector<String> strings;                                      ///< detected strings
+		std::vector<ElfNoteSecSeg> noteSecSegs;                           ///< note sections or segemnts found in ELF file
 		std::set<std::uint64_t> unknownRelocs;                            ///< unknown relocations
 		ImportTable *importTable;                                         ///< table of imports
 		ExportTable *exportTable;                                         ///< table of exports
@@ -66,11 +81,13 @@ class FileFormat : public retdec::utils::ByteValueStorage, private retdec::utils
 		RichHeader *richHeader;                                           ///< rich header
 		PdbInfo *pdbInfo;                                                 ///< information about related PDB debug file
 		CertificateTable *certificateTable;                               ///< table of certificates
+		ElfCoreInfo *elfCoreInfo;                                         ///< information about core file structures
 		Format fileFormat;                                                ///< format of input file
+		LoaderErrorInfo _ldrErrInfo;                                      ///< loader error (e.g. Windows loader error for PE files)
 		bool stateIsValid;                                                ///< internal state of instance
 		std::vector<std::pair<std::size_t, std::size_t>> secHashInfo;     ///< information for calculation of section table hash
-		retdec::utils::Maybe<bool> signatureVerified;                    ///< indicates whether the signature is present and also verified
-		retdec::utils::RangeContainer<std::uint64_t> nonDecodableRanges; ///< Address ranges which should not be decoded for instructions.
+		retdec::utils::Maybe<bool> signatureVerified;                     ///< indicates whether the signature is present and also verified
+		retdec::utils::RangeContainer<std::uint64_t> nonDecodableRanges;  ///< Address ranges which should not be decoded for instructions.
 
 		/// @name Clear methods
 		/// @{
@@ -128,7 +145,9 @@ class FileFormat : public retdec::utils::ByteValueStorage, private retdec::utils
 		virtual std::size_t getByteLength() const override;
 		virtual std::size_t getWordLength() const override;
 		virtual std::size_t getNumberOfNibblesInByte() const override;
+
 		/// @}
+		const LoaderErrorInfo & getLoaderErrorInfo() const;
 
 		/// @name Detection methods
 		/// @{
@@ -202,6 +221,7 @@ class FileFormat : public retdec::utils::ByteValueStorage, private retdec::utils
 		const RichHeader* getRichHeader() const;
 		const PdbInfo* getPdbInfo() const;
 		const CertificateTable* getCertificateTable() const;
+		const ElfCoreInfo* getElfCoreInfo() const;
 		const Symbol* getSymbol(const std::string &name) const;
 		const Symbol* getSymbol(unsigned long long address) const;
 		const Relocation* getRelocation(const std::string &name) const;
@@ -231,6 +251,7 @@ class FileFormat : public retdec::utils::ByteValueStorage, private retdec::utils
 		const unsigned char* getBytesData() const;
 		const unsigned char* getLoadedBytesData() const;
 		const std::vector<String>& getStrings() const;
+		const std::vector<ElfNoteSecSeg>& getElfNoteSecSegs() const;
 		const std::set<std::uint64_t>& getUnknownRelocations() const;
 		/// @}
 
