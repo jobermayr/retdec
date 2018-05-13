@@ -481,6 +481,37 @@ TEST_F(OptimizeTests, andLoadXLoadX)
 	EXPECT_TRUE(ret);
 }
 
+//
+// addSequence()
+//
+
+TEST_F(OptimizeTests, addSequence)
+{
+	parseInput(R"(
+		@reg = global i32 0
+		define i32 @fnc() {
+			%a = load i32, i32* @reg
+			%b = add i32 %a, 1
+			%c = add i32 %b, 2
+			ret i32 %c
+		}
+	)");
+	auto* i = getInstructionByName("c");
+
+	bool ret = inst_opt::optimize(i);
+
+	std::string exp = R"(
+		@reg = global i32 0
+		define i32 @fnc() {
+			%a = load i32, i32* @reg
+			%c = add i32 %a, 3
+			ret i32 %c
+		}
+	)";
+	checkModuleAgainstExpectedIr(exp);
+	EXPECT_TRUE(ret);
+}
+
 } // namespace tests
 } // namespace bin2llvmir
 } // namespace retdec

@@ -264,6 +264,37 @@ bool orAndLoadXX(llvm::Instruction* insn)
 }
 
 /**
+ * a = add x, c1
+ * b = add a, c2
+ *   =>
+ * b = add x, (c1 + c2)
+ */
+bool addSequence(llvm::Instruction* insn)
+{
+	Value* val;
+	ConstantInt* c1;
+	ConstantInt* c2;
+
+	if (!(match(insn, m_Add(
+			m_Add(m_Value(val), m_ConstantInt(c1)),
+			m_ConstantInt(c2)))))
+	{
+		return false;
+	}
+
+	Instruction* secondAdd = cast<Instruction>(insn->getOperand(0));
+	insn->setOperand(0, val);
+	insn->setOperand(1, ConstantInt::get(insn->getType(), c1->getValue() + c2->getValue()));
+
+	if (secondAdd->user_empty())
+	{
+		secondAdd->eraseFromParent();
+	}
+
+	return true;
+}
+
+/**
  * Order here is important.
  * More specific patterns must go first, more general later.
  */
@@ -276,6 +307,7 @@ std::vector<bool (*)(llvm::Instruction*)> optimizations =
 		&xorXX,
 		&orAndLoadXX,
 		&orAndXX,
+		&addSequence,
 };
 
 bool optimize(llvm::Instruction* insn)
