@@ -9,6 +9,7 @@
 #include <llvm/Support/CommandLine.h>
 
 #include "retdec/bin2llvmir/optimizations/provider_init/provider_init.h"
+#include "retdec/bin2llvmir/providers/abi/abi.h"
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
 #include "retdec/bin2llvmir/providers/config.h"
 #include "retdec/bin2llvmir/providers/debugformat.h"
@@ -97,6 +98,8 @@ bool ProviderInitialization::runOnModule(Module& m)
 			f,
 			d,
 			lti);
+
+	AbiProvider::addAbi(&m, c);
 
 	AsmInstruction::clear();
 

@@ -71,6 +71,11 @@ set(BIN2LLVMIR_SOURCES
 	optimizations/vtable/rtti_gcc.cpp
 	optimizations/vtable/rtti_msvc.cpp
 	optimizations/vtable/vtable.cpp
+	providers/abi/abi.cpp
+	providers/abi/arm.cpp
+	providers/abi/mips.cpp
+	providers/abi/powerpc.cpp
+	providers/abi/x86.cpp
 	providers/asm_instruction.cpp
 	providers/config.cpp
 	providers/debugformat.cpp

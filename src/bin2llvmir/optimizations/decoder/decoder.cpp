@@ -55,8 +55,9 @@ bool Decoder::runOnModule(Module& m)
 	_config = ConfigProvider::getConfig(_module);
 	_image = FileImageProvider::getFileImage(_module);
 	_debug = DebugFormatProvider::getDebugFormat(_module);
-	_llvm2capstone = &AsmInstruction::getLlvmToCapstoneInsnMap(_module);
 	_names = NamesProvider::getNames(_module);
+	_abi = AbiProvider::getAbi(_module);
+	_llvm2capstone = &AsmInstruction::getLlvmToCapstoneInsnMap(_module);
 	return runCatcher();
 }
 
@@ -65,13 +66,15 @@ bool Decoder::runOnModuleCustom(
 		Config* c,
 		FileImage* o,
 		DebugFormat* d,
-		NameContainer* n)
+		NameContainer* n,
+		Abi* a)
 {
 	_module = &m;
 	_config = c;
 	_image = o;
 	_debug = d;
 	_names = n;
+	_abi = a;
 	_llvm2capstone = &AsmInstruction::getLlvmToCapstoneInsnMap(_module);
 	return runCatcher();
 }

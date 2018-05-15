@@ -21,6 +21,12 @@
 #include "retdec/utils/address.h"
 #include "retdec/capstone2llvmir/exceptions.h"
 
+// These are additions to capstone - include them all here.
+#include "retdec/capstone2llvmir/arm/arm_defs.h"
+#include "retdec/capstone2llvmir/mips/mips_defs.h"
+#include "retdec/capstone2llvmir/powerpc/powerpc_defs.h"
+#include "retdec/capstone2llvmir/x86/x86_defs.h"
+
 namespace retdec {
 namespace capstone2llvmir {
 

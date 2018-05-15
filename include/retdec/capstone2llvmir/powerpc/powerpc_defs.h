@@ -7,9 +7,6 @@
 #ifndef RETDEC_CAPSTONE2LLVMIR_POWERPC_POWERPC_DEFS_H
 #define RETDEC_CAPSTONE2LLVMIR_POWERPC_POWERPC_DEFS_H
 
-namespace retdec {
-namespace capstone2llvmir {
-
 enum ppc_reg_cr_flags
 {
 	/// Negative -- set when result is negative.
@@ -64,8 +61,5 @@ enum ppc_cr_types
 	PPC_CR_EQ,
 	PPC_CR_SO,
 };
-
-} // namespace capstone2llvmir
-} // namespace retdec
 
 #endif

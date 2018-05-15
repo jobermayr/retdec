@@ -21,6 +21,7 @@
 #include "retdec/bin2llvmir/analyses/reaching_definitions.h"
 #include "retdec/bin2llvmir/analyses/static_code/static_code.h"
 #include "retdec/bin2llvmir/analyses/symbolic_tree.h"
+#include "retdec/bin2llvmir/providers/abi/abi.h"
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
 #include "retdec/bin2llvmir/providers/config.h"
 #include "retdec/bin2llvmir/providers/debugformat.h"
@@ -47,7 +48,8 @@ class Decoder : public llvm::ModulePass
 				Config* c,
 				FileImage* o,
 				DebugFormat* d,
-				NameContainer* n);
+				NameContainer* n,
+				Abi* a);
 
 	private:
 		using ByteData = typename std::pair<const std::uint8_t*, std::uint64_t>;
@@ -275,6 +277,7 @@ class Decoder : public llvm::ModulePass
 		DebugFormat* _debug = nullptr;
 		NameContainer* _names = nullptr;
 		Llvm2CapstoneMap* _llvm2capstone = nullptr;
+		Abi* _abi = nullptr;
 
 		ReachingDefinitionsAnalysis _RDA;
 

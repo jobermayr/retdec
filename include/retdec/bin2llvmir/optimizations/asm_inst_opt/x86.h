@@ -7,13 +7,14 @@
 #ifndef RETDEC_BIN2LLVMIR_OPTIMIZATIONS_ASM_INST_OPT_X86_H
 #define RETDEC_BIN2LLVMIR_OPTIMIZATIONS_ASM_INST_OPT_X86_H
 
+#include "retdec/bin2llvmir/providers/abi/abi.h"
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
 
 namespace retdec {
 namespace bin2llvmir {
 namespace asm_inst_opt {
 
-bool optimize_x86(AsmInstruction ai);
+bool optimize_x86_32(Abi* abi, AsmInstruction ai);
 
 } // namespace asm_inst_opt
 } // namespace bin2llvmir

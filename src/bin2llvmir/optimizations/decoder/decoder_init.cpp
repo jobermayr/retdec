@@ -157,6 +157,7 @@ void Decoder::initEnvironmentPseudoFunctions()
 
 /**
  * Create config objects for HW registers.
+ * Initialize ABI with registers.
  */
 void Decoder::initEnvironmentRegisters()
 {
@@ -174,6 +175,8 @@ void Decoder::initEnvironmentRegisters()
 			cr.type.setLlvmIr(llvmObjToString(gv.getValueType()));
 			cr.setRealName(gv.getName());
 			_config->getConfig().registers.insert(cr);
+
+			_abi->addRegister(regNum, &gv);
 		}
 	}
 }

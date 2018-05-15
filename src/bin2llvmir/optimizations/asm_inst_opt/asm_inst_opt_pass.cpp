@@ -32,15 +32,18 @@ bool AsmInstructionOptimizer::runOnModule(Module& m)
 {
 	_module = &m;
 	_config = ConfigProvider::getConfig(_module);
+	_abi = AbiProvider::getAbi(_module);
 	return run();
 }
 
 bool AsmInstructionOptimizer::runOnModuleCustom(
 		llvm::Module& m,
-		Config* c)
+		Config* c,
+		Abi* a)
 {
 	_module = &m;
 	_config = c;
+	_abi = a;
 	return run();
 }
 
@@ -55,7 +58,7 @@ bool AsmInstructionOptimizer::run()
 	{
 		for (auto ai = AsmInstruction(&f); ai.isValid(); ai = ai.getNext())
 		{
-			changed |= opt(ai);
+			changed |= opt(_abi, ai);
 		}
 	}
 

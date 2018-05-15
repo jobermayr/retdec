@@ -15,7 +15,7 @@ namespace retdec {
 namespace bin2llvmir {
 namespace asm_inst_opt {
 
-bool optimize_stosX(AsmInstruction ai, cs_insn* ci, cs_x86* xi)
+bool optimize_stosX_32(Abi* abi, AsmInstruction ai, cs_insn* ci, cs_x86* xi)
 {
 	if (!((ci->id == X86_INS_STOSB
 			|| ci->id == X86_INS_STOSW
@@ -28,9 +28,10 @@ bool optimize_stosX(AsmInstruction ai, cs_insn* ci, cs_x86* xi)
 	auto& ctx = ai.getContext();
 	auto* module = ai.getModule();
 
-	auto* eax = module->getNamedGlobal("eax");
-	auto* edi = module->getNamedGlobal("edi");
-	auto* ecx = module->getNamedGlobal("ecx");
+	auto* eax = abi->getRegister(X86_REG_EAX);
+	auto* edi = abi->getRegister(X86_REG_EDI);
+	auto* ecx = abi->getRegister(X86_REG_ECX);
+
 	if (!eax || !edi || !ecx)
 	{
 		return false;
@@ -93,7 +94,7 @@ bool optimize_stosX(AsmInstruction ai, cs_insn* ci, cs_x86* xi)
 	return true;
 }
 
-bool optimize_cmpsX(AsmInstruction ai, cs_insn* ci, cs_x86* xi)
+bool optimize_cmpsX_32(Abi* abi, AsmInstruction ai, cs_insn* ci, cs_x86* xi)
 {
 	if (!((ci->id == X86_INS_CMPSB
 			|| ci->id == X86_INS_CMPSW
@@ -106,10 +107,10 @@ bool optimize_cmpsX(AsmInstruction ai, cs_insn* ci, cs_x86* xi)
 	auto& ctx = ai.getContext();
 	auto* module = ai.getModule();
 
-	auto* edi = module->getNamedGlobal("edi");
-	auto* ecx = module->getNamedGlobal("ecx");
-	auto* esi = module->getNamedGlobal("esi");
-	auto* zf = module->getNamedGlobal("zf");
+	auto* edi = abi->getRegister(X86_REG_EDI);
+	auto* ecx = abi->getRegister(X86_REG_ECX);
+	auto* esi = abi->getRegister(X86_REG_ESI);
+	auto* zf = abi->getRegister(X86_REG_ZF);
 	if (!edi || !ecx || !esi || !zf)
 	{
 		return false;
@@ -171,7 +172,7 @@ bool optimize_cmpsX(AsmInstruction ai, cs_insn* ci, cs_x86* xi)
 	return true;
 }
 
-bool optimize_movsX(AsmInstruction ai, cs_insn* ci, cs_x86* xi)
+bool optimize_movsX_32(Abi* abi, AsmInstruction ai, cs_insn* ci, cs_x86* xi)
 {
 	if (!((ci->id == X86_INS_MOVSB
 			|| ci->id == X86_INS_MOVSW
@@ -184,9 +185,9 @@ bool optimize_movsX(AsmInstruction ai, cs_insn* ci, cs_x86* xi)
 	auto& ctx = ai.getContext();
 	auto* module = ai.getModule();
 
-	auto* edi = module->getNamedGlobal("edi");
-	auto* ecx = module->getNamedGlobal("ecx");
-	auto* esi = module->getNamedGlobal("esi");
+	auto* edi = abi->getRegister(X86_REG_EDI);
+	auto* ecx = abi->getRegister(X86_REG_ECX);
+	auto* esi = abi->getRegister(X86_REG_ESI);
 	if (!edi || !ecx || !esi)
 	{
 		return false;
@@ -241,7 +242,7 @@ bool optimize_movsX(AsmInstruction ai, cs_insn* ci, cs_x86* xi)
 	return true;
 }
 
-bool optimize_scasX(AsmInstruction ai, cs_insn* ci, cs_x86* xi)
+bool optimize_scasX_32(Abi* abi, AsmInstruction ai, cs_insn* ci, cs_x86* xi)
 {
 	if (!((ci->id == X86_INS_SCASB
 			|| ci->id == X86_INS_SCASW
@@ -254,8 +255,8 @@ bool optimize_scasX(AsmInstruction ai, cs_insn* ci, cs_x86* xi)
 	auto& ctx = ai.getContext();
 	auto* module = ai.getModule();
 
-	auto* edi = module->getNamedGlobal("edi");
-	auto* ecx = module->getNamedGlobal("ecx");
+	auto* edi = abi->getRegister(X86_REG_EDI);
+	auto* ecx = abi->getRegister(X86_REG_ECX);
 	if (!edi || !ecx)
 	{
 		return false;
@@ -310,17 +311,17 @@ bool optimize_scasX(AsmInstruction ai, cs_insn* ci, cs_x86* xi)
 	return true;
 }
 
-bool optimize_x86(AsmInstruction ai)
+bool optimize_x86_32(Abi* abi, AsmInstruction ai)
 {
 	cs_insn* ci = ai.getCapstoneInsn();
 	cs_x86* xi = &ci->detail->x86;
 
 	bool changed = false;
 
-	changed |= optimize_stosX(ai, ci, xi);
-	changed |= optimize_cmpsX(ai, ci, xi);
-	changed |= optimize_movsX(ai, ci, xi);
-	changed |= optimize_scasX(ai, ci, xi);
+	changed |= optimize_stosX_32(abi, ai, ci, xi);
+	changed |= optimize_cmpsX_32(abi, ai, ci, xi);
+	changed |= optimize_movsX_32(abi, ai, ci, xi);
+	changed |= optimize_scasX_32(abi, ai, ci, xi);
 
 	return changed;
 }

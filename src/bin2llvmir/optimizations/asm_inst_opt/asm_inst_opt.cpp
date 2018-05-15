@@ -13,11 +13,11 @@ namespace retdec {
 namespace bin2llvmir {
 namespace asm_inst_opt {
 
-bool optimize(AsmInstruction ai, config::Architecture& arch)
+bool optimize(config::Architecture& arch, Abi* a, AsmInstruction ai)
 {
-	if (arch.isX86())
+	if (arch.isX86_32())
 	{
-		return optimize_x86(ai);
+		return optimize_x86_32(a, ai);
 	}
 	else
 	{

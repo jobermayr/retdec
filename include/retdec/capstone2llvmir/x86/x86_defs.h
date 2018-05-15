@@ -7,9 +7,6 @@
 #ifndef RETDEC_CAPSTONE2LLVMIR_X86_X86_DEFS_H
 #define RETDEC_CAPSTONE2LLVMIR_X86_X86_DEFS_H
 
-namespace retdec {
-namespace capstone2llvmir {
-
 /**
  * A flag register addition to @c x86_reg from capstone/x86.h.
  * Translator works with flag registers explicitly, but they are modeled only
@@ -127,8 +124,5 @@ enum x87_reg_tag
 	X87_REG_TAG6,
 	X87_REG_TAG7
 };
-
-} // namespace capstone2llvmir
-} // namespace retdec
 
 #endif
