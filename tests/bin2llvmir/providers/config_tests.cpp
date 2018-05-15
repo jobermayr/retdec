@@ -282,40 +282,6 @@ TEST_F(ConfigTests, getConfigRegisterNumberReturnUndefinedValueIfItDoesNotExist)
 }
 
 //
-// getConfigRegisterClass()
-//
-
-TEST_F(ConfigTests, getConfigRegisterClassReturnsClassIfItExists)
-{
-	parseInput(R"(
-		@r = global i1 0
-	)");
-	auto* llvmReg = getGlobalByName("r");
-	auto s = retdec::config::Storage::inRegister("r", 123, "class");
-	auto r = retdec::config::Object("r", s);
-	auto config = Config::empty(module.get());
-	config.getConfig().registers.insert(r);
-	auto regClass = config.getConfigRegisterClass(llvmReg);
-
-	EXPECT_EQ("class", regClass);
-}
-
-TEST_F(ConfigTests, getConfigRegisterClassReturnsEmptyStringIfClassNotSet)
-{
-	parseInput(R"(
-		@r = global i1 0
-	)");
-	auto* llvmReg = getGlobalByName("r");
-	auto s = retdec::config::Storage::inRegister("r");
-	auto r = retdec::config::Object("r", s);
-	auto config = Config::empty(module.get());
-	config.getConfig().registers.insert(r);
-	auto regClass = config.getConfigRegisterClass(llvmReg);
-
-	EXPECT_TRUE(regClass.empty());
-}
-
-//
 // getLlvmRegister()
 //
 

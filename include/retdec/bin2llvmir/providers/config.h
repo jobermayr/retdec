@@ -53,8 +53,6 @@ class Config
 				const llvm::Value* val);
 		retdec::utils::Maybe<unsigned> getConfigRegisterNumber(
 				const llvm::Value* val);
-		std::string getConfigRegisterClass(
-				const llvm::Value* val);
 		llvm::GlobalVariable* getLlvmRegister(
 				const std::string& name);
 

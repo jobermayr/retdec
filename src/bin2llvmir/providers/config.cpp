@@ -399,16 +399,6 @@ retdec::utils::Maybe<unsigned> Config::getConfigRegisterNumber(
 	return r ? r->getStorage().getRegisterNumber() : undefVal;
 }
 
-/**
- * TODO: Not used anywhere, do we want this with Capstone?
- */
-std::string Config::getConfigRegisterClass(
-		const llvm::Value* val)
-{
-	auto* r = getConfigRegister(val);
-	return r ? r->getStorage().getRegisterClass() : std::string();
-}
-
 llvm::GlobalVariable* Config::getLlvmRegister(
 		const std::string& name)
 {
