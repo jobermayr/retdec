@@ -48,13 +48,14 @@ bool AsmInstructionOptimizer::run()
 {
 	bool changed = false;
 
+	auto opt = asm_inst_opt::getOptimizationFunction(
+			_config->getConfig().architecture);
+
 	for (auto& f : *_module)
 	{
 		for (auto ai = AsmInstruction(&f); ai.isValid(); ai = ai.getNext())
 		{
-			changed |= asm_inst_opt::optimize(
-					ai,
-					_config->getConfig().architecture);
+			changed |= opt(ai);
 		}
 	}
 
