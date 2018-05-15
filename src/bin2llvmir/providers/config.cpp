@@ -505,25 +505,6 @@ bool Config::isFloatingPointRegister(const llvm::Value* val)
 	}
 }
 
-/**
- * @return @c True if value @a val is an artificial function added by frontend.
- *         @c False otherwise.
- */
-bool Config::isFrontendFunction(const llvm::Value* val)
-{
-	return val ? _configDB.parameters.isFrontendFunction(val->getName()) : false;
-}
-
-/**
- * @return @c True if value @a val is a call of an artificial function added
- *         by frontend. @c False otherwise.
- */
-bool Config::isFrontendFunctionCall(const llvm::Value* val)
-{
-	auto* call = dyn_cast_or_null<CallInst>(val);
-	return call ? isFrontendFunction(call->getCalledValue()) : false;
-}
-
 bool Config::isLlvmToAsmGlobalVariable(const llvm::Value* gv) const
 {
 	return gv == getLlvmToAsmGlobalVariable();
