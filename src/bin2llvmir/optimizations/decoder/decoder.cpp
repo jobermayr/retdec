@@ -335,7 +335,7 @@ Decoder::translate(ByteData& bytes, utils::Address& addr, llvm::IRBuilder<>& irb
 	// instructions are disassembled differently. Try to swtich modes only if
 	// translations fails.
 	//
-	if (_config->isMipsOrPic32()
+	if (_config->getConfig().architecture.isMipsOrPic32()
 			&& (_c2l->getBasicMode() & CS_MODE_MIPS32)
 			&& res.failed())
 	{
@@ -363,11 +363,11 @@ std::size_t Decoder::decodeJumpTargetDryRun(
 	{
 		return decodeJumpTargetDryRun_x86(jt, bytes);
 	}
-	else if (_config->isArmOrThumb())
+	else if (_config->getConfig().architecture.isArmOrThumb())
 	{
 		return decodeJumpTargetDryRun_arm(jt, bytes);
 	}
-	else if (_config->isMipsOrPic32())
+	else if (_config->getConfig().architecture.isMipsOrPic32())
 	{
 		return decodeJumpTargetDryRun_mips(jt, bytes);
 	}
@@ -387,7 +387,7 @@ std::size_t Decoder::decodeJumpTargetDryRun(
 
 cs_mode Decoder::determineMode(cs_insn* insn, utils::Address& target)
 {
-	if (_config->isArmOrThumb())
+	if (_config->getConfig().architecture.isArmOrThumb())
 	{
 		return determineMode_arm(insn, target);
 	}
@@ -425,7 +425,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 {
 	CallInst*& pCall = tr.branchCall;
 
-	if (_config->isArmOrThumb())
+	if (_config->getConfig().architecture.isArmOrThumb())
 	{
 		AsmInstruction ai(tr.llvmInsn);
 		patternsPseudoCall_arm(pCall, ai);
@@ -845,7 +845,7 @@ utils::Address Decoder::getJumpTarget(
 	// Can we use relocations, or something to mark these pointer not to be used.
 	// Problem, this is also used in ihex, where there is even less info.
 	//
-	if (_config->isMipsOrPic32())
+	if (_config->getConfig().architecture.isMipsOrPic32())
 	{
 		AsmInstruction ai1(_module, addr);
 		AsmInstruction ai2 = ai1.getPrev();
@@ -1501,7 +1501,8 @@ void Decoder::finalizePseudoCalls()
 		{
 			if (AsmInstruction::isLlvmToAsmInstruction(it))
 			{
-				if (_config->isMipsOrPic32() && mipsFirstAsmInstr)
+				if (_config->getConfig().architecture.isMipsOrPic32()
+						&& mipsFirstAsmInstr)
 				{
 					mipsFirstAsmInstr = false;
 				}
@@ -1530,7 +1531,8 @@ void Decoder::finalizePseudoCalls()
 
 			// Return address store to register in MIPS calls.
 			//
-			if (_config->isMipsOrPic32() && _c2l->isCallFunctionCall(pseudo))
+			if (_config->getConfig().architecture.isMipsOrPic32()
+					&& _c2l->isCallFunctionCall(pseudo))
 			if (auto* st = dyn_cast<StoreInst>(i))
 			{
 				if (_c2l->isRegister(st->getPointerOperand())
@@ -1544,7 +1546,8 @@ void Decoder::finalizePseudoCalls()
 			// TODO: what about other possible LR stores? e.g. see
 			// patternsPseudoCall_arm().
 			//
-			if (_config->isArmOrThumb() && _c2l->isCallFunctionCall(pseudo))
+			if (_config->getConfig().architecture.isArmOrThumb()
+					&& _c2l->isCallFunctionCall(pseudo))
 			if (auto* st = dyn_cast<StoreInst>(i))
 			{
 				if (_c2l->isRegister(st->getPointerOperand())

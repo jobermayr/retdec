@@ -325,7 +325,7 @@ std::string DsmGenerator::processInstructionDsm(AsmInstruction& ai)
 	// created with delays slots?
 	//
 	AsmInstruction tmpAi = ai;
-	if (_config->isMipsOrPic32())
+	if (_config->getConfig().architecture.isMipsOrPic32())
 	{
 		if (AsmInstruction nextAi = tmpAi.getNext())
 		{

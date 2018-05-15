@@ -132,7 +132,7 @@ std::size_t Decoder::decodeJumpTargetDryRun_mips(
 
 void Decoder::initializeGpReg_mips()
 {
-	if (!_config->isPic32())
+	if (!_config->getConfig().architecture.isPic32())
 	{
 		return;
 	}

@@ -288,7 +288,7 @@ bool VtableAnalysis::fillVtable(Address a, Vtable &vt)
 			LOG << "\tnot ref @ " << a << std::endl;
 			break;
 		}
-		if (config->isArmOrThumb() && ptr % 2)
+		if (config->getConfig().architecture.isArmOrThumb() && ptr % 2)
 		{
 			--ptr;
 		}

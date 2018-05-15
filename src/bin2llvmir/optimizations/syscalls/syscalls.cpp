@@ -56,7 +56,7 @@ bool SyscallFixer::run()
 		return false;
 	}
 
-	if (_config->isMipsOrPic32())
+	if (_config->getConfig().architecture.isMipsOrPic32())
 	{
 		return runMips();
 	}

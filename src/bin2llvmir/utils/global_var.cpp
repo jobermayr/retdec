@@ -111,7 +111,9 @@ bool globalVariableCanBeCreated(
 			}
 
 			// ARM has data after functions, Pic32 does not bother to mark data (e.g. rodata) as data.
-			if ((config->getConfig().architecture.isArmOrThumb() || config->isPic32()) && !strict)
+			if ((config->getConfig().architecture.isArmOrThumb()
+					|| config->getConfig().architecture.isPic32())
+					&& !strict)
 			{
 				return true;
 			}

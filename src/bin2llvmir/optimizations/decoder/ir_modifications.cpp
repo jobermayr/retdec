@@ -140,7 +140,7 @@ llvm::GlobalVariable* Decoder::getCallReturnObject()
 	{
 		return _module->getNamedGlobal("rax");
 	}
-	else if (_config->isMipsOrPic32())
+	else if (_config->getConfig().architecture.isMipsOrPic32())
 	{
 		return _config->getLlvmRegister("v0");
 	}

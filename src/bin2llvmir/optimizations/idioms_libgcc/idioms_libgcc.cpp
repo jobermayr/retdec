@@ -237,7 +237,7 @@ bool IdiomsLibgccImpl::testArchAndInitialize(llvm::Module* module)
 		res1Single = module->getNamedGlobal("r1");
 		res1Double = module->getNamedGlobal("r2"); // + r3
 	}
-	else if (config->isPic32())
+	else if (config->getConfig().architecture.isPic32())
 	{
 		op0Single = module->getNamedGlobal("a0");
 		op0Double = module->getNamedGlobal("a0"); // + a1

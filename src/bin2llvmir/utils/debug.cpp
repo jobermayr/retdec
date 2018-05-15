@@ -357,7 +357,7 @@ void dumpControFlowToJsonFunction(
 				// 4 bytes, and therefore need to be fixed, it it is not the
 				// case, it will cause problems.
 				//
-				if (config && config->isMipsOrPic32())
+				if (config && config->getConfig().architecture.isMipsOrPic32())
 				{
 					addr -= 4;
 				}

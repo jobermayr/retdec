@@ -38,7 +38,7 @@ JumpTarget::JumpTarget(
 		_fromAddress(f),
 		_mode(m)
 {
-	if (config->isArmOrThumb() && _address % 2)
+	if (config->getConfig().architecture.isArmOrThumb() && _address % 2)
 	{
 		_mode = CS_MODE_THUMB;
 		_address -= 1;

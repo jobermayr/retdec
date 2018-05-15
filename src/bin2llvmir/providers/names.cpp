@@ -64,7 +64,7 @@ Name::Name(Config* c, const std::string& name, eType type, Lti* lti) :
 		_name(normalizeNamePrefix(name)),
 		_type(type)
 {
-	if (c->isPic32())
+	if (c->getConfig().architecture.isPic32())
 	{
 		fixPic32Mangling();
 	}
@@ -418,7 +418,7 @@ void NameContainer::initFromImage()
 					break;
 			}
 
-			if (_config->isArmOrThumb() && a % 2)
+			if (_config->getConfig().architecture.isArmOrThumb() && a % 2)
 			{
 				a -= 1;
 			}
@@ -432,7 +432,7 @@ void NameContainer::initFromImage()
 		unsigned long long ep = 0;
 		if (_image->getFileFormat()->getEpAddress(ep))
 		{
-			if (_config->isArmOrThumb() && ep % 2)
+			if (_config->getConfig().architecture.isArmOrThumb() && ep % 2)
 			{
 				ep -= 1;
 			}

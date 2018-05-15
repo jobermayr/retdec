@@ -157,9 +157,6 @@ class Config
 
 		// Other
 		//
-		bool isPic32() const;
-		bool isMipsOrPic32() const;
-		bool isArmOrThumb() const;
 		llvm::GlobalVariable* getGlobalDummy();
 		utils::FilesystemPath getOutputDirectory();
 		bool getCryptoPattern(

@@ -380,7 +380,7 @@ void SymbolicTree::_simplifyNode(Config* config)
 	}
 	// MIPS, use function address for t9.
 	//
-	else if (config->isMipsOrPic32()
+	else if (config->getConfig().architecture.isMipsOrPic32()
 			&& isa<LoadInst>(value)
 			&& ops.size() == 1
 			&& isa<GlobalVariable>(ops[0].value)

@@ -51,6 +51,12 @@ Config Config::fromFile(llvm::Module* m, const std::string& path)
 		stringToLlvmType(m->getContext(), s.getLlvmIr());
 	}
 
+	// TODO: needed?
+	if (config.getConfig().tools.isPic32())
+	{
+		config.getConfig().architecture.setIsPic32();
+	}
+
 	return config;
 }
 
@@ -63,6 +69,12 @@ Config Config::fromJsonString(llvm::Module* m, const std::string& json)
 	for (auto& s : config.getConfig().structures)
 	{
 		stringToLlvmType(m->getContext(), s.getLlvmIr());
+	}
+
+	// TODO: needed?
+	if (config.getConfig().tools.isPic32())
+	{
+		config.getConfig().architecture.setIsPic32();
 	}
 
 	return config;
@@ -446,7 +458,7 @@ bool Config::isGeneralPurposeRegister(const llvm::Value* val)
 	{
 		return false;
 	}
-	if (isPic32() || getConfig().architecture.isMips())
+	if (getConfig().architecture.isMipsOrPic32())
 	{
 		// TODO
 //		return r->getStorage().getRegisterClass() == "gpregs";
@@ -493,11 +505,9 @@ bool Config::isFloatingPointRegister(const llvm::Value* val)
 		return false;
 	}
 
-	if (isMipsOrPic32())
+	if (getConfig().architecture.isMipsOrPic32())
 	{
 		return gv->getValueType()->isFloatingPointTy();
-//		return r->getStorage().getRegisterClass() == "fpuregs_s"
-//				|| r->getStorage().getRegisterClass() == "fpuregs_d";
 	}
 	else
 	{
@@ -522,24 +532,6 @@ bool Config::isFrontendFunctionCall(const llvm::Value* val)
 {
 	auto* call = dyn_cast_or_null<CallInst>(val);
 	return call ? isFrontendFunction(call->getCalledValue()) : false;
-}
-
-/**
- * @return @c True if architecture is Pic32, @c false otherwise.
- */
-bool Config::isPic32() const
-{
-	return _configDB.architecture.isPic32() || _configDB.tools.isPic32();
-}
-
-bool Config::isMipsOrPic32() const
-{
-	return  _configDB.architecture.isMips() || isPic32();
-}
-
-bool Config::isArmOrThumb() const
-{
-	return _configDB.architecture.isArmOrThumb();
 }
 
 bool Config::isLlvmToAsmGlobalVariable(const llvm::Value* gv) const

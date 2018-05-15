@@ -149,7 +149,7 @@ retdec::utils::Address MainDetection::getFromContext()
 	// it should not screw other compilers.
 	//
 	if (_config->getConfig().fileFormat.isIntelHex()
-			&& _config->isMipsOrPic32() && _image)
+			&& _config->getConfig().architecture.isMipsOrPic32() && _image)
 	{
 		auto* epSeg = _image->getImage()->getSegmentFromAddress(
 				_config->getConfig().getEntryPoint());
@@ -288,7 +288,7 @@ retdec::utils::Address MainDetection::getFromContext()
 				}
 			}
 		}
-		else if (_config->isMipsOrPic32())
+		else if (_config->getConfig().architecture.isMipsOrPic32())
 		{
 			if (tools.isPspGcc() && major == 4 && minor == 3)
 			{

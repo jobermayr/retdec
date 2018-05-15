@@ -619,7 +619,7 @@ void StaticCodeAnalysis::solveReferences()
 	{
 		bool modeSwitch = false;
 		std::string& sigPath = p.second.signaturePath;
-		if (_config->isArmOrThumb()
+		if (_config->getConfig().architecture.isArmOrThumb()
 				&& utils::containsCaseInsensitive(sigPath, "thumb"))
 		{
 			if (cs_option(_ce, CS_OPT_MODE, CS_MODE_THUMB) != CS_ERR_OK)
@@ -665,7 +665,7 @@ utils::Address StaticCodeAnalysis::getAddressFromRef(utils::Address ref)
 	{
 		return getAddressFromRef_x86(ref);
 	}
-	else if (_config->isMipsOrPic32())
+	else if (_config->getConfig().architecture.isMipsOrPic32())
 	{
 		return getAddressFromRef_mips(ref);
 	}

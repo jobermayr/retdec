@@ -1123,7 +1123,7 @@ void DataFlowEntry::callsFilterCommonRegisters()
 	static std::vector<std::string> regNames;
 	if (regNames.empty())
 	{
-		if (_config->isMipsOrPic32())
+		if (_config->getConfig().architecture.isMipsOrPic32())
 		{
 			if (_config->getConfig().tools.isPspGcc())
 			{
@@ -1304,7 +1304,7 @@ void DataFlowEntry::applyToIrOrdinary()
 				retVal = _config->getLlvmRegister("rax");
 			}
 		}
-		else if (_config->isMipsOrPic32())
+		else if (_config->getConfig().architecture.isMipsOrPic32())
 		{
 			retVal = _config->getLlvmRegister("v0");
 		}
@@ -1403,7 +1403,7 @@ void DataFlowEntry::applyToIrOrdinary()
 							p.second.push_back(l);
 						}
 					}
-					else if (_config->isMipsOrPic32())
+					else if (_config->getConfig().architecture.isMipsOrPic32())
 					{
 						if (idx < mipsNames.size())
 						{
@@ -1535,7 +1535,7 @@ void DataFlowEntry::applyToIrVariadic()
 				ce.formatStr,
 				wrapFnc);
 
-		if (_config->isPic32())
+		if (_config->getConfig().architecture.isPic32())
 		{
 			for (size_t i = 0; i < ttypes.size(); ++i)
 			{
@@ -1620,7 +1620,7 @@ void DataFlowEntry::applyToIrVariadic()
 					off += sz;
 				}
 			}
-			else if (_config->isPic32())
+			else if (_config->getConfig().architecture.isPic32())
 			{
 				if (aIdx < mipsNames.size())
 				{
@@ -1738,7 +1738,7 @@ void DataFlowEntry::applyToIrVariadic()
 			retVal = _config->getLlvmRegister("rax");
 		}
 	}
-	else if (_config->isMipsOrPic32())
+	else if (_config->getConfig().architecture.isMipsOrPic32())
 	{
 		retVal = _config->getLlvmRegister("v0");
 	}
@@ -2179,7 +2179,7 @@ void DataFlowEntry::setReturnType()
 			retVal = _config->getLlvmRegister("eax");
 		}
 	}
-	else if (_config->isMipsOrPic32())
+	else if (_config->getConfig().architecture.isMipsOrPic32())
 	{
 		retVal = _config->getLlvmRegister("v0");
 	}
