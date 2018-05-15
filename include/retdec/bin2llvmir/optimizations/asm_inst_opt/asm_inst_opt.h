@@ -12,15 +12,6 @@
 
 #include "retdec/bin2llvmir/optimizations/asm_inst_opt/x86.h"
 
-namespace {
-
-bool optimize_dummy(retdec::bin2llvmir::AsmInstruction ai)
-{
-	return false;
-}
-
-}
-
 namespace retdec {
 namespace bin2llvmir {
 namespace asm_inst_opt {
@@ -34,6 +25,11 @@ namespace asm_inst_opt {
  * \c getOptimizationFunction().
  */
 bool optimize(AsmInstruction ai, config::Architecture& arch);
+
+inline bool optimize_dummy(retdec::bin2llvmir::AsmInstruction ai)
+{
+	return false;
+}
 
 /**
  * Get an assembly instruction optimization function for the given architecture
