@@ -34,6 +34,8 @@ inline bool optimize_dummy(retdec::bin2llvmir::AsmInstruction ai)
 /**
  * Get an assembly instruction optimization function for the given architecture
  * \p arch.
+ * This can be used to optimize multiple assembly instructions without
+ * checking architecture each time.
  *
  * Example of use:
  * \code{.cpp}
