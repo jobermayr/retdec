@@ -31,7 +31,6 @@ const std::string generatedTempVarPrefix       = "v";
 const std::string generatedBasicBlockPrefix    = "dec_label_pc_";
 const std::string generatedUndefFunctionPrefix = "__decompiler_undefined_function_";
 const std::string asm2llvmGv                   = "_asm_program_counter";
-const std::string asm2llvmMd                   = "llvmToAsmGlobalVariableName";
 const std::string pseudoCallFunction           = "__pseudo_call";
 const std::string pseudoReturnFunction         = "__pseudo_return";
 const std::string pseudoBranchFunction         = "__pseudo_branch";

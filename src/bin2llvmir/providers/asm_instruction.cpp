@@ -182,13 +182,26 @@ const llvm::GlobalVariable* AsmInstruction::getLlvmToAsmGlobalVariablePrivate(
 	}
 }
 
+Llvm2CapstoneMap& AsmInstruction::getLlvmToCapstoneInsnMap(
+		const llvm::Module* m)
+{
+	for (auto& p : _module2instMap)
+	{
+		if (p.first == m)
+		{
+			return p.second;
+		}
+	}
+
+	auto it = _module2instMap.emplace(_module2instMap.end(), std::make_pair(
+			m,
+			std::map<llvm::StoreInst*, cs_insn*>()));
+	return it->second;
+}
+
 const llvm::GlobalVariable* AsmInstruction::getLlvmToAsmGlobalVariable(
 		const llvm::Module* m)
 {
-	if (m == nullptr)
-	{
-		return nullptr;
-	}
 	for (auto& p : _module2global)
 	{
 		if (p.first == m)
@@ -196,22 +209,14 @@ const llvm::GlobalVariable* AsmInstruction::getLlvmToAsmGlobalVariable(
 			return p.second;
 		}
 	}
-	auto* nmd = m->getNamedMetadata("llvmToAsmGlobalVariableName");
-	if (nmd == nullptr || nmd->getNumOperands() != 1)
-	{
-		return nullptr;
-	}
-	auto* md = nmd->getOperand(0);
-	if (md == nullptr
-			|| md->getNumOperands() != 1
-			|| !isa<MDString>(md->getOperand(0)))
-	{
-		return nullptr;
-	}
-	auto* ms = cast<MDString>(md->getOperand(0));
-	auto* gv = m->getNamedGlobal(ms->getString());
-	_module2global.push_back(std::make_pair(m, gv));
-	return gv;
+	return nullptr;
+}
+
+void AsmInstruction::setLlvmToAsmGlobalVariable(
+		const llvm::Module* m,
+		const llvm::GlobalVariable* gv)
+{
+	_module2global.emplace_back(m, gv);
 }
 
 retdec::utils::Address AsmInstruction::getInstructionAddress(
@@ -795,23 +800,6 @@ std::string AsmInstruction::dump() const
 std::ostream& operator<<(std::ostream& out, const AsmInstruction& a)
 {
 	return out << a.dump();
-}
-
-Llvm2CapstoneMap& AsmInstruction::getLlvmToCapstoneInsnMap(
-		const llvm::Module* m)
-{
-	for (auto& p : _module2instMap)
-	{
-		if (p.first == m)
-		{
-			return p.second;
-		}
-	}
-
-	auto it = _module2instMap.emplace(_module2instMap.end(), std::make_pair(
-			m,
-			std::map<llvm::StoreInst*, cs_insn*>()));
-	return it->second;
 }
 
 } // namespace bin2llvmir

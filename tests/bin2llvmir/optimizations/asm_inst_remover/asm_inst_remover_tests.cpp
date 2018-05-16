@@ -56,16 +56,12 @@ TEST_F(AsmInstructionRemoverTests, passRemovesEverythingRelatedToLlvmToAsmMappin
 			store i32 12288, i32* @specialGv
 			ret i32 %c
 		}
-		!0 = !{ !"specialGv" }
-		!llvmToAsmGlobalVariableName = !{ !0 }
 	)");
 	auto* gv = getGlobalByName("specialGv");
-	auto* md = module->getOrInsertNamedMetadata("llvmToAsmGlobalVariableName");
 	auto s = retdec::config::Storage::inRegister("esp");
 	auto r = retdec::config::Object("esp", s);
 	auto c = Config::empty(module.get());
 	c.setLlvmToAsmGlobalVariable(gv);
-	c.setLlvmToAsmMetadata(md);
 
 	bool b = pass.runOnModuleCustom(*module, &c);
 

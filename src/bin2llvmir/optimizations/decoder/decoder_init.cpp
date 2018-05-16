@@ -111,14 +111,8 @@ void Decoder::initEnvironmentAsm2LlvmMapping()
 	auto* a2lGv = _c2l->getAsm2LlvmMapGlobalVariable();
 	a2lGv->setName(names::asm2llvmGv);
 
+	AsmInstruction::setLlvmToAsmGlobalVariable(_module, a2lGv);
 	_config->setLlvmToAsmGlobalVariable(a2lGv);
-
-	auto* nmd = _module->getOrInsertNamedMetadata(names::asm2llvmMd);
-	auto* mdString = MDString::get(_module->getContext(), a2lGv->getName());
-	auto* mdn = MDNode::get(_module->getContext(), {mdString});
-	nmd->addOperand(mdn);
-
-	_config->setLlvmToAsmMetadata(nmd);
 }
 
 /**

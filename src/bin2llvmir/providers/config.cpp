@@ -526,16 +526,6 @@ void Config::setLlvmToAsmGlobalVariable(llvm::GlobalVariable* gv)
 	_asm2llvmGv = gv;
 }
 
-llvm::NamedMDNode* Config::getLlvmToAsmMetadata() const
-{
-	return _asm2llvmMd;
-}
-
-void Config::setLlvmToAsmMetadata(llvm::NamedMDNode* md)
-{
-	_asm2llvmMd = md;
-}
-
 /**
  * @return Always returns the same dummy global variable.
  */

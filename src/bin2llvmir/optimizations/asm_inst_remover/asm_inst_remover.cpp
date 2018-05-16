@@ -83,21 +83,14 @@ bool AsmInstructionRemover::run(Module& M)
 	}
 	insnMap.clear();
 
-	if (auto* global = _config->getLlvmToAsmGlobalVariable())
+	if (auto* global = AsmInstruction::getLlvmToAsmGlobalVariable(&M))
 	{
 		assert(global->getNumUses() == 0);
 		if (global->getNumUses() == 0)
 		{
-			global->eraseFromParent();
+//			global->eraseFromParent(); // TODO
 			_config->setLlvmToAsmGlobalVariable(nullptr);
 		}
-	}
-
-	if (auto* md = _config->getLlvmToAsmMetadata())
-	{
-		md->dropAllReferences();
-		md->eraseFromParent();
-		_config->setLlvmToAsmMetadata(nullptr);
 	}
 
 	return true;
