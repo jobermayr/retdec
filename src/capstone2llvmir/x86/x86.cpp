@@ -3599,6 +3599,12 @@ void Capstone2LlvmIrTranslatorX86_impl::translateMoveString(cs_insn* i, cs_x86* 
  * TODO: rep variant is a strchr-type operation, maybe we could convert it to
  * such psuedo call. IDA does not do it (do while is generated) so maybe there
  * is some problem.
+ * TODO: this is strlen only if (according to IDA):
+ * - X86_INS_SCASB
+ * - X86_PREFIX_REPNE
+ * - eax == 0
+ * => searches for terminating '\0' in string and returns its position = length.
+ * other constants in eax || X86_PREFIX_REPE || SCASD || ... => do while cycle
  */
 void Capstone2LlvmIrTranslatorX86_impl::translateScanString(cs_insn* i, cs_x86* xi, llvm::IRBuilder<>& irb)
 {
