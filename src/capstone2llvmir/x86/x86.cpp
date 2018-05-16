@@ -3431,47 +3431,81 @@ void Capstone2LlvmIrTranslatorX86_impl::translateStoreString(cs_insn* i, cs_x86*
 {
 	assert(xi->op_count == 2);
 
-	// REP prefix.
-	//
-	bool isRepPrefix = xi->prefix[0] == X86_PREFIX_REP;
-	llvm::BranchInst* branch = nullptr;
-	llvm::Value* cntr = nullptr;
-	auto irbP = isRepPrefix ? generateWhile(branch, irb) : std::make_pair(irb, irb);
-	llvm::IRBuilder<>& body = isRepPrefix ? irbP.second : irb;
-	if (isRepPrefix)
+	if (xi->prefix[0] == X86_PREFIX_REP)
 	{
-		llvm::IRBuilder<>& before = irbP.first;
-		cntr = loadRegister(getParentRegister(X86_REG_CX), before);
-		auto* cond = before.CreateICmpNE(cntr, llvm::ConstantInt::get(cntr->getType(), 0));
-		branch->setCondition(cond);
+		auto ediId = getParentRegister(X86_REG_DI);
+		auto* edi = loadRegister(ediId, irb);
+		auto* ediPtr = irb.CreateIntToPtr(edi, irb.getInt8PtrTy(0));
+
+		auto* eax = loadOp(xi->operands[1], irb); // al, ax, eax, rax
+
+		auto ecxId = getParentRegister(X86_REG_CX);
+		auto* ecx = loadRegister(ecxId, irb);
+
+		std::string name;
+		llvm::Type* ty = nullptr;
+		switch (i->id)
+		{
+			case X86_INS_STOSB:
+				name = "__asm_rep_stosb_memset";
+				ty = irb.getInt8Ty();
+				break;
+			case X86_INS_STOSW:
+				name = "__asm_rep_stosw_memset";
+				ty = irb.getInt16Ty();
+				break;
+			case X86_INS_STOSD:
+				name = "__asm_rep_stosd_memset";
+				ty = irb.getInt32Ty();
+				break;
+			case X86_INS_STOSQ:
+				name = "__asm_rep_stosq_memset";
+				ty = irb.getInt64Ty();
+				break;
+			default: throw Capstone2LlvmIrError("Unhandled insn ID.");
+		}
+
+		eax = irb.CreateZExtOrTrunc(eax, ty);
+
+		llvm::Function* fnc = getOrCreateAsmFunction(
+				i->id,
+				name,
+				{ediPtr->getType(), ty, ecx->getType()});
+
+		irb.CreateCall(fnc, {ediPtr, eax, ecx});
+
+		// EDI is +/-(size * ecx)
+		cs_x86_op& o0 = xi->operands[0];
+		auto* df = loadRegister(X86_REG_DF, irb);
+		llvm::Value* minus = llvm::ConstantInt::getSigned(edi->getType(), -o0.size);
+		llvm::Value* plus = llvm::ConstantInt::getSigned(edi->getType(), o0.size);
+		auto* val = irb.CreateSelect(df, minus, plus);
+		val = irb.CreateMul(val, ecx);
+		auto* add = irb.CreateAdd(edi, val);
+		storeRegister(ediId, add, irb);
+
+		// ECX is zero afterwards.
+		storeRegister(ecxId, llvm::ConstantInt::get(ecx->getType(), 0), irb);
 	}
-
-	// Body.
-	//
-	op1 = loadOp(xi->operands[1], body);
-	storeOp(xi->operands[0], op1, body);
-
-	// We need to modify DI/EDI/RDI, it should be base register in memory op0.
-	cs_x86_op& o0 = xi->operands[0];
-	assert(o0.type == X86_OP_MEM);
-	uint32_t diN = o0.mem.base;
-	auto* di = loadRegister(diN, body);
-	assert(di);
-	auto* df = loadRegister(X86_REG_DF, body);
-
-	llvm::Value* v1 = llvm::ConstantInt::getSigned(di->getType(), -o0.size);
-	llvm::Value* v2 = llvm::ConstantInt::getSigned(di->getType(), o0.size);
-	auto* val = body.CreateSelect(df, v1, v2);
-	auto* add = body.CreateAdd(di, val);
-
-	storeRegister(diN, add, body);
-
-	// REP prefix.
-	//
-	if (isRepPrefix)
+	else
 	{
-		auto* sub = body.CreateSub(cntr, llvm::ConstantInt::get(cntr->getType(), 1));
-		storeRegister(getParentRegister(X86_REG_CX), sub, body);
+		op1 = loadOp(xi->operands[1], irb);
+		storeOp(xi->operands[0], op1, irb);
+
+		// We need to modify DI/EDI/RDI, it should be base reg in memory op0.
+		cs_x86_op& o0 = xi->operands[0];
+		assert(o0.type == X86_OP_MEM);
+		uint32_t diN = o0.mem.base;
+		auto* di = loadRegister(diN, irb);
+		assert(di);
+		auto* df = loadRegister(X86_REG_DF, irb);
+
+		llvm::Value* v1 = llvm::ConstantInt::getSigned(di->getType(), -o0.size);
+		llvm::Value* v2 = llvm::ConstantInt::getSigned(di->getType(), o0.size);
+		auto* val = irb.CreateSelect(df, v1, v2);
+		auto* add = irb.CreateAdd(di, val);
+
+		storeRegister(diN, add, irb);
 	}
 }
 
@@ -3484,6 +3518,8 @@ void Capstone2LlvmIrTranslatorX86_impl::translateMoveString(cs_insn* i, cs_x86* 
 	// TODO: 10003351 @ movsd xmm0, qword ptr [edi + 8] in x86-pe-00d062fd23f36fbcdda3ae372f3dd975
 	// even ida says:
 	// .text:10003351                 movsd   xmm0, qword ptr [edi+8]
+	// maybe this?
+	// https://x86.puri.sm/html/file_module_x86_id_204.html
 	//
 	if (xi->op_count != 2
 		|| xi->operands[0].type != X86_OP_MEM
@@ -3492,63 +3528,77 @@ void Capstone2LlvmIrTranslatorX86_impl::translateMoveString(cs_insn* i, cs_x86* 
 		return; // ignore
 	}
 
-	assert(xi->op_count == 2);
-	assert(xi->operands[0].type == X86_OP_MEM);
-	assert(xi->operands[1].type == X86_OP_MEM);
-
-	// REP prefix.
-	//
-	bool isRepPrefix = xi->prefix[0] == X86_PREFIX_REP;
-	llvm::BranchInst* branch = nullptr;
-	llvm::Value* cntr = nullptr;
-	auto irbP = isRepPrefix ? generateWhile(branch, irb) : std::make_pair(irb, irb);
-	llvm::IRBuilder<>& body = isRepPrefix ? irbP.second : irb;
-	if (isRepPrefix)
+	if (xi->prefix[0] == X86_PREFIX_REP)
 	{
-		llvm::IRBuilder<>& before = irbP.first;
-		cntr = loadRegister(getParentRegister(X86_REG_CX), before);
-		auto* cond = before.CreateICmpNE(cntr, llvm::ConstantInt::get(cntr->getType(), 0));
-		branch->setCondition(cond);
+		std::string name = std::string("__asm_rep_")
+				+ cs_insn_name(_handle, i->id) + "_memcpy";
+
+		auto esiId = getParentRegister(X86_REG_SI);
+		auto* esi = loadRegister(esiId, irb);
+		auto* esiPtr = irb.CreateIntToPtr(esi, irb.getInt8PtrTy(0));
+
+		auto ediId = getParentRegister(X86_REG_DI);
+		auto* edi = loadRegister(ediId, irb);
+		auto* ediPtr = irb.CreateIntToPtr(edi, irb.getInt8PtrTy(0));
+
+		auto ecxId = getParentRegister(X86_REG_CX);
+		auto* ecx = loadRegister(ecxId, irb);
+
+		llvm::Function* fnc = getOrCreateAsmFunction(
+				i->id,
+				name,
+				{ediPtr->getType(), esiPtr->getType(), ecx->getType()});
+
+		irb.CreateCall(fnc, {ediPtr, esiPtr, ecx});
+
+		// EDI & ESI is +/-(size * ecx)
+		cs_x86_op& o0 = xi->operands[0];
+		auto* df = loadRegister(X86_REG_DF, irb);
+		llvm::Value* minus = llvm::ConstantInt::getSigned(edi->getType(), -o0.size);
+		llvm::Value* plus = llvm::ConstantInt::getSigned(edi->getType(), o0.size);
+		auto* val = irb.CreateSelect(df, minus, plus);
+		val = irb.CreateMul(val, ecx);
+		auto* add = irb.CreateAdd(edi, val);
+		storeRegister(ediId, add, irb);
+		storeRegister(esiId, add, irb);
+
+		// ECX is zero afterwards.
+		storeRegister(ecxId, llvm::ConstantInt::get(ecx->getType(), 0), irb);
 	}
-
-	// Body.
-	//
-	op1 = loadOp(xi->operands[1], body);
-	storeOp(xi->operands[0], op1, body);
-
-	// We need to modify DI/EDI/RDI, it should be base register in memory op0.
-	cs_x86_op& o0 = xi->operands[0];
-	uint32_t diN = o0.mem.base;
-	auto* di = loadRegister(diN, body);
-	assert(di);
-	// We need to modify SI/ESI/RSI, it should be base register in memory op1.
-	cs_x86_op& o1 = xi->operands[1];
-	uint32_t siN = o1.mem.base;
-	auto* si = loadRegister(siN, body);
-	assert(si);
-
-	auto* df = loadRegister(X86_REG_DF, body);
-	assert(o0.size == o1.size);
-	llvm::Value* v1 = llvm::ConstantInt::getSigned(di->getType(), -o0.size);
-	llvm::Value* v2 = llvm::ConstantInt::getSigned(di->getType(), o0.size);
-	auto* val = body.CreateSelect(df, v1, v2);
-	auto* addDi = body.CreateAdd(di, val);
-	auto* addSi = body.CreateAdd(si, val);
-
-	storeRegister(diN, addDi, body);
-	storeRegister(siN, addSi, body);
-
-	// REP prefix.
-	//
-	if (isRepPrefix)
+	else
 	{
-		auto* sub = body.CreateSub(cntr, llvm::ConstantInt::get(cntr->getType(), 1));
-		storeRegister(getParentRegister(X86_REG_CX), sub, body);
+		op1 = loadOp(xi->operands[1], irb);
+		storeOp(xi->operands[0], op1, irb);
+
+		// We need to modify DI/EDI/RDI, it should be base register in memory op0.
+		cs_x86_op& o0 = xi->operands[0];
+		uint32_t diN = o0.mem.base;
+		auto* di = loadRegister(diN, irb);
+		assert(di);
+		// We need to modify SI/ESI/RSI, it should be base register in memory op1.
+		cs_x86_op& o1 = xi->operands[1];
+		uint32_t siN = o1.mem.base;
+		auto* si = loadRegister(siN, irb);
+		assert(si);
+
+		auto* df = loadRegister(X86_REG_DF, irb);
+		assert(o0.size == o1.size);
+		llvm::Value* v1 = llvm::ConstantInt::getSigned(di->getType(), -o0.size);
+		llvm::Value* v2 = llvm::ConstantInt::getSigned(di->getType(), o0.size);
+		auto* val = irb.CreateSelect(df, v1, v2);
+		auto* addDi = irb.CreateAdd(di, val);
+		auto* addSi = irb.CreateAdd(si, val);
+
+		storeRegister(diN, addDi, irb);
+		storeRegister(siN, addSi, irb);
 	}
 }
 
 /**
  * X86_INS_SCASB, X86_INS_SCASW, X86_INS_SCASD, X86_INS_SCASQ
+ * TODO: rep variant is a strchr-type operation, maybe we could convert it to
+ * such psuedo call. IDA does not do it (do while is generated) so maybe there
+ * is some problem.
  */
 void Capstone2LlvmIrTranslatorX86_impl::translateScanString(cs_insn* i, cs_x86* xi, llvm::IRBuilder<>& irb)
 {
@@ -3624,12 +3674,19 @@ void Capstone2LlvmIrTranslatorX86_impl::translateScanString(cs_insn* i, cs_x86* 
 
 /**
  * X86_INS_CMPSB, X86_INS_CMPSW, X86_INS_CMPSD, X86_INS_CMPSQ
+ * TODO: rep variant is a strncmp-type operation, maybe we could convert it to
+ * such psuedo call. IDA does not do it (do while is generated) so maybe there
+ * is some problem.
  */
 void Capstone2LlvmIrTranslatorX86_impl::translateCompareString(cs_insn* i, cs_x86* xi, llvm::IRBuilder<>& irb)
 {
-	assert(xi->op_count == 2);
-	assert(xi->operands[0].type == X86_OP_MEM);
-	assert(xi->operands[1].type == X86_OP_MEM);
+	// TODO: https://x86.puri.sm/html/file_module_x86_id_39.html
+	if (xi->op_count != 2
+		|| xi->operands[0].type != X86_OP_MEM
+		|| xi->operands[1].type != X86_OP_MEM)
+	{
+		return; // ignore
+	}
 
 	// REPE/REPNE prefix.
 	//
