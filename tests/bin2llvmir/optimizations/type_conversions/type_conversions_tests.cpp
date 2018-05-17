@@ -77,7 +77,6 @@ TEST_F(TypeConversionsTests, runInInstruction_replacesByArgument)
 	std::string exp = R"(
 		declare void @print (float)
 		define void @func(float %a) {
-			%b = bitcast float %a to i32
 			call void @print(float %a)
 			ret void
 		}
@@ -104,7 +103,6 @@ TEST_F(TypeConversionsTests, runInInstruction_replacesByLocal)
 		declare void @print (float*)
 		define void @func() {
 			%a = alloca float
-			%b = bitcast float* %a to i32*
 			call void @print(float* %a)
 			ret void
 		}
@@ -133,8 +131,6 @@ TEST_F(TypeConversionsTests, runInInstruction_replacesByGlobal)
 		@gv = global float 0.000000e+00
 		declare void @print (float*)
 		define void @func() {
-			%a = bitcast float* @gv to i32*
-			%1 = bitcast i32* %a to i32*
 			call void @print(float* @gv)
 			ret void
 		}
@@ -163,7 +159,6 @@ TEST_F(TypeConversionsTests, runInInstruction_replacesByInstruction)
 		declare void @print (float)
 		define void @func() {
 			%a = load float, float* @gv
-			%b = bitcast float %a to i32
 			call void @print(float %a)
 			ret void
 		}
