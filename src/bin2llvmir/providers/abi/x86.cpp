@@ -14,7 +14,8 @@ namespace bin2llvmir {
 AbiX86::AbiX86(llvm::Module* m, Config* c) :
 		Abi(m, c)
 {
-	_regs.resize(X86_REG_ENDING, nullptr);
+	_regs.reserve(X86_REG_ENDING);
+	_id2regs.resize(X86_REG_ENDING, nullptr);
 	_regStackPointerId = X86_REG_ESP;
 }
 

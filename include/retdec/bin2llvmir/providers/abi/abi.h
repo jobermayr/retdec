@@ -27,7 +27,7 @@ class Abi
 	// Constants.
 	//
 	public:
-		static const uint32_t X86_REG_INVALID;
+		static const uint32_t REG_INVALID;
 
 	// Ctors, dtors.
 	//
@@ -44,6 +44,7 @@ class Abi
 
 		llvm::GlobalVariable* getRegister(uint32_t r);
 		uint32_t getRegisterId(llvm::Value* r);
+		const std::vector<llvm::GlobalVariable*>& getRegisters() const;
 
 		void addRegister(uint32_t id, llvm::GlobalVariable* reg);
 
@@ -52,19 +53,25 @@ class Abi
 	public:
 		virtual bool isNopInstruction(AsmInstruction ai) = 0;
 
-	// Private data.
+	// Private data - misc.
 	//
 	protected:
 		llvm::Module* _module = nullptr;
 		Config* _config = nullptr;
 
-		/// Fast "capstone id -> LLVM value" search.
+	// Private data - registers.
+	//
+	protected:
+		/// Fast iteration over all registers.
+		/// \c id2regs may contain \c nullptr values.
 		std::vector<llvm::GlobalVariable*> _regs;
+		/// Fast "capstone id -> LLVM value" search.
+		std::vector<llvm::GlobalVariable*> _id2regs;
 		/// Fast "is LLVM value a register?" check.
 		/// Fast "LLVM value -> capstone id" search.
 		std::map<const llvm::Value*, uint32_t> _regs2id;
-		///
-		uint32_t _regStackPointerId = X86_REG_INVALID;
+		/// ID of stack pointer register.
+		uint32_t _regStackPointerId = REG_INVALID;
 };
 
 class AbiProvider

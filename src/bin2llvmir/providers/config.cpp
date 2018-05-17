@@ -303,9 +303,7 @@ retdec::config::Object* Config::insertStackVariable(
 
 	if (cf == nullptr)
 	{
-		std::cout << llvmObjToString(sv) << std::endl;
-		std::cout << sv->getFunction()->getName().str() << std::endl;
-		exit(1);
+		assert(false);
 	}
 
 	assert(cf);

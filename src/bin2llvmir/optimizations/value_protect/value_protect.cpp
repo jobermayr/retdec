@@ -6,7 +6,6 @@
 
 #include <cassert>
 
-#include <llvm/IR/InstIterator.h>
 #include <llvm/IR/Instruction.h>
 #include <llvm/IR/Instructions.h>
 
@@ -39,14 +38,16 @@ ValueProtect::ValueProtect() :
 bool ValueProtect::runOnModule(Module& M)
 {
 	_module = &M;
-	_config = ConfigProvider::getConfig(&M);
+	_config = ConfigProvider::getConfig(_module);
+	_abi = AbiProvider::getAbi(_module);
 	return run();
 }
 
-bool ValueProtect::runOnModuleCustom(llvm::Module& M, Config* c)
+bool ValueProtect::runOnModuleCustom(llvm::Module& M, Config* c, Abi* abi)
 {
 	_module = &M;
 	_config = c;
+	_abi = abi;
 	return run();
 }
 
@@ -56,7 +57,7 @@ bool ValueProtect::runOnModuleCustom(llvm::Module& M, Config* c)
  */
 bool ValueProtect::run()
 {
-	if (_config == nullptr)
+	if (_config == nullptr || _abi == nullptr)
 	{
 		return false;
 	}
@@ -72,52 +73,99 @@ void ValueProtect::protect()
 			names::generatedUndefFunctionPrefix);
 
 	protectStack();
-
-	if (_config->getConfig().isIda()
-			&& _config->getConfig().parameters.isSomethingSelected())
-	{
-		protectRegisters();
-	}
+	protectRegisters();
 }
 
 void ValueProtect::protectStack()
 {
-	for (Function& F : _module->getFunctionList())
-	for (Instruction& I : instructions(&F))
+	for (Function& f : _module->getFunctionList())
 	{
-		auto* a = dyn_cast<AllocaInst>(&I);
-		if (!_config->isStackVariable(a))
+		if (f.empty())
 		{
 			continue;
 		}
-
-		protectValue(a, a->getAllocatedType(), a->getNextNode());
+		auto& bb = f.front();
+		for (auto& i : bb)
+		{
+			// Right now, ww protect all allocas, not only stacks.
+			if (auto* a = dyn_cast<AllocaInst>(&i))
+			{
+				protectValue(a, a->getAllocatedType(), a->getNextNode());
+			}
+		}
 	}
 }
 
 void ValueProtect::protectRegisters()
 {
+	const auto& regs = _abi->getRegisters();
+
 	for (Function& F : _module->getFunctionList())
 	{
-		auto it = inst_begin(&F);
-		if (it == inst_end(&F)) // no instructions in function
+		if (F.empty() || F.front().empty())
 		{
 			continue;
 		}
-		Instruction* first = &*it;
 
-		for (GlobalVariable& gv : _module->globals())
+		// Protect registers only in functions that are NOT called anywhere.
+		//
+		bool skip = false;
+		for (auto uIt = F.user_begin(); uIt != F.user_end(); ++uIt)
 		{
-			if (!_config->isRegister(&gv))
+			if (isa<CallInst>(*uIt))
 			{
-				continue;
+				skip = true;
+				break;
 			}
+		}
+		if (skip)
+		{
+			continue;
+		}
 
-			protectValue(&gv, gv.getValueType(), first);
+		Instruction* first = &F.front().front();
+		for (auto* r : regs)
+		{
+			protectValue(r, r->getValueType(), first);
 		}
 	}
 }
 
+void ValueProtect::protectValue(
+		llvm::Value* val,
+		llvm::Type* t,
+		llvm::Instruction* before)
+{
+	Function* fnc = getOrCreateFunction(t);
+	auto* c = CallInst::Create(fnc);
+	c->insertBefore(before);
+	auto* s = new StoreInst(c, val);
+	s->insertAfter(c);
+}
+
+llvm::Function* ValueProtect::getOrCreateFunction(llvm::Type* t)
+{
+	auto fIt = _type2fnc.find(t);
+	return fIt != _type2fnc.end() ? fIt->second : createFunction(t);
+}
+
+llvm::Function* ValueProtect::createFunction(llvm::Type* t)
+{
+	FunctionType* ft = FunctionType::get(t, false);
+	auto* fnc = Function::Create(
+			ft,
+			GlobalValue::ExternalLinkage,
+			names::generateFunctionNameUndef(_type2fnc.size()),
+			_module);
+	_type2fnc[t] = fnc;
+
+	return fnc;
+}
+
+/**
+ * TODO: Only partial removal, see:
+ * https://github.com/avast-tl/retdec/issues/301
+ */
 void ValueProtect::unprotect()
 {
 	for (auto& p : _type2fnc)
@@ -154,37 +202,6 @@ void ValueProtect::unprotect()
 	}
 
 	_type2fnc.clear();
-}
-
-void ValueProtect::protectValue(
-		llvm::Value* val,
-		llvm::Type* t,
-		llvm::Instruction* before)
-{
-	Function* fnc = getOrCreateFunction(t);
-	auto* c = CallInst::Create(fnc);
-	c->insertBefore(before);
-	auto* s = new StoreInst(c, val);
-	s->insertAfter(c);
-}
-
-llvm::Function* ValueProtect::getOrCreateFunction(llvm::Type* t)
-{
-	auto fIt = _type2fnc.find(t);
-	return fIt != _type2fnc.end() ? fIt->second : createFunction(t);
-}
-
-llvm::Function* ValueProtect::createFunction(llvm::Type* t)
-{
-	FunctionType* ft = FunctionType::get(t, false);
-	auto* fnc = Function::Create(
-			ft,
-			GlobalValue::ExternalLinkage,
-			names::generateFunctionNameUndef(_type2fnc.size()),
-			_module);
-	_type2fnc[t] = fnc;
-
-	return fnc;
 }
 
 } // namespace bin2llvmir

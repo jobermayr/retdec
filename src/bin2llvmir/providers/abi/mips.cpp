@@ -14,7 +14,8 @@ namespace bin2llvmir {
 AbiMips::AbiMips(llvm::Module* m, Config* c) :
 		Abi(m, c)
 {
-	_regs.resize(MIPS_REG_ENDING, nullptr);
+	_regs.reserve(MIPS_REG_ENDING);
+	_id2regs.resize(MIPS_REG_ENDING, nullptr);
 	_regStackPointerId = MIPS_REG_SP;
 }
 

@@ -21,7 +21,7 @@ namespace bin2llvmir {
 //==============================================================================
 //
 
-const uint32_t Abi::X86_REG_INVALID = 0;
+const uint32_t Abi::REG_INVALID = 0;
 
 Abi::Abi(llvm::Module* m, Config* c) :
 		_module(m),
@@ -53,23 +53,29 @@ bool Abi::isStackPointerRegister(const llvm::Value* val)
 
 llvm::GlobalVariable* Abi::getRegister(uint32_t r)
 {
-	assert(r < _regs.size());
-	return _regs[r];
+	assert(r < _id2regs.size());
+	return _id2regs[r];
 }
 
 uint32_t Abi::getRegisterId(llvm::Value* r)
 {
 	auto it = _regs2id.find(r);
-	return it != _regs2id.end() ? it->second : X86_REG_INVALID;
+	return it != _regs2id.end() ? it->second : Abi::REG_INVALID;
+}
+
+const std::vector<llvm::GlobalVariable*>& Abi::getRegisters() const
+{
+	return _regs;
 }
 
 void Abi::addRegister(uint32_t id, llvm::GlobalVariable* reg)
 {
-	if (id >= _regs.size())
+	if (id >= _id2regs.size())
 	{
-		_regs.resize(id+1, nullptr);
+		_id2regs.resize(id+1, nullptr);
 	}
-	_regs[id] = reg;
+	_regs.emplace_back(reg);
+	_id2regs[id] = reg;
 	_regs2id.emplace(reg, id);
 }
 
