@@ -295,6 +295,93 @@ bool addSequence(llvm::Instruction* insn)
 }
 
 /**
+ * cast1 int/fp/ptr to ...
+ * ...
+ * cast2 ... to int/fp/ptr
+ *   =>
+ * cast int/fp/ptr to int/fp/ptr
+ */
+llvm::Value* castSequence(llvm::CastInst* cast1, llvm::CastInst* cast2)
+{
+	auto* src = cast1->getOperand(0);
+	auto* srcTy = cast1->getSrcTy();
+	auto* dstTy = cast2->getDestTy();
+
+	Value* v = nullptr;
+
+	// int -> cast -> cast -> int
+	if (srcTy->isIntegerTy() && dstTy->isIntegerTy())
+	{
+		bool sign = cast1->getOpcode() == Instruction::SIToFP
+				|| cast2->getOpcode() == Instruction::FPToSI;
+		v = srcTy != dstTy
+				? CastInst::CreateIntegerCast(src, dstTy, sign, "", cast2)
+				: src;
+	}
+	// ptr -> cast -> cast -> ptr
+	else if (srcTy->isPointerTy() && dstTy->isPointerTy())
+	{
+		v = srcTy != dstTy
+				? CastInst::CreatePointerCast(src, dstTy, "", cast2)
+				: src;
+	}
+	// float -> cast -> cast -> float
+	else if (srcTy->isFloatingPointTy() && dstTy->isFloatingPointTy())
+	{
+		v = srcTy != dstTy
+				? CastInst::CreateFPCast(src, dstTy, "", cast2)
+				: src;
+	}
+	else
+	{
+		return nullptr;
+	}
+
+	cast2->replaceAllUsesWith(v);
+	cast2->eraseFromParent();
+	if (cast1->user_empty())
+	{
+		cast1->eraseFromParent();
+	}
+	return v;
+}
+
+/**
+ * Find cast sequnces to try to optimize.
+ */
+llvm::Value* castSequenceFinder(llvm::Value* insn)
+{
+	auto* cast2 = dyn_cast<CastInst>(insn);
+	auto* cast1 = cast2 ? dyn_cast<CastInst>(cast2->getOperand(0)) : nullptr;
+
+	while (cast1)
+	{
+		if (auto* v = castSequence(cast1, cast2))
+		{
+			return v;
+		}
+		cast1 = dyn_cast<CastInst>(cast1->getOperand(0));
+	}
+
+	return nullptr;
+}
+
+/**
+ * Apply cast optimization repeatedly until it can not be applied anymore.
+ */
+bool castSequenceWrapper(llvm::Instruction* insn)
+{
+	bool changed = false;
+	Value* v = insn;
+	while (v)
+	{
+		v = castSequenceFinder(v);
+		changed |= v != nullptr;
+	}
+	return changed;
+}
+
+/**
  * Order here is important.
  * More specific patterns must go first, more general later.
  */
@@ -308,6 +395,7 @@ std::vector<bool (*)(llvm::Instruction*)> optimizations =
 		&orAndLoadXX,
 		&orAndXX,
 		&addSequence,
+		&castSequenceWrapper,
 };
 
 bool optimize(llvm::Instruction* insn)
