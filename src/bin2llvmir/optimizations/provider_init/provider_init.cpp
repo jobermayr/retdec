@@ -62,9 +62,7 @@ bool ProviderInitialization::runOnModule(Module& m)
 		return false;
 	}
 
-	auto* d = DemanglerProvider::addDemangler(
-			&m,
-			c->getConfig().tools);
+	auto* d = DemanglerProvider::addDemangler(&m, c->getConfig().tools);
 	if (d == nullptr)
 	{
 		return false;
@@ -86,18 +84,9 @@ bool ProviderInitialization::runOnModule(Module& m)
 			c->getConfig().getImageBase(),
 			d);
 
-	auto* lti = LtiProvider::addLti(
-			&m,
-			c,
-			f->getImage());
+	auto* lti = LtiProvider::addLti(&m, c, f->getImage());
 
-	NamesProvider::addNames(
-			&m,
-			c,
-			debug,
-			f,
-			d,
-			lti);
+	NamesProvider::addNames(&m, c, debug, f, d, lti);
 
 	AbiProvider::addAbi(&m, c);
 
