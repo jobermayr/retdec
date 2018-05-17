@@ -16,8 +16,6 @@
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Instructions.h>
 
-#include "retdec/bin2llvmir/utils/debug.h"
-
 namespace retdec {
 namespace bin2llvmir {
 
