@@ -36,7 +36,7 @@ TEST_F(AsmInstructionRemoverTests, passDoesNotSegfaultAndReturnsFalseIfConfigFor
 
 TEST_F(AsmInstructionRemoverTests, passDoesNotSegfaultAndReturnsFalseIfNullptrConfigPassed)
 {
-	bool b = pass.runOnModuleCustom(*module, nullptr);
+	bool b = pass.runOnModuleCustom(*module);
 
 	EXPECT_FALSE(b);
 }
@@ -58,12 +58,11 @@ TEST_F(AsmInstructionRemoverTests, passRemovesEverythingRelatedToLlvmToAsmMappin
 		}
 	)");
 	auto* gv = getGlobalByName("specialGv");
+	AsmInstruction::setLlvmToAsmGlobalVariable(module.get(), gv);
 	auto s = retdec::config::Storage::inRegister("esp");
 	auto r = retdec::config::Object("esp", s);
-	auto c = Config::empty(module.get());
-	c.setLlvmToAsmGlobalVariable(gv);
 
-	bool b = pass.runOnModuleCustom(*module, &c);
+	bool b = pass.runOnModuleCustom(*module);
 
 	std::string exp = R"(
 		@reg = global i32 0

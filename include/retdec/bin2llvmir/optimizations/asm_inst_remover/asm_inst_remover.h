@@ -11,8 +11,6 @@
 #include <llvm/IR/Module.h>
 #include <llvm/Pass.h>
 
-#include "retdec/bin2llvmir/providers/config.h"
-
 namespace retdec {
 namespace bin2llvmir {
 
@@ -22,13 +20,10 @@ class AsmInstructionRemover : public llvm::ModulePass
 		static char ID;
 		AsmInstructionRemover();
 		virtual bool runOnModule(llvm::Module& M) override;
-		bool runOnModuleCustom(llvm::Module& M, Config* c);
+		bool runOnModuleCustom(llvm::Module& M);
 
 	private:
 		bool run(llvm::Module& M);
-
-	private:
-		Config* _config = nullptr;
 };
 
 } // namespace bin2llvmir

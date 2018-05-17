@@ -144,11 +144,11 @@ class AsmInstruction
 	public:
 		static Llvm2CapstoneMap& getLlvmToCapstoneInsnMap(
 				const llvm::Module* m);
-		static const llvm::GlobalVariable* getLlvmToAsmGlobalVariable(
+		static llvm::GlobalVariable* getLlvmToAsmGlobalVariable(
 				const llvm::Module* m);
 		static void setLlvmToAsmGlobalVariable(
 				const llvm::Module* m,
-				const llvm::GlobalVariable* gv);
+				llvm::GlobalVariable* gv);
 		static retdec::utils::Address getInstructionAddress(
 				llvm::Instruction* inst);
 		static retdec::utils::Address getBasicBlockAddress(
@@ -166,7 +166,7 @@ class AsmInstruction
 	private:
 		using ModuleGlobalPair = std::pair<
 				const llvm::Module*,
-				const llvm::GlobalVariable*>;
+				llvm::GlobalVariable*>;
 		using ModuleInstructionMap = std::pair<
 				const llvm::Module*,
 				std::map<llvm::StoreInst*, cs_insn*>>;

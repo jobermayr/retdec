@@ -112,7 +112,6 @@ void Decoder::initEnvironmentAsm2LlvmMapping()
 	a2lGv->setName(names::asm2llvmGv);
 
 	AsmInstruction::setLlvmToAsmGlobalVariable(_module, a2lGv);
-	_config->setLlvmToAsmGlobalVariable(a2lGv);
 }
 
 /**

@@ -116,13 +116,6 @@ class Config
 				retdec::config::Function* fnc,
 				const std::string& name);
 
-		// LLVM to ASM
-		//
-		bool isLlvmToAsmGlobalVariable(const llvm::Value* gv) const;
-		bool isLlvmToAsmInstruction(const llvm::Value* inst) const;
-		llvm::GlobalVariable* getLlvmToAsmGlobalVariable() const;
-		void setLlvmToAsmGlobalVariable(llvm::GlobalVariable* gv);
-
 		// Pseudo-functions.
 		//
 		void setLlvmCallPseudoFunction(llvm::Function* f);
@@ -163,7 +156,6 @@ class Config
 		retdec::config::Config _configDB;
 		std::string _configPath;
 		llvm::GlobalVariable* _globalDummy = nullptr;
-		llvm::GlobalVariable* _asm2llvmGv = nullptr;
 		llvm::Function* _callFunction = nullptr;
 		llvm::Function* _returnFunction = nullptr;
 		llvm::Function* _branchFunction = nullptr;

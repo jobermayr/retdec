@@ -505,27 +505,6 @@ bool Config::isFloatingPointRegister(const llvm::Value* val)
 	}
 }
 
-bool Config::isLlvmToAsmGlobalVariable(const llvm::Value* gv) const
-{
-	return gv == getLlvmToAsmGlobalVariable();
-}
-
-bool Config::isLlvmToAsmInstruction(const llvm::Value* inst) const
-{
-	auto* s = dyn_cast_or_null<StoreInst>(inst);
-	return s ? isLlvmToAsmGlobalVariable(s->getPointerOperand()) : false;
-}
-
-llvm::GlobalVariable* Config::getLlvmToAsmGlobalVariable() const
-{
-	return _asm2llvmGv;
-}
-
-void Config::setLlvmToAsmGlobalVariable(llvm::GlobalVariable* gv)
-{
-	_asm2llvmGv = gv;
-}
-
 /**
  * @return Always returns the same dummy global variable.
  */

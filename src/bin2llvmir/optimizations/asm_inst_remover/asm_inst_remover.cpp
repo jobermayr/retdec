@@ -5,11 +5,7 @@
  * @copyright (c) 2017 Avast Software, licensed under the MIT license
  */
 
-#include <iomanip>
 #include <iostream>
-
-#include <llvm/IR/Instruction.h>
-#include <llvm/IR/Instructions.h>
 
 #include "retdec/bin2llvmir/optimizations/asm_inst_remover/asm_inst_remover.h"
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
@@ -37,13 +33,11 @@ AsmInstructionRemover::AsmInstructionRemover() :
 
 bool AsmInstructionRemover::runOnModule(Module& M)
 {
-	_config = ConfigProvider::getConfig(&M);
 	return run(M);
 }
 
-bool AsmInstructionRemover::runOnModuleCustom(llvm::Module& M, Config* c)
+bool AsmInstructionRemover::runOnModuleCustom(llvm::Module& M)
 {
-	_config = c;
 	return run(M);
 }
 
@@ -53,29 +47,33 @@ bool AsmInstructionRemover::runOnModuleCustom(llvm::Module& M, Config* c)
  */
 bool AsmInstructionRemover::run(Module& M)
 {
-	if (_config == nullptr)
-	{
-		return false;
-	}
+	bool changed = false;
 
 	for (auto& F : M.getFunctionList())
 	for (auto ai = AsmInstruction(&F); ai.isValid();)
 	{
-		unsigned cntr = 0;
+		// Set names to instructions.
+		//
+		unsigned c = 0;
 		for (auto& i : ai)
 		{
 			if (!i.getType()->isVoidTy())
 			{
-				i.setName(names::generateTempVariableName(ai.getAddress(), cntr));
-				++cntr;
+				i.setName(names::generateTempVariableName(ai.getAddress(), c));
+				++c;
 			}
 		}
 
+		// Remove special instructions.
+		//
 		auto* mapInsn = ai.getLlvmToAsmInstruction();
 		ai = ai.getNext();
 		mapInsn->eraseFromParent();
+		changed = true;
 	}
 
+	// Free Capstone instructions.
+	//
 	auto& insnMap = AsmInstruction::getLlvmToCapstoneInsnMap(&M);
 	for (auto& p : insnMap)
 	{
@@ -83,17 +81,20 @@ bool AsmInstructionRemover::run(Module& M)
 	}
 	insnMap.clear();
 
+	// Remove special global variable.
+	//
 	if (auto* global = AsmInstruction::getLlvmToAsmGlobalVariable(&M))
 	{
 		assert(global->getNumUses() == 0);
 		if (global->getNumUses() == 0)
 		{
-//			global->eraseFromParent(); // TODO
-			_config->setLlvmToAsmGlobalVariable(nullptr);
+			global->eraseFromParent();
+			changed = true;
+			AsmInstruction::setLlvmToAsmGlobalVariable(&M, nullptr);
 		}
 	}
 
-	return true;
+	return changed;
 }
 
 } // namespace bin2llvmir

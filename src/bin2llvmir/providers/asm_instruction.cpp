@@ -199,7 +199,7 @@ Llvm2CapstoneMap& AsmInstruction::getLlvmToCapstoneInsnMap(
 	return it->second;
 }
 
-const llvm::GlobalVariable* AsmInstruction::getLlvmToAsmGlobalVariable(
+llvm::GlobalVariable* AsmInstruction::getLlvmToAsmGlobalVariable(
 		const llvm::Module* m)
 {
 	for (auto& p : _module2global)
@@ -214,7 +214,7 @@ const llvm::GlobalVariable* AsmInstruction::getLlvmToAsmGlobalVariable(
 
 void AsmInstruction::setLlvmToAsmGlobalVariable(
 		const llvm::Module* m,
-		const llvm::GlobalVariable* gv)
+		llvm::GlobalVariable* gv)
 {
 	_module2global.emplace_back(m, gv);
 }
