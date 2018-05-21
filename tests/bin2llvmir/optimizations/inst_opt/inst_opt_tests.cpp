@@ -512,6 +512,156 @@ TEST_F(OptimizeTests, addSequence)
 	EXPECT_TRUE(ret);
 }
 
+//==============================================================================
+
+//
+// castSequence
+//
+
+TEST_F(OptimizeTests, castSequence_ptr_int_ptr)
+{
+	parseInput(R"(
+		@r = global i32* null
+		declare i32 @print (i8*)
+		define void @func() {
+			%a = load i32*, i32** @r
+			%b = ptrtoint i32* %a to i32
+			%c = inttoptr i32 %b to i8*
+			%d = call i32 @print(i8* %c)
+			ret void
+		}
+	)");
+	auto* i = getInstructionByName("c");
+
+	bool ret = inst_opt::optimize(i);
+
+	std::string exp = R"(
+		@r = global i32* null
+		declare i32 @print (i8*)
+		define void @func() {
+			%a = load i32*, i32** @r
+			%1 = bitcast i32* %a to i8*
+			%d = call i32 @print(i8* %1)
+			ret void
+		}
+	)";
+	checkModuleAgainstExpectedIr(exp);
+}
+
+TEST_F(OptimizeTests, castSequence_float_int_float_arg)
+{
+	parseInput(R"(
+		declare void @print (float)
+		define void @func(float %a) {
+			%b = bitcast float %a to i32
+			%c = bitcast i32 %b to float
+			call void @print(float %c)
+			ret void
+		}
+	)");
+	auto* i = getInstructionByName("c");
+
+	bool ret = inst_opt::optimize(i);
+
+	std::string exp = R"(
+		declare void @print (float)
+		define void @func(float %a) {
+			call void @print(float %a)
+			ret void
+		}
+	)";
+	checkModuleAgainstExpectedIr(exp);
+}
+
+TEST_F(OptimizeTests, castSequence_float_int_float_local)
+{
+	parseInput(R"(
+		declare void @print (float*)
+		define void @func() {
+			%a = alloca float
+			%b = bitcast float* %a to i32*
+			%c = bitcast i32* %b to float*
+			call void @print(float* %c)
+			ret void
+		}
+	)");
+	auto* i = getInstructionByName("c");
+
+	bool ret = inst_opt::optimize(i);
+
+	std::string exp = R"(
+		declare void @print (float*)
+		define void @func() {
+			%a = alloca float
+			call void @print(float* %a)
+			ret void
+		}
+	)";
+	checkModuleAgainstExpectedIr(exp);
+}
+
+TEST_F(OptimizeTests, castSequence_ptr_int_ptr_global)
+{
+	parseInput(R"(
+		@gv = global float 0.000000e+00
+		declare void @print (float*)
+		define void @func() {
+			%a = bitcast float* @gv to i32*
+			%b = ptrtoint i32* %a to i32
+			%c = inttoptr i32 %b to i32*
+			%d = bitcast i32* %c to float*
+			call void @print(float* %d)
+			ret void
+		}
+	)");
+	auto* b = getInstructionByName("b");
+	auto* c = getInstructionByName("c");
+	auto* d = getInstructionByName("d");
+
+	bool ret = inst_opt::optimize(b);
+	ret |= inst_opt::optimize(c);
+	ret |= inst_opt::optimize(d);
+
+	std::string exp = R"(
+		@gv = global float 0.000000e+00
+		declare void @print (float*)
+		define void @func() {
+			call void @print(float* @gv)
+			ret void
+		}
+	)";
+	checkModuleAgainstExpectedIr(exp);
+}
+
+TEST_F(OptimizeTests, castSequence_float_int_flot_global)
+{
+	parseInput(R"(
+		@gv = global float 0.000000e+00
+		declare void @print (float)
+		define void @func() {
+			%a = load float, float* @gv
+			%b = bitcast float %a to i32
+			%c = bitcast i32 %b to float
+			call void @print(float %c)
+			ret void
+		}
+	)");
+	auto* i = getInstructionByName("c");
+
+	bool ret = inst_opt::optimize(i);
+
+	std::string exp = R"(
+		@gv = global float 0.000000e+00
+		declare void @print (float)
+		define void @func() {
+			%a = load float, float* @gv
+			call void @print(float %a)
+			ret void
+		}
+	)";
+	checkModuleAgainstExpectedIr(exp);
+}
+
 } // namespace tests
 } // namespace bin2llvmir
 } // namespace retdec

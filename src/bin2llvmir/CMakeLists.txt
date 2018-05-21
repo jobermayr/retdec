@@ -62,7 +62,6 @@ set(BIN2LLVMIR_SOURCES
 	optimizations/syscalls/mips.cpp
 	optimizations/syscalls/syscalls.cpp
 	optimizations/syscalls/x86.cpp
-	optimizations/type_conversions/type_conversions.cpp
 	optimizations/unreachable_funcs/unreachable_funcs.cpp
 	optimizations/vtable/rtti_analysis.cpp
 	optimizations/vtable/rtti_gcc.cpp
