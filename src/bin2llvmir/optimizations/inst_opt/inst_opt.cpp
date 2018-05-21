@@ -177,14 +177,13 @@ bool xorLoadXX(llvm::Instruction* insn)
 
 	insn->replaceAllUsesWith(ConstantInt::get(insn->getType(), 0));
 	insn->eraseFromParent();
-	if (l1 != l2)
-	{
-		l2->replaceAllUsesWith(l1);
-		l2->eraseFromParent();
-	}
 	if (l1->user_empty())
 	{
 		l1->eraseFromParent();
+	}
+	if (l2 != l1 && l2->user_empty())
+	{
+		l2->eraseFromParent();
 	}
 
 	return true;
@@ -254,9 +253,8 @@ bool orAndLoadXX(llvm::Instruction* insn)
 
 	insn->replaceAllUsesWith(l1);
 	insn->eraseFromParent();
-	if (l1 != l2)
+	if (l2->user_empty())
 	{
-		l2->replaceAllUsesWith(l1);
 		l2->eraseFromParent();
 	}
 
