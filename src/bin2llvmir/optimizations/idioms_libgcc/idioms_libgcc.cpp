@@ -9,6 +9,7 @@
 #include <iostream>
 
 #include <llvm/IR/Constants.h>
+#include <llvm/IR/InstIterator.h>
 #include <llvm/IR/Instruction.h>
 #include <llvm/IR/Instructions.h>
 
@@ -25,11 +26,14 @@ using namespace llvm;
 
 #define debug_enabled false
 
-#define ID_FNC_PAIR(ID, FNC) \
-		{ID, [this] (llvm::CallInst* c) { return this->_impl->FNC(c); }}
-
 namespace retdec {
 namespace bin2llvmir {
+
+//
+//==============================================================================
+// IdiomsLibgccImpl
+//==============================================================================
+//
 
 class IdiomsLibgccImpl
 {
@@ -45,15 +49,11 @@ class IdiomsLibgccImpl
 
 		std::set<llvm::Value*> _usesToLocalize;
 
-		Config* config = nullptr;
-
 	public:
 		std::set<llvm::Instruction*> _storesToRemove;
 		std::set<llvm::Instruction*> _callsToRemove;
 
-		void setConfig(Config* c);
-
-		bool testArchAndInitialize(llvm::Module* module);
+		bool testArchAndInitialize(config::Architecture& arch, Abi* abi);
 
 		bool isSomethingToLocalize() const;
 
@@ -213,46 +213,41 @@ class IdiomsLibgccImpl
 
 }; // IdiomsLibgccImpl
 
-void IdiomsLibgccImpl::setConfig(Config* c)
-{
-	config = c;
-	assert(config);
-}
-
 /**
  * @return @c True if analysis should continue, @c false if there is nothing
  *         to do for the current architecture.
  */
-bool IdiomsLibgccImpl::testArchAndInitialize(llvm::Module* module)
+bool IdiomsLibgccImpl::testArchAndInitialize(
+		config::Architecture& arch,
+		Abi* abi)
 {
-	auto& arch = config->getConfig().architecture;
 	if (arch.isArmOrThumb())
 	{
-		op0Single = module->getNamedGlobal("r0");
-		op0Double = module->getNamedGlobal("r0"); // + r1
-		op1Single = module->getNamedGlobal("r1");
-		op1Double = module->getNamedGlobal("r2"); // + r3
-		res0Single = module->getNamedGlobal("r0");
-		res0Double = module->getNamedGlobal("r0"); // + r1
-		res1Single = module->getNamedGlobal("r1");
-		res1Double = module->getNamedGlobal("r2"); // + r3
+		op0Single = abi->getRegister(ARM_REG_R0);
+		op0Double = abi->getRegister(ARM_REG_R0); // + r1
+		op1Single = abi->getRegister(ARM_REG_R1);
+		op1Double = abi->getRegister(ARM_REG_R2); // + r3
+		res0Single = abi->getRegister(ARM_REG_R0);
+		res0Double = abi->getRegister(ARM_REG_R0); // + r1
+		res1Single = abi->getRegister(ARM_REG_R1);
+		res1Double = abi->getRegister(ARM_REG_R2); // + r3
 	}
-	else if (config->getConfig().architecture.isPic32())
+	else if (arch.isPic32())
 	{
-		op0Single = module->getNamedGlobal("a0");
-		op0Double = module->getNamedGlobal("a0"); // + a1
-		op1Single = module->getNamedGlobal("a1");
-		op1Double = module->getNamedGlobal("a2"); // + a3
+		op0Single = abi->getRegister(MIPS_REG_A0);
+		op0Double = abi->getRegister(MIPS_REG_A0); // + a1
+		op1Single = abi->getRegister(MIPS_REG_A1);
+		op1Double = abi->getRegister(MIPS_REG_A2); // + a3
 
-//		res0Single = module->getNamedGlobal("a0");
-//		res0Double = module->getNamedGlobal("a0"); // + a1
-//		res1Single = module->getNamedGlobal("a1");
-//		res1Double = module->getNamedGlobal("a2"); // + a3
+//		res0Single = abi->getRegister(MIPS_REG_A0);
+//		res0Double = abi->getRegister(MIPS_REG_A0); // + a1
+//		res1Single = abi->getRegister(MIPS_REG_A1);
+//		res1Double = abi->getRegister(MIPS_REG_A2); // + a3
 
-		res0Single = module->getNamedGlobal("v0");
-		res0Double = module->getNamedGlobal("v0"); // + a1
-		res1Single = module->getNamedGlobal("v1");
-		res1Double = module->getNamedGlobal("v1"); // + a3
+		res0Single = abi->getRegister(MIPS_REG_V0);
+		res0Double = abi->getRegister(MIPS_REG_V0); // + a1
+		res1Single = abi->getRegister(MIPS_REG_V1);
+		res1Double = abi->getRegister(MIPS_REG_V1); // + a3
 	}
 	else
 	{
@@ -1238,6 +1233,15 @@ void IdiomsLibgccImpl::rcmpge(llvm::CallInst* inst)
 	return cmpge<N>(inst, true);
 }
 
+//
+//==============================================================================
+// IdiomsLibgcc
+//==============================================================================
+//
+
+#define ID_FNC_PAIR(ID, FNC) \
+		{ID, [this] (llvm::CallInst* c) { return this->_impl->FNC(c); }}
+
 char IdiomsLibgcc::ID = 0;
 
 static RegisterPass<IdiomsLibgcc> X(
@@ -1429,27 +1433,30 @@ bool IdiomsLibgcc::checkFunctionToActionMap(const Fnc2Action& fnc2action)
 	return false;
 }
 
-void IdiomsLibgcc::getAnalysisUsage(AnalysisUsage &AU) const
-{
-
-}
-
-/**
- * @return @c True if al least one instruction was (un)volatilized.
- *         @c False otherwise.
- */
 bool IdiomsLibgcc::runOnModule(Module& M)
 {
 	_module = &M;
+	_config = ConfigProvider::getConfig(_module);
+	_abi = AbiProvider::getAbi(_module);
+	return run();
+}
 
-	if (!ConfigProvider::getConfig(_module, _config))
+bool IdiomsLibgcc::runOnModuleCustom(llvm::Module& M, Config* c, Abi* abi)
+{
+	_module = &M;
+	_config = c;
+	_abi = abi;
+	return run();
+}
+
+bool IdiomsLibgcc::run()
+{
+	if (_config == nullptr)
 	{
-		LOG << "[ABORT] config file is not available\n";
 		return false;
 	}
-	_impl->setConfig(_config);
 
-	if (!_impl->testArchAndInitialize(_module))
+	if (!_impl->testArchAndInitialize(_config->getConfig().architecture, _abi))
 	{
 		return false;
 	}
@@ -1493,22 +1500,16 @@ bool IdiomsLibgcc::runOnModule(Module& M)
 bool IdiomsLibgcc::handleInstructions()
 {
 	bool changed = false;
-	for (auto& F : _module->getFunctionList())
-	for (auto& B : F)
-	{
-		auto it = B.begin();
-		while (it != B.end())
-		{
-			// We need to move to the next instruction before optimizing
-			// (potentially removing) the current instruction. Otherwise,
-			// the iterator would become invalid.
-			//
-			auto* inst = &(*it);
-			++it;
 
-			changed |= handleInstruction(inst);
-		}
+	for (Function& f : *_module)
+	for (auto it = inst_begin(&f), eIt = inst_end(&f); it != eIt;)
+	{
+		Instruction* insn = &*it;
+		++it;
+
+		changed |= handleInstruction(insn);
 	}
+
 	return changed;
 }
 
