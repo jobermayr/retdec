@@ -50,9 +50,6 @@ class IdiomsLibgccImpl
 		std::set<llvm::Value*> _usesToLocalize;
 
 	public:
-		std::set<llvm::Instruction*> _storesToRemove;
-		std::set<llvm::Instruction*> _callsToRemove;
-
 		bool testArchAndInitialize(config::Architecture& arch, Abi* abi);
 
 		bool isSomethingToLocalize() const;
@@ -286,18 +283,6 @@ void IdiomsLibgccImpl::log(
 	}
 }
 
-void IdiomsLibgccImpl::replaceResultUses(llvm::CallInst* c, llvm::Instruction* r)
-{
-	for (auto* u : c->users())
-	{
-		auto* s = dyn_cast<StoreInst>(u);
-		assert(s);
-		_storesToRemove.insert(s);
-	}
-
-	_callsToRemove.insert(c);
-}
-
 template<>
 llvm::Value* IdiomsLibgccImpl::getOp0<std::int32_t>(llvm::CallInst* call)
 {
@@ -405,6 +390,24 @@ llvm::Value* IdiomsLibgccImpl::getRes1<std::int64_t>(llvm::CallInst* call, llvm:
 	return new llvm::StoreInst(c, res1Double, call);
 }
 
+void IdiomsLibgccImpl::replaceResultUses(llvm::CallInst* c, llvm::Instruction* r)
+{
+	for (auto it = c->user_begin(), end = c->user_end(); it != end;)
+	{
+		auto* s = dyn_cast<StoreInst>(*it);
+		assert(s);
+		++it;
+		if (s)
+		{
+			s->eraseFromParent();
+		}
+	}
+	if (c->user_empty())
+	{
+		c->eraseFromParent();
+	}
+}
+
 /**
  * i32 (unsigned):
  *   reg0 = reg0 / reg1
@@ -424,6 +427,7 @@ void IdiomsLibgccImpl::aeabi_idivmod(llvm::CallInst* inst)
 	auto* s1 = getRes1<N>(inst, r1);
 
 	log(inst, {l0, l1, r0, r1, s0, s1});
+
 	replaceResultUses(inst, r0);
 }
 
@@ -1469,30 +1473,6 @@ bool IdiomsLibgcc::run()
 		RDA.runOnModule(*_module, _config);
 		_impl->localize(RDA);
 	}
-//	for (auto* i : _impl->_storesToRemove)
-//	{
-//		i->eraseFromParent();
-//	}
-	for (auto* i : _impl->_callsToRemove)
-	{
-		// TODO: i have no idea why there are still some uses, why erasing
-		// stores in _storesToRemove did not erase them, but whatever, just
-		// erase it again to be sure.
-		//
-		std::set<StoreInst*> toRemove;
-		for (auto* u : i->users())
-		{
-			auto* s = dyn_cast<StoreInst>(u);
-			assert(s);
-			toRemove.insert(s);
-		}
-
-		for (auto* s : toRemove)
-		{
-			s->eraseFromParent();
-		}
-		i->eraseFromParent();
-	}
 
 	return changed;
 }
@@ -1506,6 +1486,10 @@ bool IdiomsLibgcc::handleInstructions()
 	{
 		Instruction* insn = &*it;
 		++it;
+		while (it != eIt && !isa<CallInst>(*it))
+		{
+			++it;
+		}
 
 		changed |= handleInstruction(insn);
 	}
