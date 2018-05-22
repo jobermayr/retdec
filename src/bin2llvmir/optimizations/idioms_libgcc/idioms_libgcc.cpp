@@ -4,11 +4,9 @@
 * @copyright (c) 2017 Avast Software, licensed under the MIT license
 */
 
-#include <cassert>
-#include <iomanip>
 #include <iostream>
+#include <functional>
 
-#include <llvm/IR/Constants.h>
 #include <llvm/IR/InstIterator.h>
 #include <llvm/IR/Instruction.h>
 #include <llvm/IR/Instructions.h>
@@ -18,7 +16,7 @@
 #include "retdec/bin2llvmir/analyses/reaching_definitions.h"
 #include "retdec/bin2llvmir/optimizations/idioms_libgcc/idioms_libgcc.h"
 #include "retdec/bin2llvmir/utils/debug.h"
-#include "retdec/bin2llvmir/utils/instruction.h"
+#include "retdec/bin2llvmir/utils/ir_modifier.h"
 #include "retdec/bin2llvmir/utils/type.h"
 
 using namespace retdec::utils;
@@ -47,14 +45,10 @@ class IdiomsLibgccImpl
 		llvm::GlobalVariable* res1Single = nullptr;
 		llvm::GlobalVariable* res1Double = nullptr;
 
-		std::set<llvm::Value*> _usesToLocalize;
-
 	public:
 		bool testArchAndInitialize(config::Architecture& arch, Abi* abi);
 
-		bool isSomethingToLocalize() const;
-
-		void localize(ReachingDefinitionsAnalysis& RDA);
+		void localize(llvm::Value* v);
 
 		void log(
 				llvm::Instruction* orig,
@@ -253,23 +247,24 @@ bool IdiomsLibgccImpl::testArchAndInitialize(
 	return true;
 }
 
-bool IdiomsLibgccImpl::isSomethingToLocalize() const
+void IdiomsLibgccImpl::localize(llvm::Value* v)
 {
-	return !_usesToLocalize.empty();
-}
-
-void IdiomsLibgccImpl::localize(ReachingDefinitionsAnalysis& RDA)
-{
-	for (auto* u : _usesToLocalize)
+	Instruction* i = dyn_cast<Instruction>(skipCasts(v));
+	if (i == nullptr)
 	{
-		auto* i = dyn_cast<Instruction>(skipCasts(u));
-		auto& defs = RDA.defsFromUse(i);
-		if (defs.size() == 1)
-		{
-			Instruction* d = (*defs.begin())->def;
-			localizeDefinition(RDA, d);
-		}
+		return;
 	}
+
+	static ReachingDefinitionsAnalysis RDA;
+	auto defs = RDA.defsFromUse_onDemand(i);
+	if (defs.size() != 1)
+	{
+		return;
+	}
+	auto* def = dyn_cast<StoreInst>(*defs.begin());
+
+	auto uses = RDA.usesFromDef_onDemand(def);
+	IrModifier::localize(def, uses);
 }
 
 void IdiomsLibgccImpl::log(
@@ -660,8 +655,8 @@ void IdiomsLibgccImpl::addf(llvm::CallInst* inst)
 	log(inst, {l0, l1, r0, s0});
 	replaceResultUses(inst, r0);
 
-	_usesToLocalize.insert(l0);
-	_usesToLocalize.insert(l1);
+	localize(l0);
+	localize(l1);
 }
 
 /**
@@ -681,8 +676,8 @@ void IdiomsLibgccImpl::divf(llvm::CallInst* inst)
 	log(inst, {l0, l1, r0, s0});
 	replaceResultUses(inst, r0);
 
-	_usesToLocalize.insert(l0);
-	_usesToLocalize.insert(l1);
+	localize(l0);
+	localize(l1);
 }
 
 /**
@@ -702,8 +697,8 @@ void IdiomsLibgccImpl::mulf(llvm::CallInst* inst)
 	log(inst, {l0, l1, r0, s0});
 	replaceResultUses(inst, r0);
 
-	_usesToLocalize.insert(l0);
-	_usesToLocalize.insert(l1);
+	localize(l0);
+	localize(l1);
 }
 
 /**
@@ -723,8 +718,8 @@ void IdiomsLibgccImpl::subf(llvm::CallInst* inst)
 	log(inst, {l0, l1, r0, s0});
 	replaceResultUses(inst, r0);
 
-	_usesToLocalize.insert(l0);
-	_usesToLocalize.insert(l1);
+	localize(l0);
+	localize(l1);
 }
 
 /**
@@ -744,8 +739,8 @@ void IdiomsLibgccImpl::subrf(llvm::CallInst* inst)
 	log(inst, {l0, l1, r0, s0});
 	replaceResultUses(inst, r0);
 
-	_usesToLocalize.insert(l0);
-	_usesToLocalize.insert(l1);
+	localize(l0);
+	localize(l1);
 }
 
 /**
@@ -1255,6 +1250,35 @@ static RegisterPass<IdiomsLibgcc> X(
 		false // Analysis Pass
 );
 
+/**
+ * Check the given container for element ordering problems.
+ * Entries in the container are tried to be applied from first to last.
+ * Function ID of any element can not be contained in any later element,
+ * otherwise later would never be applied.
+ * @param fnc2action This method could access @c _fnc2action directly, but
+ *                   we want to unit test it with custom container.
+ * @return @c True if problem in map found, @c false otherwise.
+ * @note Method is static so it can be easily used in unit tests.
+ */
+bool IdiomsLibgcc::checkFunctionToActionMap(const Fnc2Action& fnc2action)
+{
+	for (auto it = fnc2action.begin(); it != fnc2action.end(); ++it)
+	{
+		auto next = it;
+		++next;
+		while (next != fnc2action.end())
+		{
+			if (contains(next->first, it->first))
+			{
+				LOG << it->first << " in " << next->first << std::endl;
+				return true;
+			}
+			++next;
+		}
+	}
+	return false;
+}
+
 IdiomsLibgcc::IdiomsLibgcc() :
 		ModulePass(ID),
 		_impl(std::make_unique<IdiomsLibgccImpl>())
@@ -1408,35 +1432,6 @@ IdiomsLibgcc::IdiomsLibgcc() :
 	assert(!checkFunctionToActionMap(_fnc2action));
 }
 
-/**
- * Check the given container for element ordering problems.
- * Entries in the container are tried to be applied from first to last.
- * Function ID of any element can not be contained in any later element,
- * otherwise later would never be applied.
- * @param fnc2action This method could access @c _fnc2action directly, but
- *                   we want to unit test it with custom container.
- * @return @c True if problem in map found, @c false otherwise.
- * @note Method is static so it can be easily used in unit tests.
- */
-bool IdiomsLibgcc::checkFunctionToActionMap(const Fnc2Action& fnc2action)
-{
-	for (auto it = fnc2action.begin(); it != fnc2action.end(); ++it)
-	{
-		auto next = it;
-		++next;
-		while (next != fnc2action.end())
-		{
-			if (contains(next->first, it->first))
-			{
-				LOG << it->first << " in " << next->first << std::endl;
-				return true;
-			}
-			++next;
-		}
-	}
-	return false;
-}
-
 bool IdiomsLibgcc::runOnModule(Module& M)
 {
 	_module = &M;
@@ -1455,7 +1450,7 @@ bool IdiomsLibgcc::runOnModuleCustom(llvm::Module& M, Config* c, Abi* abi)
 
 bool IdiomsLibgcc::run()
 {
-	if (_config == nullptr)
+	if (_config == nullptr || _abi == nullptr)
 	{
 		return false;
 	}
@@ -1465,20 +1460,6 @@ bool IdiomsLibgcc::run()
 		return false;
 	}
 
-	bool changed = handleInstructions();
-
-	if (_impl->isSomethingToLocalize())
-	{
-		ReachingDefinitionsAnalysis RDA;
-		RDA.runOnModule(*_module, _config);
-		_impl->localize(RDA);
-	}
-
-	return changed;
-}
-
-bool IdiomsLibgcc::handleInstructions()
-{
 	bool changed = false;
 
 	for (Function& f : *_module)
@@ -1486,18 +1467,20 @@ bool IdiomsLibgcc::handleInstructions()
 	{
 		Instruction* insn = &*it;
 		++it;
+		// Move to the next call. Other instructions might get removed by
+		// analuzing this call.
 		while (it != eIt && !isa<CallInst>(*it))
 		{
 			++it;
 		}
 
-		changed |= handleInstruction(insn);
+		changed |= runInstruction(insn);
 	}
 
 	return changed;
 }
 
-bool IdiomsLibgcc::handleInstruction(llvm::Instruction* inst)
+bool IdiomsLibgcc::runInstruction(llvm::Instruction* inst)
 {
 	CallInst* call = dyn_cast<CallInst>(inst);
 	if (call == nullptr || call->getCalledFunction() == nullptr)

@@ -35,6 +35,11 @@ class IrModifier
 				llvm::Type* type,
 				const std::string& name = "stack_var");
 
+	public:
+		static bool localize(
+				llvm::StoreInst* definition,
+				std::set<llvm::Instruction*>& uses);
+
 	protected:
 		llvm::Module* _module = nullptr;
 		Config* _config = nullptr;

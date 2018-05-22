@@ -7,10 +7,6 @@
 #ifndef RETDEC_BIN2LLVMIR_OPTIMIZATIONS_IDIOMS_LIBGCC_IDIOMS_LIBGCC_H
 #define RETDEC_BIN2LLVMIR_OPTIMIZATIONS_IDIOMS_LIBGCC_IDIOMS_LIBGCC_H
 
-#include <functional>
-#include <memory>
-
-#include <llvm/IR/Function.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Pass.h>
 
@@ -39,10 +35,7 @@ class IdiomsLibgcc : public llvm::ModulePass
 
 	private:
 		bool run();
-		bool testArchAndInitialize();
-		bool handleInstructions();
-		bool handleInstruction(llvm::Instruction* inst);
-		void localize();
+		bool runInstruction(llvm::Instruction* inst);
 
 	private:
 		std::unique_ptr<IdiomsLibgccImpl> _impl;
