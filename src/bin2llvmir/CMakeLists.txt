@@ -49,6 +49,7 @@ set(BIN2LLVMIR_SOURCES
 	optimizations/inst_opt/inst_opt.cpp
 	optimizations/local_vars/local_vars.cpp
 	optimizations/main_detection/main_detection.cpp
+	optimizations/never_returning_funcs/never_returning_funcs.cpp
 	optimizations/param_return/param_return.cpp
 	optimizations/phi2seq/phi2seq.cpp
 	optimizations/provider_init/provider_init.cpp
