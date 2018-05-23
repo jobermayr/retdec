@@ -539,7 +539,7 @@ Instruction * IdiomsGCC::exchangeCopysign(BasicBlock::iterator iter) const {
 	auto* fun = llvm::Intrinsic::getDeclaration(
 			M,
 			llvm::Intrinsic::copysign,
-			{Type::getFloatTy(Context), Type::getFloatTy(Context)});
+			Type::getFloatTy(Context));
 
 	// Arguments have to be casted to float
 
