@@ -555,6 +555,8 @@ bool FileImage::isImportTerminating(
 //				|| name == "abort";
 //	}
 
+	// TODO: same for statically linked code.
+	// TODO: are these all? maybe search for some more complete list.
 	retdec::utils::NonIterableSet<std::string> exitFncs =
 	{
 		"exit", "_exit", "ExitThread", "abort", "longjmp", "_Exit",

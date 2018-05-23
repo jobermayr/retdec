@@ -16,6 +16,7 @@
 #include <llvm/IR/InstIterator.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Pass.h>
+#include <llvm/Transforms/Utils/BasicBlockUtils.h>
 
 #include "retdec/utils/address.h"
 #include "retdec/bin2llvmir/analyses/reaching_definitions.h"
@@ -283,6 +284,8 @@ class Decoder : public llvm::ModulePass
 
 		std::unique_ptr<capstone2llvmir::Capstone2LlvmIrTranslator> _c2l;
 		cs_insn* _dryCsInsn = nullptr;
+
+		llvm::IRBuilder<>* _irb;
 
 		RangesToDecode _ranges;
 		JumpTargets _jumpTargets;

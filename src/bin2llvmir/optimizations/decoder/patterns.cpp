@@ -152,11 +152,9 @@ bool Decoder::patternTerminatingCalls()
 		if (callAi.getBasicBlock() != nextAi.getBasicBlock())
 		{
 			auto* term = bb->getTerminator();
-			ReturnInst::Create(
-					call->getModule()->getContext(),
-					llvm::UndefValue::get(f->getReturnType()),
-					term);
-			term->eraseFromParent();
+			auto* ui = new UnreachableInst(_module->getContext());
+			ReplaceInstWithInst(term, ui);
+
 			LOG << "\t\tbreak flow @ " << nextAi.getAddress() << std::endl;
 			modified = true;
 			continue;
@@ -164,11 +162,9 @@ bool Decoder::patternTerminatingCalls()
 
 		auto* newBb = bb->splitBasicBlock(nextAi.getLlvmToAsmInstruction());
 		auto* term = bb->getTerminator();
-		ReturnInst::Create(
-				call->getModule()->getContext(),
-				UndefValue::get(f->getReturnType()),
-				term);
-		term->eraseFromParent();
+		auto* ui = new UnreachableInst(_module->getContext());
+		ReplaceInstWithInst(term, ui);
+
 		modified = true;
 
 		LOG << "\t\tsplit @ " << nextAi.getAddress() << std::endl;

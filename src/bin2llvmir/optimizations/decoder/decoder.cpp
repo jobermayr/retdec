@@ -271,6 +271,7 @@ void Decoder::decodeJumpTarget(const JumpTarget& jt)
 	}
 	assert(bb && bb->getTerminator());
 	IRBuilder<> irb(bb->getTerminator());
+	_irb = &irb;
 
 	if (_c2l->getBasicMode() != jt.getMode())
 	{
@@ -412,6 +413,9 @@ bool Decoder::instructionBreaksBasicBlock(
 			&& tr.llvmInsn->getFunction() == _entryPointFunction
 			&& tr.capstoneInsn->id == X86_INS_HLT)
 	{
+		auto* ui = new UnreachableInst(_module->getContext());
+		ReplaceInstWithInst(&*_irb->GetInsertPoint(), ui);
+		_irb->SetInsertPoint(ui);
 		return true;
 	}
 
@@ -506,6 +510,9 @@ bool Decoder::getJumpTargetsFromInstruction(
 
 			if (tFnc && _terminatingFncs.count(tFnc))
 			{
+				auto* ui = new UnreachableInst(_module->getContext());
+				ReplaceInstWithInst(&*_irb->GetInsertPoint(), ui);
+				_irb->SetInsertPoint(ui);
 				return true;
 			}
 		}
