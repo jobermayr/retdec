@@ -25,7 +25,9 @@ class CondBranchOpt : public llvm::ModulePass
 
 	private:
 		bool run();
-		bool runOnFunction(ReachingDefinitionsAnalysis& RDA, llvm::Function* f);
+		bool runOnInstruction(
+				ReachingDefinitionsAnalysis& RDA,
+				llvm::Instruction& i);
 
 	private:
 		llvm::Module* _module = nullptr;
