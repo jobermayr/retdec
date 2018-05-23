@@ -7,18 +7,11 @@
 #include <iostream>
 #include <string>
 
-#include <llvm/ADT/Statistic.h>
 #include <llvm/IR/Constants.h>
-#include <llvm/IR/Module.h>
 
-#include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/utils/container.h"
 #include "retdec/bin2llvmir/analyses/reachable_funcs_analysis.h"
 #include "retdec/bin2llvmir/optimizations/unreachable_funcs/unreachable_funcs.h"
-#include "retdec/bin2llvmir/utils/instruction.h"
-
-#define OPTIMIZATION_NAME "unreachable-funcs"
-#define DEBUG_TYPE OPTIMIZATION_NAME
 
 using namespace retdec::utils;
 using namespace llvm;
@@ -28,18 +21,17 @@ namespace bin2llvmir {
 
 namespace {
 
-/// Name of main.
-const std::string NAME_OF_MAIN = "main";
-
 /**
 * @brief Removes function from current module.
 *
 * @param[in] funcToRemove Function to remove.
 * @param[in] callGraph Call graph of module.
 */
-void removeFuncFromModule(Function &funcToRemove, CallGraph &callGraph) {
-	CallGraphNode *funcToRemoveNode(callGraph[&funcToRemove]);
-	for (auto &item : callGraph) {
+void removeFuncFromModule(Function& funcToRemove, CallGraph& callGraph)
+{
+	CallGraphNode* funcToRemoveNode(callGraph[&funcToRemove]);
+	for (auto& item : callGraph)
+	{
 		item.second->removeAnyCallEdgeTo(funcToRemoveNode);
 	}
 	funcToRemove.replaceAllUsesWith(UndefValue::get(funcToRemove.getType()));
@@ -49,23 +41,28 @@ void removeFuncFromModule(Function &funcToRemove, CallGraph &callGraph) {
 	callGraph.removeFunctionFromModule(funcToRemoveNode);
 }
 
-bool userCannotBeOptimized(User* user, const std::set<llvm::Function*> &funcs)
+bool userCannotBeOptimized(User* user, const std::set<llvm::Function*>& funcs)
 {
-	if (auto* inst = dyn_cast<Instruction>(user)) {
+	if (auto* inst = dyn_cast<Instruction>(user))
+	{
 		auto* pf = inst->getFunction();
-		if (pf == nullptr || hasItem(funcs, pf)) {
+		if (pf == nullptr || hasItem(funcs, pf))
+		{
 			return true;
 		}
 	}
 	else if (auto* ce = dyn_cast<ConstantExpr>(user))
 	{
-		for (auto* u : ce->users()) {
-			if (userCannotBeOptimized(u, funcs)) {
+		for (auto* u : ce->users())
+		{
+			if (userCannotBeOptimized(u, funcs))
+			{
 				return true;
 			}
 		}
 	}
-	else {
+	else
+	{
 		return true;
 	}
 
@@ -77,9 +74,12 @@ bool userCannotBeOptimized(User* user, const std::set<llvm::Function*> &funcs)
 *
 * For more details what can't be optimized @see getFuncsThatCannotBeOptimized().
 */
-bool cannotBeOptimized(Function &func, const std::set<llvm::Function*> &funcs) {
-	for (auto* u : func.users()) {
-		if (userCannotBeOptimized(u, funcs)) {
+bool cannotBeOptimized(Function& func, const std::set<llvm::Function*>& funcs)
+{
+	for (auto* u : func.users())
+	{
+		if (userCannotBeOptimized(u, funcs))
+		{
 			return true;
 		}
 	}
@@ -93,71 +93,82 @@ bool cannotBeOptimized(Function &func, const std::set<llvm::Function*> &funcs) {
 // initialize the ID to anything.
 char UnreachableFuncs::ID = 0;
 
-const char *UnreachableFuncs::NAME = OPTIMIZATION_NAME;
-
-RegisterPass<UnreachableFuncs> UnreachableFuncsRegistered(UnreachableFuncs::
-	getName(), "Unreachable functions optimization", false, false);
-
-STATISTIC(NumFuncsRemoved, "Number of removed functions definitions");
+RegisterPass<UnreachableFuncs> UnreachableFuncsRegistered(
+		"unreachable-funcs",
+		"Unreachable functions optimization",
+		false,
+		false);
 
 /**
 * @brief Created a new unreachable functions optimizer.
 */
-UnreachableFuncs::UnreachableFuncs(): ModulePass(ID), mainFunc(nullptr) {}
+UnreachableFuncs::UnreachableFuncs() :
+		ModulePass(ID),
+		mainFunc(nullptr)
+{
 
-void UnreachableFuncs::getAnalysisUsage(AnalysisUsage &au) const {
+}
+
+void UnreachableFuncs::getAnalysisUsage(AnalysisUsage& au) const
+{
 	au.addRequired<CallGraphWrapperPass>();
 }
 
-bool UnreachableFuncs::runOnModule(Module &module) {
-	config = ConfigProvider::getConfig(&module);
-
-	initializeMainFunc(module);
-	if (!optimizationCanRun()) {
-		return false;
-	}
-
-	CallGraph &callGraph(getAnalysis<CallGraphWrapperPass>().getCallGraph());
-	std::set<llvm::Function*> funcsThatCannotBeOptimized(ReachableFuncsAnalysis::
-		getReachableDefinedFuncsFor(*mainFunc, module, callGraph));
-	addToSet(ReachableFuncsAnalysis::getGloballyReachableFuncsFor(module), funcsThatCannotBeOptimized);
-	addToSet(getFuncsThatCannotBeOptimized(funcsThatCannotBeOptimized, module),
-		funcsThatCannotBeOptimized);
-
-	removeFuncsThatCanBeOptimized(funcsThatCannotBeOptimized, module);
-
-	return NumFuncsRemoved > 0;
+bool UnreachableFuncs::runOnModule(Module& m)
+{
+	module = &m;
+	config = ConfigProvider::getConfig(module);
+	return run();
 }
 
-/**
-* @brief Initializes @c mainFunc.
-*/
-void UnreachableFuncs::initializeMainFunc(Module &module) {
-	mainFunc = module.getFunction(NAME_OF_MAIN);
+bool UnreachableFuncs::runOnModuleCustom(llvm::Module& m, Config* c)
+{
+	module = &m;
+	config = c;
+	return run();
 }
 
-/**
-* @brief Can the optimization run?
-*/
-bool UnreachableFuncs::optimizationCanRun() const {
-	if (config &&
-			(config->getConfig().fileType.isShared()
-			|| config->getConfig().fileType.isObject())) {
+bool UnreachableFuncs::run()
+{
+	if (config == nullptr)
+	{
 		return false;
 	}
-
-	// We need the main function as the starting point.
-	if (!mainFunc) {
+	if (config->getConfig().fileType.isShared()
+			|| config->getConfig().fileType.isObject())
+	{
 		return false;
 	}
 
 	// The main function has to be a definition, not just a declaration. This
 	// is needed when decompiling shared libraries containing an import of main.
-	if (mainFunc->isDeclaration()) {
+	//
+	mainFunc = config->getLlvmFunction(config->getConfig().getMainAddress());
+	if (mainFunc == nullptr || mainFunc->isDeclaration())
+	{
 		return false;
 	}
 
-	return true;
+	CallGraph& callGraph(getAnalysis<CallGraphWrapperPass>().getCallGraph());
+
+	std::set<llvm::Function*> funcsThatCannotBeOptimized;
+
+	addToSet(
+			ReachableFuncsAnalysis::getReachableDefinedFuncsFor(
+					*mainFunc,
+					*module,
+					callGraph),
+			funcsThatCannotBeOptimized);
+	addToSet(
+			ReachableFuncsAnalysis::getGloballyReachableFuncsFor(*module),
+			funcsThatCannotBeOptimized);
+	addToSet(
+			getFuncsThatCannotBeOptimized(funcsThatCannotBeOptimized),
+			funcsThatCannotBeOptimized);
+
+	removeFuncsThatCanBeOptimized(funcsThatCannotBeOptimized);
+
+	return NumFuncsRemoved > 0;
 }
 
 /**
@@ -173,10 +184,13 @@ bool UnreachableFuncs::optimizationCanRun() const {
 * @param[in] module Current module.
 */
 std::set<llvm::Function*> UnreachableFuncs::getFuncsThatCannotBeOptimized(
-		const std::set<llvm::Function*> &reachableFuncs, Module &module) const {
+		const std::set<llvm::Function*>& reachableFuncs) const
+{
 	std::set<llvm::Function*> result;
-	for (Function &func : module) {
-		if (cannotBeOptimized(func, reachableFuncs)) {
+	for (Function& func : *module)
+	{
+		if (cannotBeOptimized(func, reachableFuncs))
+		{
 			result.insert(&func);
 		}
 	}
@@ -193,19 +207,24 @@ std::set<llvm::Function*> UnreachableFuncs::getFuncsThatCannotBeOptimized(
 * @return Functions to optimize.
 */
 std::set<llvm::Function*> UnreachableFuncs::getFuncsThatCanBeOptimized(
-		const std::set<llvm::Function*> funcsThatCannotBeOptimized, Module &module) const {
+		const std::set<llvm::Function*>& funcsThatCannotBeOptimized) const
+{
 	std::set<llvm::Function*> toBeOptimized;
-	for (Function &func : module) {
-		if (func.isDeclaration()) {
+	for (Function& func : *module)
+	{
+		if (func.isDeclaration())
+		{
 			// We don't want to optimize functions only with declaration.
 			continue;
 		}
 
-		if (hasItem(funcsThatCannotBeOptimized, &func)) {
+		if (hasItem(funcsThatCannotBeOptimized, &func))
+		{
 			continue;
 		}
 
-		if (&func == mainFunc) {
+		if (&func == mainFunc)
+		{
 			// We don't want to remove main function.
 			continue;
 		}
@@ -223,9 +242,10 @@ std::set<llvm::Function*> UnreachableFuncs::getFuncsThatCanBeOptimized(
 * @param[in] module Module with functions.
 */
 void UnreachableFuncs::removeFuncsThatCanBeOptimized(
-		const std::set<llvm::Function*> &funcsThatCannotBeOptimized, Module &module) const {
-	std::set<llvm::Function*> toRemove(getFuncsThatCanBeOptimized(funcsThatCannotBeOptimized,
-		module));
+		const std::set<llvm::Function*>& funcsThatCannotBeOptimized)
+{
+	std::set<llvm::Function*> toRemove(
+			getFuncsThatCanBeOptimized(funcsThatCannotBeOptimized));
 	removeFuncsFromModule(toRemove);
 }
 
@@ -235,9 +255,11 @@ void UnreachableFuncs::removeFuncsThatCanBeOptimized(
 * @param[in] funcsToRemove Functions to remove.
 */
 void UnreachableFuncs::removeFuncsFromModule(
-		const std::set<llvm::Function*> &funcsToRemove) const {
-	CallGraph &callGraph(getAnalysis<CallGraphWrapperPass>().getCallGraph());
-	for (Function *func : funcsToRemove) {
+		const std::set<llvm::Function*>& funcsToRemove)
+{
+	CallGraph& callGraph(getAnalysis<CallGraphWrapperPass>().getCallGraph());
+	for (Function* func : funcsToRemove)
+	{
 		removeFuncFromModule(*func, callGraph);
 		NumFuncsRemoved++;
 	}
