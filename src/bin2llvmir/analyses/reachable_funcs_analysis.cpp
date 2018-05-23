@@ -9,7 +9,6 @@
 #include "retdec/utils/container.h"
 #include "retdec/bin2llvmir/analyses/indirectly_called_funcs_analysis.h"
 #include "retdec/bin2llvmir/analyses/reachable_funcs_analysis.h"
-#include "retdec/bin2llvmir/utils/instruction.h"
 
 using namespace retdec::utils;
 using namespace llvm;

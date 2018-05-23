@@ -12,8 +12,6 @@
 #include <llvm/ADT/SCCIterator.h>
 #include <llvm/Analysis/CallGraph.h>
 
-#include "retdec/bin2llvmir/utils/debug.h"
-
 namespace retdec {
 namespace bin2llvmir {
 
