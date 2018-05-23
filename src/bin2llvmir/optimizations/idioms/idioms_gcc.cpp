@@ -284,23 +284,10 @@ Instruction * IdiomsGCC::exchangeFloatAbs(BasicBlock::iterator iter) const {
 	if (*cnst->getValue().getRawData() != 0x7FFFFFFF)
 		return nullptr;
 
-	Value * fun = M->getOrInsertFunction("fabsf",
-							Type::getFloatTy(Context),
-							Type::getFloatTy(Context),
-							nullptr);
-
-	// TODO: use some method to do this
-	// Add this new idiom function to config.
-	if (getConfig())
-	{
-		retdec::config::Function cf("fabsf");
-		cf.setIsIdiom();
-		cf.returnType.setLlvmIr("float");
-		retdec::config::Object p("a1", retdec::config::Storage::undefined());
-		p.type.setLlvmIr("float");
-		cf.parameters.insert(p);
-		getConfig()->getConfig().functions.insert(cf);
-	}
+	auto* fun = llvm::Intrinsic::getDeclaration(
+			M,
+			llvm::Intrinsic::fabs,
+			Type::getFloatTy(Context));
 
 	// Arguments have to be casted to float
 	if (dl.getTypeSizeInBits(op_x->getType()) != dl.getTypeSizeInBits(Type::getFloatTy(Context)))
@@ -550,27 +537,10 @@ Instruction * IdiomsGCC::exchangeCopysign(BasicBlock::iterator iter) const {
 	if (*cnst2->getValue().getRawData() != second_cnst)
 		return nullptr;
 
-	Value * fun = M->getOrInsertFunction("copysignf",
-							Type::getFloatTy(Context),
-							Type::getFloatTy(Context),
-							Type::getFloatTy(Context),
-							nullptr);
-
-	// TODO: use some method to do this
-	// Add this new idiom function to config.
-	if (getConfig())
-	{
-		retdec::config::Function cf("copysignf");
-		cf.setIsIdiom();
-		cf.returnType.setLlvmIr("float");
-		retdec::config::Object p1("a1", retdec::config::Storage::undefined());
-		p1.type.setLlvmIr("float");
-		retdec::config::Object p2("a2", retdec::config::Storage::undefined());
-		p2.type.setLlvmIr("float");
-		cf.parameters.insert(p1);
-		cf.parameters.insert(p2);
-		getConfig()->getConfig().functions.insert(cf);
-	}
+	auto* fun = llvm::Intrinsic::getDeclaration(
+			M,
+			llvm::Intrinsic::copysign,
+			{Type::getFloatTy(Context), Type::getFloatTy(Context)});
 
 	// Arguments have to be casted to float
 

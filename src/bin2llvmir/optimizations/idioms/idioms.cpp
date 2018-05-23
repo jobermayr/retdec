@@ -84,16 +84,6 @@ bool Idioms::runOnFunction(Function & f) {
 }
 
 /**
- * Info about idiom analysis passe dependency
- *
- * @param AU AnalysisUsage
- */
-void Idioms::getAnalysisUsage(AnalysisUsage &AU) const
-{
-
-}
-
-/**
  * Get instance of idioms collection used depending on compiler
  *
  * @param M Module used
