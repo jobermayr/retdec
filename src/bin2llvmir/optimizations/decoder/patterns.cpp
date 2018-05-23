@@ -173,9 +173,7 @@ bool Decoder::patternTerminatingCalls()
 		AsmInstruction ai(newBb);
 		while (ai.isValid() && ai.getBasicBlock() == newBb)
 		{
-			if (capstone_utils::isNopInstruction(
-					_config->getConfig().architecture,
-					ai.getCapstoneInsn()))
+			if (_abi->isNopInstruction(ai))
 			{
 				lastNop = ai;
 				ai = ai.getNext();

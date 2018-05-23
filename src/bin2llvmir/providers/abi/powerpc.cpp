@@ -24,11 +24,8 @@ AbiPowerpc::~AbiPowerpc()
 
 }
 
-bool AbiPowerpc::isNopInstruction(AsmInstruction ai)
+bool AbiPowerpc::isNopInstruction(cs_insn* insn)
 {
-	cs_insn* insn = ai.getCapstoneInsn();
-	cs_ppc& insnPpc = insn->detail->ppc;
-
 	// True NOP variants.
 	//
 	if (insn->id == PPC_INS_NOP

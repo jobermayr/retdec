@@ -104,9 +104,7 @@ std::size_t Decoder::decodeJumpTargetDryRun_arm(
 
 		if (jt.getType() == JumpTarget::eType::LEFTOVER
 				&& (first || nops > 0)
-				&& capstone_utils::isNopInstruction(
-						_config->getConfig().architecture,
-						_dryCsInsn))
+				&& _abi->isNopInstruction(_dryCsInsn))
 		{
 			nops += _dryCsInsn->size;
 		}

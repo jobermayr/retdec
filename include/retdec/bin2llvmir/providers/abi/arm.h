@@ -23,7 +23,7 @@ class AbiArm : public Abi
 	// Instructions.
 	//
 	public:
-		virtual bool isNopInstruction(AsmInstruction ai);
+		virtual bool isNopInstruction(cs_insn* insn) override;
 };
 
 } // namespace bin2llvmir

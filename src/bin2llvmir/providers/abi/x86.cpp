@@ -24,9 +24,8 @@ AbiX86::~AbiX86()
 
 }
 
-bool AbiX86::isNopInstruction(AsmInstruction ai)
+bool AbiX86::isNopInstruction(cs_insn* insn)
 {
-	cs_insn* insn = ai.getCapstoneInsn();
 	cs_x86& insn86 = insn->detail->x86;
 
 	// True NOP variants.

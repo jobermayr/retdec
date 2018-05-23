@@ -24,11 +24,8 @@ AbiArm::~AbiArm()
 
 }
 
-bool AbiArm::isNopInstruction(AsmInstruction ai)
+bool AbiArm::isNopInstruction(cs_insn* insn)
 {
-	cs_insn* insn = ai.getCapstoneInsn();
-	cs_arm& insnArm = insn->detail->arm;
-
 	// True NOP variants.
 	//
 	if (insn->id == ARM_INS_NOP)

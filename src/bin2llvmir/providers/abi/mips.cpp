@@ -24,11 +24,8 @@ AbiMips::~AbiMips()
 
 }
 
-bool AbiMips::isNopInstruction(AsmInstruction ai)
+bool AbiMips::isNopInstruction(cs_insn* insn)
 {
-	cs_insn* insn = ai.getCapstoneInsn();
-	cs_mips& insnMips = insn->detail->mips;
-
 	// True NOP variants.
 	//
 	if (insn->id == MIPS_INS_NOP

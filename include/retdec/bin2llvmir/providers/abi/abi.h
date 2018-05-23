@@ -51,7 +51,8 @@ class Abi
 	// Instructions.
 	//
 	public:
-		virtual bool isNopInstruction(AsmInstruction ai) = 0;
+		bool isNopInstruction(AsmInstruction ai);
+		virtual bool isNopInstruction(cs_insn* insn) = 0;
 
 	// Types.
 	//

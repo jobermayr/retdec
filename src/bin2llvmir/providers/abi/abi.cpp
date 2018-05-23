@@ -79,6 +79,11 @@ void Abi::addRegister(uint32_t id, llvm::GlobalVariable* reg)
 	_regs2id.emplace(reg, id);
 }
 
+bool Abi::isNopInstruction(AsmInstruction ai)
+{
+	return isNopInstruction(ai.getCapstoneInsn());
+}
+
 std::size_t Abi::getTypeByteSize(llvm::Type* t)
 {
 	assert(_module);
