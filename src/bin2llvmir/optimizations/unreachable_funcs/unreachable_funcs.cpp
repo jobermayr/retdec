@@ -111,10 +111,6 @@ void UnreachableFuncs::getAnalysisUsage(AnalysisUsage &au) const {
 
 bool UnreachableFuncs::runOnModule(Module &module) {
 	config = ConfigProvider::getConfig(&module);
-	if (config)
-	{
-		config->getConfig().parameters.completedFrontendPasses.insert(getName());
-	}
 
 	initializeMainFunc(module);
 	if (!optimizationCanRun()) {

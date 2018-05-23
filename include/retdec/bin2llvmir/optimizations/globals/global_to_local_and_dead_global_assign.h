@@ -124,7 +124,6 @@ private:
 	using FuncFuncInfoMap = std::map<llvm::Function *, FuncInfo *>;
 
 private:
-	void addMetadata(llvm::Module &module);
 	void solveIndirectCallsAndNotAggressive();
 	void solveNotAggressive();
 	void solveLUsesForIndirectCalls();
@@ -160,8 +159,6 @@ private:
 
 	/// Mapping of a function to its info.
 	FuncFuncInfoMap funcInfoMap;
-
-	Config* config = nullptr;
 };
 
 } // namespace bin2llvmir

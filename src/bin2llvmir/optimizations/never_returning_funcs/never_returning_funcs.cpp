@@ -10,7 +10,6 @@
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 
 #include "retdec/bin2llvmir/optimizations/never_returning_funcs/never_returning_funcs.h"
-#include "retdec/bin2llvmir/providers/config.h"
 
 #define OPTIMIZATION_NAME "never-returning-funcs"
 #define DEBUG_TYPE OPTIMIZATION_NAME
@@ -194,12 +193,6 @@ void NeverReturningFuncs::visitCallInst(CallInst &callInst) {
 * @brief Initiates the optimization before analyzing the function.
 */
 void NeverReturningFuncs::initBeforeRun() {
-	auto* c = ConfigProvider::getConfig(module);
-	if (c)
-	{
-		c->getConfig().parameters.completedFrontendPasses.insert(getName());
-	}
-
 	// We want save instruction to remove and replace only for one function.
 	// It is need because when we don't do it we will remove same instructions
 	// for all functions which causes segmentation fault.

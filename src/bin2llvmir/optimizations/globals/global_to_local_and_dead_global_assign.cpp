@@ -280,10 +280,6 @@ bool GlobalToLocalAndDeadGlobalAssign::runOnModule(Module &module) {
 	assert(globalToLocal ^ deadGlobalAssign &&
 		"Both -global-to-local and -dead-global-assign cannot run as one optimization.");
 
-	config = ConfigProvider::getConfig(&module);
-
-	addMetadata(module);
-
 	std::set<llvm::GlobalVariable*> globsToOptimize(getGlobsToOptimize(module.getGlobalList()));
 	if (globsToOptimize.empty()) {
 		// Try to optimize variables without use.
@@ -305,24 +301,6 @@ bool GlobalToLocalAndDeadGlobalAssign::runOnModule(Module &module) {
 	doOptimization(module, globsToOptimize);
 
 	return wasSomethingOptimized();
-}
-
-/**
-* @brief Adds metadata to @a module for this optimization.
-*/
-void GlobalToLocalAndDeadGlobalAssign::addMetadata(Module &module) {
-	if (config) {
-		if (globalToLocal) {
-			config->getConfig().parameters.completedFrontendPasses.insert(
-				GlobalToLocal::getPassArg()
-			);
-		}
-		if (deadGlobalAssign) {
-			config->getConfig().parameters.completedFrontendPasses.insert(
-				DeadGlobalAssign::getPassArg()
-			);
-		}
-	}
 }
 
 /**

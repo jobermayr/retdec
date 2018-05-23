@@ -1798,34 +1798,6 @@ GetSelectedButNotFoundFuncsReturnsCorrectValueWhenSuchFuncsExist) {
 	);
 }
 
-//
-// getOptsRunInFrontend()
-//
-
-TEST_F(JSONConfigTests,
-GetOptsRunInFrontendReturnsEmptySetWhenNoOptimizationsRun) {
-	auto config = JSONConfig::empty();
-
-	ASSERT_EQ(StringSet(), config->getOptsRunInFrontend());
-}
-
-TEST_F(JSONConfigTests,
-GetOptsRunInFrontendReturnsCorrectValueWhenOptimizationsRun) {
-	auto config = JSONConfig::fromString(R"({
-		"decompParams": {
-			"completedFrontendPasses": [
-				"opt1",
-				"opt2"
-			]
-		}
-	})");
-
-	ASSERT_EQ(
-		StringSet({"opt1", "opt2"}),
-		config->getOptsRunInFrontend()
-	);
-}
-
 } // namespace tests
 } // namespace llvmir2hll
 } // namespace retdec
