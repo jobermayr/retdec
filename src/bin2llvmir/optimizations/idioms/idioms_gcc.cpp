@@ -11,7 +11,6 @@
 
 #include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/bin2llvmir/optimizations/idioms/idioms_gcc.h"
-#include "retdec/bin2llvmir/providers/config.h"
 
 using namespace llvm;
 using namespace PatternMatch;

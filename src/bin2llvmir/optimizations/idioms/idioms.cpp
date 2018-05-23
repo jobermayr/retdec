@@ -133,7 +133,7 @@ IdiomsAnalysis * Idioms::getCompilerAnalysis(Module &M)
 	}
 
 	// Return initialized instruction idioms analyser.
-	return new IdiomsAnalysis(&M, m_config, i_cc, i_arch);
+	return new IdiomsAnalysis(&M, i_cc, i_arch);
 }
 
 } // namespace bin2llvmir
