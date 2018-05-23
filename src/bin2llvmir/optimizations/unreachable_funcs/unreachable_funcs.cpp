@@ -149,119 +149,57 @@ bool UnreachableFuncs::run()
 		return false;
 	}
 
-	CallGraph& callGraph(getAnalysis<CallGraphWrapperPass>().getCallGraph());
+	callGraph = &getAnalysis<CallGraphWrapperPass>().getCallGraph();
 
 	std::set<llvm::Function*> funcsThatCannotBeOptimized;
-
-	addToSet(
-			ReachableFuncsAnalysis::getReachableDefinedFuncsFor(
-					*mainFunc,
-					*module,
-					callGraph),
-			funcsThatCannotBeOptimized);
-	addToSet(
-			ReachableFuncsAnalysis::getGloballyReachableFuncsFor(*module),
-			funcsThatCannotBeOptimized);
-	addToSet(
-			getFuncsThatCannotBeOptimized(funcsThatCannotBeOptimized),
-			funcsThatCannotBeOptimized);
-
+	getFuncsThatCannotBeOptimized(funcsThatCannotBeOptimized);
 	removeFuncsThatCanBeOptimized(funcsThatCannotBeOptimized);
 
 	return NumFuncsRemoved > 0;
 }
 
-/**
-* @brief Returns functions that can't be optimized.
-*
-* - We don't want optimize functions, that has use in reachable functions. It is
-*   needed because address of these functions can be taken and then used.
-* - We don't want optimize functions which address is taken and stored into
-*   global variables.
-* - We don't want to optimize functions, which are used in statistics.
-*
-* @param[in] reachableFuncs Reachable functions.
-* @param[in] module Current module.
-*/
-std::set<llvm::Function*> UnreachableFuncs::getFuncsThatCannotBeOptimized(
-		const std::set<llvm::Function*>& reachableFuncs) const
+void UnreachableFuncs::getFuncsThatCannotBeOptimized(
+		std::set<llvm::Function*>& funcsThatCannotBeOptimized)
 {
-	std::set<llvm::Function*> result;
-	for (Function& func : *module)
-	{
-		if (cannotBeOptimized(func, reachableFuncs))
-		{
-			result.insert(&func);
-		}
-	}
+	funcsThatCannotBeOptimized.insert(mainFunc);
 
-	return result;
-}
+	addToSet(
+			ReachableFuncsAnalysis::getReachableDefinedFuncsFor(
+					*mainFunc,
+					*module,
+					*callGraph),
+			funcsThatCannotBeOptimized);
+	addToSet(
+			ReachableFuncsAnalysis::getGloballyReachableFuncsFor(*module),
+			funcsThatCannotBeOptimized);
 
-/**
-* @brief Returns functions that can be optimized in a module.
-*
-* @param[in] funcsThatCannotBeOptimized Functions that can't be optimized.
-* @param[in] module We want optimize functions in this module.
-*
-* @return Functions to optimize.
-*/
-std::set<llvm::Function*> UnreachableFuncs::getFuncsThatCanBeOptimized(
-		const std::set<llvm::Function*>& funcsThatCannotBeOptimized) const
-{
-	std::set<llvm::Function*> toBeOptimized;
 	for (Function& func : *module)
 	{
 		if (func.isDeclaration())
 		{
-			// We don't want to optimize functions only with declaration.
-			continue;
+			funcsThatCannotBeOptimized.insert(&func);
 		}
 
-		if (hasItem(funcsThatCannotBeOptimized, &func))
+		if (cannotBeOptimized(func, funcsThatCannotBeOptimized))
 		{
-			continue;
+			funcsThatCannotBeOptimized.insert(&func);
 		}
-
-		if (&func == mainFunc)
-		{
-			// We don't want to remove main function.
-			continue;
-		}
-
-		toBeOptimized.insert(&func);
 	}
-
-	return toBeOptimized;
 }
 
-/**
-* @brief Removes unreachable functions from main.
-*
-* @param[in] funcsThatCannotBeOptimized Functions that can't be optimized.
-* @param[in] module Module with functions.
-*/
 void UnreachableFuncs::removeFuncsThatCanBeOptimized(
 		const std::set<llvm::Function*>& funcsThatCannotBeOptimized)
 {
-	std::set<llvm::Function*> toRemove(
-			getFuncsThatCanBeOptimized(funcsThatCannotBeOptimized));
-	removeFuncsFromModule(toRemove);
-}
-
-/**
-* @brief Removes functions from current module.
-*
-* @param[in] funcsToRemove Functions to remove.
-*/
-void UnreachableFuncs::removeFuncsFromModule(
-		const std::set<llvm::Function*>& funcsToRemove)
-{
-	CallGraph& callGraph(getAnalysis<CallGraphWrapperPass>().getCallGraph());
-	for (Function* func : funcsToRemove)
+	for (auto it = module->begin(), e = module->end(); it != e;)
 	{
-		removeFuncFromModule(*func, callGraph);
-		NumFuncsRemoved++;
+		llvm::Function& func = *it;
+		it++;
+
+		if (!hasItem(funcsThatCannotBeOptimized, &func))
+		{
+			removeFuncFromModule(func, *callGraph);
+			NumFuncsRemoved++;
+		}
 	}
 }
 

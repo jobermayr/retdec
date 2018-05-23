@@ -7,6 +7,7 @@
 #ifndef RETDEC_BIN2LLVMIR_OPTIMIZATIONS_UNREACHABLE_FUNCS_UNREACHABLE_FUNCS_H
 #define RETDEC_BIN2LLVMIR_OPTIMIZATIONS_UNREACHABLE_FUNCS_UNREACHABLE_FUNCS_H
 
+#include <llvm/Analysis/CallGraph.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Pass.h>
 
@@ -37,21 +38,15 @@ class UnreachableFuncs: public llvm::ModulePass
 
 	private:
 		bool run();
-		std::set<llvm::Function*> getReachableFuncs(
-				llvm::Function& startFunc,
-				llvm::Module& module) const;
+		void getFuncsThatCannotBeOptimized(
+				std::set<llvm::Function*>& funcsThatCannotBeOptimized);
 		void removeFuncsThatCanBeOptimized(
 				const std::set<llvm::Function*>& funcsThatCannotBeOptimized);
-		std::set<llvm::Function*> getFuncsThatCannotBeOptimized(
-				const std::set<llvm::Function*>& reachableFuncs) const;
-		std::set<llvm::Function*> getFuncsThatCanBeOptimized(
-				const std::set<llvm::Function*>& funcsThatCannotBeOptimized) const;
-		void removeFuncsFromModule(
-				const std::set<llvm::Function*> &funcsToRemove);
 
 	private:
 		llvm::Module* module = nullptr;
 		Config* config = nullptr;
+		llvm::CallGraph* callGraph = nullptr;
 		llvm::Function *mainFunc = nullptr;
 		unsigned NumFuncsRemoved = 0;
 };
