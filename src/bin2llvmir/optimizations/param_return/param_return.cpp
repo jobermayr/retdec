@@ -121,6 +121,7 @@ bool ParamReturn::runOnModule(Module& m)
 {
 	_module = &m;
 	_config = ConfigProvider::getConfig(_module);
+	_abi = AbiProvider::getAbi(_module);
 	_image = FileImageProvider::getFileImage(_module);
 	_dbgf = DebugFormatProvider::getDebugFormat(_module);
 	_lti = LtiProvider::getLti(_module);
@@ -130,12 +131,14 @@ bool ParamReturn::runOnModule(Module& m)
 bool ParamReturn::runOnModuleCustom(
 		llvm::Module& m,
 		Config* c,
+		Abi* abi,
 		FileImage* img,
 		DebugFormat* dbgf,
 		Lti* lti)
 {
 	_module = &m;
 	_config = c;
+	_abi = abi;
 	_image = img;
 	_dbgf = dbgf;
 	_lti = lti;
@@ -189,6 +192,7 @@ void ParamReturn::collectAllCalls()
 								_module,
 								_RDA,
 								_config,
+								_abi,
 								_image,
 								_dbgf,
 								_lti,
@@ -222,6 +226,7 @@ void ParamReturn::collectAllCalls()
 							_module,
 							_RDA,
 							_config,
+							_abi,
 							_image,
 							_dbgf,
 							_lti,
@@ -583,6 +588,7 @@ DataFlowEntry::DataFlowEntry(
 		llvm::Module* m,
 		ReachingDefinitionsAnalysis& rda,
 		Config* c,
+		Abi* abi,
 		FileImage* img,
 		DebugFormat* dbg,
 		Lti* lti,
@@ -591,6 +597,7 @@ DataFlowEntry::DataFlowEntry(
 		_module(m),
 		_RDA(rda),
 		_config(c),
+		_abi(abi),
 		_image(img),
 		_lti(lti),
 		called(v)
@@ -1560,7 +1567,7 @@ void DataFlowEntry::applyToIrVariadic()
 		for (Type* t : types)
 		{
 			LOG << "\ttype : " << llvmObjToString(t) << std::endl;
-			int sz = static_cast<int>(getTypeByteSizeInBinary(_module, t));
+			int sz = static_cast<int>(_abi->getTypeByteSize(t));
 			sz = sz > 4 ? 8 : 4;
 
 			if (_config->getConfig().architecture.isX86())

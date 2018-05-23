@@ -53,6 +53,12 @@ class Abi
 	public:
 		virtual bool isNopInstruction(AsmInstruction ai) = 0;
 
+	// Types.
+	//
+	public:
+		std::size_t getTypeByteSize(llvm::Type* t);
+		std::size_t getTypeBitSize(llvm::Type* t);
+
 	// Private data - misc.
 	//
 	protected:

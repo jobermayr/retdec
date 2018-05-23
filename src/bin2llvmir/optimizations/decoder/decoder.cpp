@@ -727,7 +727,7 @@ bool Decoder::getJumpTargetsFromInstruction(
 				if (auto* ci = dyn_cast<ConstantInt>(st.value))
 				{
 					Address t(ci->getZExtValue());
-					auto sz = getTypeByteSizeInBinary(_module, l->getType());
+					auto sz = _abi->getTypeByteSize(l->getType());
 					AddressRange r(t, t+sz);
 					_ranges.remove(r);
 
@@ -1176,7 +1176,7 @@ if (brToSwitch)
 
 			maxIdx = idx > maxIdx ? idx : maxIdx;
 			idxs.push_back(idx);
-			tableAddr2 += getTypeByteSizeInBinary(_module, ci->getType());
+			tableAddr2 += _abi->getTypeByteSize(ci->getType());
 		}
 	}
 

@@ -975,22 +975,6 @@ llvm::PointerType* getVoidPointerType(llvm::LLVMContext& ctx)
 }
 
 /**
- * @return Byte size that value of a provided @c type occupies in the binary.
- */
-size_t getTypeByteSizeInBinary(llvm::Module* module, llvm::Type* type)
-{
-	return module->getDataLayout().getTypeStoreSize(type);
-}
-
-/**
- * @return Bit size that value of a provided @c type occupies in the binary.
- */
-size_t getTypeBitSizeInBinary(llvm::Module* module, llvm::Type* type)
-{
-	return module->getDataLayout().getTypeSizeInBits(type);
-}
-
-/**
  * Parse format string @a format used in functions such as @c printf or @c scanf
  * into vector of data types in context of module @a module.
  * If @a calledFnc provided and called function name contains "scan" string, all

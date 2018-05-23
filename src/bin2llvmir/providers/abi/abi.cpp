@@ -79,6 +79,17 @@ void Abi::addRegister(uint32_t id, llvm::GlobalVariable* reg)
 	_regs2id.emplace(reg, id);
 }
 
+std::size_t Abi::getTypeByteSize(llvm::Type* t)
+{
+	assert(_module);
+	return _module->getDataLayout().getTypeStoreSize(t);
+}
+
+std::size_t Abi::getTypeBitSize(llvm::Type* t)
+{
+	return _module->getDataLayout().getTypeSizeInBits(t);
+}
+
 //
 //==============================================================================
 // AbiProvider

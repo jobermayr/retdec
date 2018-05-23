@@ -54,7 +54,8 @@ FileImage::FileImage(
 		Config* config)
 		:
 		_module(m),
-		_image(std::move(img))
+		_image(std::move(img)),
+		_abi(AbiProvider::getAbi(_module))
 {
 	if (_image == nullptr)
 	{
@@ -105,7 +106,7 @@ ConstantInt* FileImage::getConstantInt(
 	}
 
 	std::uint64_t v = 0;
-	auto s = getTypeByteSizeInBinary(_module, t);
+	auto s = _abi->getTypeByteSize(t);
 	return _image->getXByte(addr, s, v) ? ConstantInt::get(t, v) : nullptr;
 }
 
@@ -255,7 +256,7 @@ llvm::Constant* FileImage::getConstantStruct(
 		if (ec == nullptr)
 			return nullptr;
 
-		offset += getTypeByteSizeInBinary(_module, e);
+		offset += _abi->getTypeByteSize(e);
 		vc.push_back(ec);
 	}
 
@@ -270,7 +271,7 @@ llvm::Constant* FileImage::getConstantArray(
 	size_t offset = 0;
 	auto elemNum = type->getNumElements();
 	auto* elemType = type->getElementType();
-	auto elemSize = getTypeByteSizeInBinary(_module, elemType);
+	auto elemSize = _abi->getTypeByteSize(elemType);
 
 	for (std::size_t i = 0; i < elemNum; ++i)
 	{

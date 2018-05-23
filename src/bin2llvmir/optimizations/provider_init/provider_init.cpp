@@ -62,6 +62,8 @@ bool ProviderInitialization::runOnModule(Module& m)
 		return false;
 	}
 
+	AbiProvider::addAbi(&m, c);
+
 	auto* d = DemanglerProvider::addDemangler(&m, c->getConfig().tools);
 	if (d == nullptr)
 	{
@@ -87,8 +89,6 @@ bool ProviderInitialization::runOnModule(Module& m)
 	auto* lti = LtiProvider::addLti(&m, c, f->getImage());
 
 	NamesProvider::addNames(&m, c, debug, f, d, lti);
-
-	AbiProvider::addAbi(&m, c);
 
 	AsmInstruction::clear();
 

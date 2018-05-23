@@ -12,6 +12,7 @@
 #include <llvm/IR/Value.h>
 
 #include "retdec/utils/address.h"
+#include "retdec/bin2llvmir/providers/abi/abi.h"
 #include "retdec/bin2llvmir/providers/config.h"
 #include "retdec/bin2llvmir/providers/debugformat.h"
 #include "retdec/loader/loader/image.h"
@@ -82,6 +83,7 @@ class FileImage
 	private:
 		llvm::Module* _module = nullptr;
 		std::unique_ptr<retdec::loader::Image> _image;
+		Abi* _abi = nullptr;
 };
 
 /**

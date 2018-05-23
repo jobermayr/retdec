@@ -61,9 +61,6 @@ llvm::IntegerType* getCharType(llvm::LLVMContext& ctx);
 llvm::PointerType* getCharPointerType(llvm::LLVMContext& ctx);
 llvm::PointerType* getVoidPointerType(llvm::LLVMContext& ctx);
 
-size_t getTypeByteSizeInBinary(llvm::Module* module, llvm::Type* type);
-size_t getTypeBitSizeInBinary(llvm::Module* module, llvm::Type* type);
-
 std::vector<llvm::Type*> parseFormatString(
 		llvm::Module* module,
 		const std::string& format,

@@ -14,13 +14,8 @@
 #include <llvm/IR/Instruction.h>
 #include <llvm/IR/Instructions.h>
 
-#include "retdec/bin2llvmir/utils/utils.h"
-#include "retdec/utils/conversion.h"
-#include "retdec/utils/string.h"
 #include "retdec/utils/time.h"
 #include "retdec/bin2llvmir/optimizations/dsm_generator/dsm_generator.h"
-#include "retdec/bin2llvmir/utils/debug.h"
-#include "retdec/bin2llvmir/utils/type.h"
 
 using namespace retdec::utils;
 using namespace llvm;
@@ -56,9 +51,9 @@ bool DsmGenerator::runOnModule(Module& m)
 	_config = ConfigProvider::getConfig(_module);
 	if (_config == nullptr)
 	{
-		LOG << "[ABORT] config file is not available\n";
 		return false;
 	}
+	_abi = AbiProvider::getAbi(_module);
 
 	// New output name.
 	//
@@ -107,25 +102,21 @@ bool DsmGenerator::runOnModuleCustom(
 		llvm::Module& m,
 		Config* c,
 		FileImage* objf,
+		Abi* abi,
 		std::ostream& ret)
 {
 	_module = &m;
 	_config = c;
 	_objf = objf;
+	_abi = abi;
 	run(ret);
 	return false;
 }
 
 void DsmGenerator::run(std::ostream& ret)
 {
-	if (_config == nullptr)
+	if (_config == nullptr || _objf == nullptr || _abi == nullptr)
 	{
-		LOG << "[ABORT] config file is not available\n";
-		return;
-	}
-	if (_objf == nullptr)
-	{
-		LOG << "[ABORT] file image is not available\n";
 		return;
 	}
 
@@ -494,7 +485,7 @@ void DsmGenerator::generateDataRange(
 				addr += sz;
 			}
 
-			auto sz = getTypeByteSizeInBinary(_module, init->getType());
+			auto sz = _abi->getTypeByteSize(init->getType());
 			generateData(ret, addr, sz, val);
 			addr += sz;
 		}
@@ -725,7 +716,7 @@ std::string DsmGenerator::getString(
 		{
 			str.pop_back();
 		}
-		size_t sz = getTypeBitSizeInBinary(_module, cda->getElementType());
+		size_t sz = _abi->getTypeBitSize(cda->getElementType());
 		ret = "L\"" + asEscapedCString(str, sz) + "\"";
 	}
 

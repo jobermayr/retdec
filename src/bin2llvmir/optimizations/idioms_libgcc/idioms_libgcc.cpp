@@ -351,25 +351,8 @@ llvm::Value* IdiomsLibgccImpl::getRes0<double>(llvm::CallInst* call, llvm::Value
 {
 	auto* m = call->getModule();
 	auto* resType = res0Double->getType()->getElementType();
-
-	// New conversion:
-	// double -> float -> i32
-	// Old conversion:
-	// double -> i64 -> i32
-	// Problem was that the old one caused integer trunc & ext when register
-	// was localized -> 32 bit shift left & right -> 100000000 * X / 100000000.
-	//
-	if (getTypeBitSizeInBinary(m, resType) == 32)
-	{
-		auto* c1 = convertValueToType(res, Type::getFloatTy(m->getContext()), call);
-		auto* c2 = convertValueToType(c1, resType, call);
-		return new llvm::StoreInst(c2, res0Double, call);
-	}
-	else
-	{
-		auto* c = convertValueToType(res, resType, call);
-		return new llvm::StoreInst(c, res0Double, call);
-	}
+	auto* c = convertValueToType(res, resType, call);
+	return new llvm::StoreInst(c, res0Double, call);
 }
 
 template<>
