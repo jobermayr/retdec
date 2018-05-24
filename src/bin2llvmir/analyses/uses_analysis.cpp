@@ -4,14 +4,11 @@
 * @copyright (c) 2017 Avast Software, licensed under the MIT license
 */
 
-#include <set>
-
 #include <llvm/IR/Instructions.h>
 #include <llvm/Support/raw_ostream.h>
 
 #include "retdec/utils/container.h"
 #include "retdec/bin2llvmir/analyses/uses_analysis.h"
-#include "retdec/bin2llvmir/utils/instruction.h"
 
 using namespace retdec::utils;
 using namespace llvm;

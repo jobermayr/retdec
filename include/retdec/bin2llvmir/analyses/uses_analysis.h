@@ -7,9 +7,10 @@
 #ifndef RETDEC_BIN2LLVMIR_ANALYSES_USES_ANALYSIS_H
 #define RETDEC_BIN2LLVMIR_ANALYSES_USES_ANALYSIS_H
 
-#include <llvm/IR/GlobalVariable.h>
+#include <map>
+#include <set>
 
-#include "retdec/bin2llvmir/utils/debug.h"
+#include <llvm/IR/GlobalVariable.h>
 
 namespace retdec {
 namespace bin2llvmir {
