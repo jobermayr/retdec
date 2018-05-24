@@ -15,7 +15,6 @@
 #include "retdec/bin2llvmir/analyses/traversal/bb_traversal_analysis.h"
 #include "retdec/bin2llvmir/analyses/traversal/func_traversal_analysis.h"
 #include "retdec/bin2llvmir/analyses/uses_analysis.h"
-#include "retdec/bin2llvmir/utils/debug.h"
 
 namespace retdec {
 namespace bin2llvmir {
