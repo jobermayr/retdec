@@ -66,6 +66,12 @@ class SymbolicTree
 		std::vector<SymbolicTree*> getPostOrder() const;
 		std::vector<SymbolicTree*> getLevelOrder() const;
 
+		bool isNullary() const;
+		bool isUnary() const;
+		bool isBinary() const;
+		bool isTernary() const;
+		bool isNary(unsigned N) const;
+
 	// This is a private constructor, do not use it. It is made public only
 	// so it can be used in std::vector<>::emplace_back().
 	//

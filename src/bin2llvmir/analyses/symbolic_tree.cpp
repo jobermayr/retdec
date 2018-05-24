@@ -714,5 +714,30 @@ void SymbolicTree::fixLevel(unsigned level)
 	}
 }
 
+bool SymbolicTree::isNullary() const
+{
+	return ops.size() == 0;
+}
+
+bool SymbolicTree::isUnary() const
+{
+	return ops.size() == 1;
+}
+
+bool SymbolicTree::isBinary() const
+{
+	return ops.size() == 2;
+}
+
+bool SymbolicTree::isTernary() const
+{
+	return ops.size() == 3;
+}
+
+bool SymbolicTree::isNary(unsigned N) const
+{
+	return ops.size() == N;
+}
+
 } // namespace bin2llvmir
 } // namespace retdec
