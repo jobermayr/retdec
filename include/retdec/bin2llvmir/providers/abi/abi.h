@@ -45,8 +45,12 @@ class Abi
 		llvm::GlobalVariable* getRegister(uint32_t r);
 		uint32_t getRegisterId(llvm::Value* r);
 		const std::vector<llvm::GlobalVariable*>& getRegisters() const;
+		llvm::GlobalVariable* getStackPointerRegister();
 
 		void addRegister(uint32_t id, llvm::GlobalVariable* reg);
+
+		llvm::GlobalVariable* getSyscallReturnRegister();
+		llvm::GlobalVariable* getSyscallArgumentRegister(unsigned n);
 
 	// Instructions.
 	//
@@ -77,8 +81,16 @@ class Abi
 		/// Fast "is LLVM value a register?" check.
 		/// Fast "LLVM value -> capstone id" search.
 		std::map<const llvm::Value*, uint32_t> _regs2id;
+
 		/// ID of stack pointer register.
 		uint32_t _regStackPointerId = REG_INVALID;
+		/// ID of register where function return values are stored.
+		uint32_t _regFunctionReturnId = REG_INVALID;
+
+		/// Ordered list of registers used in system calls.
+		std::vector<uint32_t> _syscallRegs;
+		/// Register used for returning values from system calls.
+		uint32_t _regSyscallReturn = REG_INVALID;
 };
 
 class AbiProvider

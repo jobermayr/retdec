@@ -48,7 +48,7 @@ bool Abi::isFlagRegister(const llvm::Value* val)
 
 bool Abi::isStackPointerRegister(const llvm::Value* val)
 {
-	return getRegister(_regStackPointerId) == val;
+	return getStackPointerRegister() == val;
 }
 
 llvm::GlobalVariable* Abi::getRegister(uint32_t r)
@@ -68,6 +68,11 @@ const std::vector<llvm::GlobalVariable*>& Abi::getRegisters() const
 	return _regs;
 }
 
+llvm::GlobalVariable* Abi::getStackPointerRegister()
+{
+	return getRegister(_regStackPointerId);
+}
+
 void Abi::addRegister(uint32_t id, llvm::GlobalVariable* reg)
 {
 	if (id >= _id2regs.size())
@@ -77,6 +82,16 @@ void Abi::addRegister(uint32_t id, llvm::GlobalVariable* reg)
 	_regs.emplace_back(reg);
 	_id2regs[id] = reg;
 	_regs2id.emplace(reg, id);
+}
+
+llvm::GlobalVariable* Abi::getSyscallReturnRegister()
+{
+	return getRegister(_regSyscallReturn);
+}
+
+llvm::GlobalVariable* Abi::getSyscallArgumentRegister(unsigned n)
+{
+	return n < _syscallRegs.size() ? getRegister(_syscallRegs[n]) : nullptr;
 }
 
 bool Abi::isNopInstruction(AsmInstruction ai)

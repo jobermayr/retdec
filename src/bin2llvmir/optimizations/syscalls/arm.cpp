@@ -8,13 +8,14 @@
 
 #include <llvm/IR/Constants.h>
 
-#include "retdec/bin2llvmir/utils/utils.h"
 #include "retdec/bin2llvmir/optimizations/syscalls/syscalls.h"
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
+#include "retdec/bin2llvmir/utils/ir_modifier.h"
 #include "retdec/bin2llvmir/utils/debug.h"
-#include "retdec/bin2llvmir/utils/type.h"
+const bool debug_enabled = false;
 
 using namespace llvm;
+using namespace retdec::utils;
 
 #define debug_enabled false
 
@@ -405,6 +406,58 @@ std::map<uint64_t, std::string> armSyscalls =
 namespace retdec {
 namespace bin2llvmir {
 
+bool getSyscallCode(FileImage* image, bool isThumb, Address addr, uint64_t code)
+{
+	bool res = false;
+	if (image->getImage()->isLittleEndian())
+	{
+		if (isThumb)
+		{
+			res = image->getImage()->get1Byte(addr, code);
+		}
+		else
+		{
+			res = image->getImage()->get2Byte(addr, code);
+		}
+	}
+	else
+	{
+		if (isThumb)
+		{
+			res = image->getImage()->get1Byte(addr + 1, code);
+		}
+		else
+		{
+			res = image->getImage()->get2Byte(addr + 2, code);
+		}
+	}
+
+	return !res;
+}
+
+bool SyscallFixer::runArm()
+{
+	if (_config->getConfig().fileFormat.isElf())
+	{
+		return runArm_unix();
+	}
+
+	return false;
+}
+
+bool SyscallFixer::runArm_unix()
+{
+	bool changed = false;
+	for (Function& F : *_module)
+	{
+		for (auto ai = AsmInstruction(&F); ai.isValid(); ai = ai.getNext())
+		{
+			changed |= runArm_unix(ai);
+		}
+	}
+	return changed;
+}
+
 /**
  * Sample 8A5C:
  * 160d8:       ea00043b        b       0x171cc
@@ -414,135 +467,101 @@ namespace bin2llvmir {
  *
  * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489c/Cihidabi.html
  */
-bool SyscallFixer::runArm()
+bool SyscallFixer::runArm_unix(AsmInstruction ai)
 {
-	for (auto& F : _module->getFunctionList())
+	if (ai.getCapstoneInsn()->id != ARM_INS_SVC)
 	{
-		auto ai = AsmInstruction(&F);
-		for (; ai.isValid(); ai = ai.getNext())
+		return false;
+	}
+	LOG << "ARM syscall @ " << ai.getAddress() << std::endl;
+
+	uint64_t code = 0;
+	if (getSyscallCode(_image, ai.isThumb(), ai.getAddress(), code))
+	{
+		LOG << "\tgetSyscallCode() failed" << std::endl;
+		return false;
+	}
+	LOG << "\tcode = " << std::dec << code << std::endl;
+
+	auto fit = armSyscalls.find(code);
+	if (fit == armSyscalls.end())
+	{
+		LOG << "\tno syscall entry for code" << std::endl;
+		return false;
+	}
+	std::string callName = fit->second;
+	LOG << "\tfound in syscall map: " << callName << std::endl;
+
+	Function* lf = _module->getFunction(callName);
+	if (lf == nullptr)
+	{
+		lf = _lti->getLlvmFunction(callName);
+	}
+	if (lf == nullptr)
+	{
+		LOG << "\tno function for name" << std::endl;
+		return false;
+	}
+	for (Argument& a : lf->args())
+	{
+		if (!a.getType()->isFirstClassType())
 		{
-			if (ai.getCapstoneInsn()->id != ARM_INS_SVC)
-			{
-				continue;
-			}
-			LOG << "ARM syscall @ " << ai.getAddress() << std::endl;
-
-			uint64_t code = 0;
-			bool res = false;
-			if (_image->getImage()->isLittleEndian())
-			{
-				if (ai.getByteSize() == 2)
-				{
-					res = _image->getImage()->get1Byte(ai.getAddress(), code);
-				}
-				else
-				{
-					res = _image->getImage()->get2Byte(ai.getAddress(), code);
-				}
-			}
-			else
-			{
-				if (ai.getByteSize() == 2)
-				{
-					res = _image->getImage()->get1Byte(ai.getAddress()+1, code);
-				}
-				else
-				{
-					res = _image->getImage()->get2Byte(ai.getAddress()+2, code);
-				}
-			}
-
-			if (!res)
-			{
-				continue;
-			}
-
-			LOG << "\tcode = " << std::dec << code << std::endl;
-
-			std::string callName;
-			auto fit = armSyscalls.find(code);
-			if (fit != armSyscalls.end())
-			{
-				callName = fit->second;
-				LOG << "\tfound in syscall map: " << callName << std::endl;
-			}
-			else
-			{
-				callName = "syscall_" + std::to_string(code);
-				LOG << "\tnot in syscall map, using: " << callName << std::endl;
-			}
-
-			auto* lf = _module->getFunction(callName);
-			if (lf)
-			{
-				LOG << "\thave function in LLVM IR" << std::endl;
-			}
-			else
-			{
-				LOG << "\tno function in LLVM IR" << std::endl;
-
-				lf = _lti->getLlvmFunction(callName);
-				if (lf)
-				{
-					LOG << "\tfunction in LTI: " << llvmObjToString(lf) << std::endl;
-				}
-				else
-				{
-					LOG << "\tno function in LTI" << std::endl;
-				}
-			}
-
-			ai.eraseInstructions();
-
-			if (lf == nullptr)
-			{
-				continue;
-			}
-
-			auto* cf = _config->getConfigFunction(lf);
-			cf->setIsSyscall();
-
-			auto* next = ai.getLlvmToAsmInstruction()->getNextNode();
-			assert(next);
-
-			std::vector<std::string> armNames = {"r0", "r1", "r2", "r3"};
-
-			auto rIt = armNames.begin();
-			std::vector<Value*> args;
-			for (auto& a : lf->args())
-			{
-				if (rIt != armNames.end())
-				{
-					auto* r = _module->getNamedGlobal(*rIt);
-					assert(r);
-					auto* l = new LoadInst(r, "", next);
-					args.push_back(convertValueToType(l, a.getType(), next));
-					++rIt;
-				}
-				else
-				{
-					auto* ci = ConstantInt::get(getDefaultType(_module), 0);
-					args.push_back(convertConstantToType(ci, a.getType()));
-				}
-			}
-			auto* call = CallInst::Create(lf, args, "", next);
-			LOG << "\t===> " << llvmObjToString(call) << std::endl;
-
-			if (!lf->getReturnType()->isVoidTy())
-			{
-				auto* r = _module->getNamedGlobal("r0");
-				assert(r);
-				auto* conv = convertValueToType(
-						call,
-						r->getType()->getElementType(),
-						next);
-				auto* s = new StoreInst(conv, r, next);
-				LOG << "\t===> " << llvmObjToString(s) << std::endl;
-			}
+			LOG << "\tnone first class type argument" << std::endl;
+			return false;
 		}
 	}
 
-	return false;
+	if (ai.eraseInstructions())
+	{
+		LOG << "\tasm instruction cannot be erased" << std::endl;
+	}
+
+	if (auto* cf = _config->getConfigFunction(lf))
+	{
+		cf->setIsSyscall();
+	}
+
+	Instruction* next = ai.getLlvmToAsmInstruction()->getNextNode();
+	if (next == nullptr)
+	{
+		LOG << "\tno next instruction (should not be possible)" << std::endl;
+		return false;
+	}
+
+	unsigned cntr = 0;
+	std::vector<Value*> args;
+	for (Argument& a : lf->args())
+	{
+		if (auto* reg = _abi->getSyscallArgumentRegister(cntr++))
+		{
+			auto* l = new LoadInst(reg, "", next);
+			args.push_back(IrModifier::convertValueToType(l, a.getType(), next));
+		}
+		else
+		{
+			// If it gets here, function has only first class type arguments.
+			// Otherwise, this would fail to get undef value.
+			args.push_back(UndefValue::get(a.getType()));
+		}
+	}
+
+	auto* call = CallInst::Create(lf, args, "", next);
+	LOG << "\t===> " << llvmObjToString(call) << std::endl;
+
+	if (!lf->getReturnType()->isVoidTy())
+	{
+		if (auto* reg = _abi->getSyscallReturnRegister())
+		{
+			auto* conv = IrModifier::convertValueToType(
+					call,
+					reg->getType()->getElementType(),
+					next);
+			auto* s = new StoreInst(conv, reg, next);
+			LOG << "\t===> " << llvmObjToString(s) << std::endl;
+		}
+	}
+
+	return true;
 }
 
 } // namespace bin2llvmir

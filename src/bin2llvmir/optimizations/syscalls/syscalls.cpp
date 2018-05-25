@@ -33,6 +33,7 @@ bool SyscallFixer::runOnModule(llvm::Module& M)
 	_config = ConfigProvider::getConfig(_module);
 	_image = FileImageProvider::getFileImage(_module);
 	_lti = LtiProvider::getLti(_module);
+	_abi = AbiProvider::getAbi(_module);
 	return run();
 }
 
@@ -40,12 +41,14 @@ bool SyscallFixer::runOnModuleCustom(
 		llvm::Module& M,
 		Config* c,
 		FileImage* img,
-		Lti* lti)
+		Lti* lti,
+		Abi* abi)
 {
 	_module = &M;
 	_config = c;
 	_image = img;
 	_lti = lti;
+	_abi = abi;
 	return run();
 }
 
