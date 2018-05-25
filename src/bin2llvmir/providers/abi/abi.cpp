@@ -112,7 +112,18 @@ std::size_t Abi::getTypeByteSize(llvm::Type* t)
 
 std::size_t Abi::getTypeBitSize(llvm::Type* t)
 {
+	assert(_module);
 	return _module->getDataLayout().getTypeSizeInBits(t);
+}
+
+std::size_t Abi::getTypeByteSize(llvm::Module* m, llvm::Type* t)
+{
+	return m->getDataLayout().getTypeStoreSize(t);
+}
+
+std::size_t Abi::getTypeBitSize(llvm::Module* m, llvm::Type* t)
+{
+	return m->getDataLayout().getTypeSizeInBits(t);
 }
 
 //

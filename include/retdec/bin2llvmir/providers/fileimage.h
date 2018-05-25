@@ -83,7 +83,6 @@ class FileImage
 	private:
 		llvm::Module* _module = nullptr;
 		std::unique_ptr<retdec::loader::Image> _image;
-		Abi* _abi = nullptr;
 };
 
 /**

@@ -64,6 +64,8 @@ class Abi
 	public:
 		std::size_t getTypeByteSize(llvm::Type* t);
 		std::size_t getTypeBitSize(llvm::Type* t);
+		static std::size_t getTypeByteSize(llvm::Module* m, llvm::Type* t);
+		static std::size_t getTypeBitSize(llvm::Module* m, llvm::Type* t);
 
 	// Private data - misc.
 	//
