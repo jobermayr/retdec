@@ -15,6 +15,12 @@
 namespace retdec {
 namespace bin2llvmir {
 
+/**
+ * InstructionOptimizer pass (-inst-opt) *MUST* run before this pass.
+ * We need the following transformations to match more patterns:
+ *   - xor i1 x, y  ->  icmp ne i1 x, y
+ *   - and i1 x, y  ->  icmp eq i1 x, y
+ */
 class CondBranchOpt : public llvm::ModulePass
 {
 	public:
@@ -28,6 +34,13 @@ class CondBranchOpt : public llvm::ModulePass
 		bool runOnInstruction(
 				ReachingDefinitionsAnalysis& RDA,
 				llvm::Instruction& i);
+
+		bool transformConditionSub(
+				llvm::BranchInst* br,
+				llvm::Value* testedVal,
+				llvm::Value* subVal,
+				llvm::Instruction* binOp,
+				llvm::CmpInst::Predicate predicate);
 
 	private:
 		llvm::Module* _module = nullptr;

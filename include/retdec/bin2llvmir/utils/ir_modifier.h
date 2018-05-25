@@ -21,9 +21,38 @@ class IrModifier
 		using FunctionPair = std::pair<llvm::Function*, retdec::config::Function*>;
 		using StackPair = std::pair<llvm::AllocaInst*, retdec::config::Object*>;
 
+	// Methods not using member data -> do not need instance of this class.
+	// Can be used simply like this: \c IrModifier::method().
+	//
+	public:
+		static bool localize(
+				llvm::StoreInst* definition,
+				std::set<llvm::Instruction*>& uses);
+
+		static llvm::AllocaInst* createAlloca(
+				llvm::Function* fnc,
+				llvm::Type* ty,
+				const std::string& name = "");
+
+		static llvm::Value* convertValueToType(
+				llvm::Value* val,
+				llvm::Type* type,
+				llvm::Instruction* before);
+
+		static llvm::Value* convertValueToTypeAfter(
+				llvm::Value* val,
+				llvm::Type* type,
+				llvm::Instruction* after);
+
+		static llvm::Constant* convertConstantToType(
+				llvm::Constant* val,
+				llvm::Type* type);
+
 	public:
 		IrModifier(llvm::Module* m, Config* c);
 
+	// Methods using member data -> need instance of this class.
+	//
 	public:
 		FunctionPair renameFunction(
 				llvm::Function* fnc,
@@ -34,11 +63,6 @@ class IrModifier
 				int offset,
 				llvm::Type* type,
 				const std::string& name = "stack_var");
-
-	public:
-		static bool localize(
-				llvm::StoreInst* definition,
-				std::set<llvm::Instruction*>& uses);
 
 	protected:
 		llvm::Module* _module = nullptr;

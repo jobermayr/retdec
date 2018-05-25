@@ -347,6 +347,66 @@ TEST_F(OptimizeTests, orXX)
 }
 
 //
+// xor i1 X, Y
+//
+
+TEST_F(OptimizeTests, xor_i1_xy)
+{
+	parseInput(R"(
+		@reg = global i1 1
+		define i1 @fnc() {
+			%a = load i1, i1* @reg
+			%b = xor i1 %a, 1
+			ret i1 %b
+		}
+	)");
+	auto* i = getInstructionByName("b");
+
+	bool ret = inst_opt::optimize(i);
+
+	std::string exp = R"(
+		@reg = global i1 1
+		define i1 @fnc() {
+			%a = load i1, i1* @reg
+			%b = icmp ne i1 %a, 1
+			ret i1 %b
+		}
+	)";
+	checkModuleAgainstExpectedIr(exp);
+	EXPECT_TRUE(ret);
+}
+
+//
+// and i1 X, Y
+//
+
+TEST_F(OptimizeTests, and_i1_xy)
+{
+	parseInput(R"(
+		@reg = global i1 1
+		define i1 @fnc() {
+			%a = load i1, i1* @reg
+			%b = and i1 %a, 1
+			ret i1 %b
+		}
+	)");
+	auto* i = getInstructionByName("b");
+
+	bool ret = inst_opt::optimize(i);
+
+	std::string exp = R"(
+		@reg = global i1 1
+		define i1 @fnc() {
+			%a = load i1, i1* @reg
+			%b = icmp eq i1 %a, 1
+			ret i1 %b
+		}
+	)";
+	checkModuleAgainstExpectedIr(exp);
+	EXPECT_TRUE(ret);
+}
+
+//
 // and X, X
 //
 
@@ -546,6 +606,7 @@ TEST_F(OptimizeTests, castSequence_ptr_int_ptr)
 		}
 	)";
 	checkModuleAgainstExpectedIr(exp);
+	EXPECT_TRUE(ret);
 }
 
 TEST_F(OptimizeTests, castSequence_float_int_float_arg)
@@ -571,6 +632,7 @@ TEST_F(OptimizeTests, castSequence_float_int_float_arg)
 		}
 	)";
 	checkModuleAgainstExpectedIr(exp);
+	EXPECT_TRUE(ret);
 }
 
 TEST_F(OptimizeTests, castSequence_float_int_float_local)
@@ -598,6 +660,7 @@ TEST_F(OptimizeTests, castSequence_float_int_float_local)
 		}
 	)";
 	checkModuleAgainstExpectedIr(exp);
+	EXPECT_TRUE(ret);
 }
 
 TEST_F(OptimizeTests, castSequence_ptr_int_ptr_global)
@@ -660,6 +723,7 @@ TEST_F(OptimizeTests, castSequence_float_int_flot_global)
 		}
 	)";
 	checkModuleAgainstExpectedIr(exp);
+	EXPECT_TRUE(ret);
 }
 
 } // namespace tests
