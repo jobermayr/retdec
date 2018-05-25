@@ -15,7 +15,6 @@
 const bool debug_enabled = false;
 
 using namespace llvm;
-using namespace retdec::utils;
 
 /**
  * http://lxr.free-electrons.com/source/arch/arm/include/asm/unistd.h?v=3.1;a%3Darm
@@ -447,6 +446,8 @@ bool SyscallFixer::runArm_unix(AsmInstruction ai)
 	}
 	LOG << "ARM syscall @ " << ai.getAddress() << std::endl;
 
+	// Find syscall ID.
+	//
 	auto* armAsm = ai.getCapstoneInsn();
 	if (armAsm == nullptr)
 	{
@@ -465,6 +466,8 @@ bool SyscallFixer::runArm_unix(AsmInstruction ai)
 	LOG << "\tcode = " << std::dec << code << " (" << std::hex << code << ")"
 			<< std::endl;
 
+	// Find syscall name.
+	//
 	auto fit = armSyscalls.find(code);
 	if (fit == armSyscalls.end())
 	{
@@ -474,6 +477,8 @@ bool SyscallFixer::runArm_unix(AsmInstruction ai)
 	std::string callName = fit->second;
 	LOG << "\tfound in syscall map: " << callName << std::endl;
 
+	// Find syscall function.
+	//
 	Function* lf = _module->getFunction(callName);
 	if (lf == nullptr)
 	{

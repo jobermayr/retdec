@@ -84,6 +84,11 @@ void Abi::addRegister(uint32_t id, llvm::GlobalVariable* reg)
 	_regs2id.emplace(reg, id);
 }
 
+llvm::GlobalVariable* Abi::getSyscallIdRegister()
+{
+	return getRegister(_regSyscallId);
+}
+
 llvm::GlobalVariable* Abi::getSyscallReturnRegister()
 {
 	return getRegister(_regSyscallReturn);

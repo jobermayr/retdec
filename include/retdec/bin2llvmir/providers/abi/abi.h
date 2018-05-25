@@ -49,6 +49,7 @@ class Abi
 
 		void addRegister(uint32_t id, llvm::GlobalVariable* reg);
 
+		llvm::GlobalVariable* getSyscallIdRegister();
 		llvm::GlobalVariable* getSyscallReturnRegister();
 		llvm::GlobalVariable* getSyscallArgumentRegister(unsigned n);
 
@@ -91,6 +92,8 @@ class Abi
 		std::vector<uint32_t> _syscallRegs;
 		/// Register used for returning values from system calls.
 		uint32_t _regSyscallReturn = REG_INVALID;
+		/// Register used to pass system call ID.
+		uint32_t _regSyscallId = REG_INVALID;
 };
 
 class AbiProvider

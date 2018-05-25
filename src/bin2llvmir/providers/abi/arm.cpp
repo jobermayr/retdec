@@ -19,6 +19,7 @@ AbiArm::AbiArm(llvm::Module* m, Config* c) :
 	_regStackPointerId = ARM_REG_SP;
 
 	// system calls
+	_regSyscallId = ARM_REG_R7;
 	_regSyscallReturn = ARM_REG_R0;
 	_syscallRegs = {
 			ARM_REG_R0,

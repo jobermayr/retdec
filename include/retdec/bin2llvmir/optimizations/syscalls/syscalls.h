@@ -35,9 +35,12 @@ class SyscallFixer : public llvm::ModulePass
 
 	private:
 		bool run();
-		bool runMips();
 		bool runX86();
 		bool x86TransformToDummySyscall(AsmInstruction& ai);
+
+		bool runMips();
+		bool runMips_unix();
+		bool runMips_unix(AsmInstruction ai);
 
 		bool runArm();
 		bool runArm_unix();
