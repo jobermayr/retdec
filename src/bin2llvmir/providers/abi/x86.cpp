@@ -17,6 +17,17 @@ AbiX86::AbiX86(llvm::Module* m, Config* c) :
 	_regs.reserve(X86_REG_ENDING);
 	_id2regs.resize(X86_REG_ENDING, nullptr);
 	_regStackPointerId = X86_REG_ESP;
+
+	// system calls
+	_regSyscallId = X86_REG_EAX;
+	_regSyscallReturn = X86_REG_EAX;
+	_syscallRegs = {
+			X86_REG_EBX,
+			X86_REG_ECX,
+			X86_REG_EDX,
+			X86_REG_ESI,
+			X86_REG_EDI,
+			X86_REG_EBP};
 }
 
 AbiX86::~AbiX86()

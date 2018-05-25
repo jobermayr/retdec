@@ -12,7 +12,7 @@
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
 #include "retdec/bin2llvmir/utils/ir_modifier.h"
 #include "retdec/bin2llvmir/utils/debug.h"
-const bool debug_enabled = true;
+const bool debug_enabled = false;
 
 using namespace llvm;
 
@@ -250,26 +250,26 @@ bool SyscallFixer::runMips()
 {
 	if (_config->getConfig().fileFormat.isElf())
 	{
-		return runMips_unix();
+		return runMips_linux();
 	}
 
 	return false;
 }
 
-bool SyscallFixer::runMips_unix()
+bool SyscallFixer::runMips_linux()
 {
 	bool changed = false;
 	for (Function& F : *_module)
 	{
 		for (auto ai = AsmInstruction(&F); ai.isValid(); ai = ai.getNext())
 		{
-			changed |= runMips_unix(ai);
+			changed |= runMips_linux(ai);
 		}
 	}
 	return changed;
 }
 
-bool SyscallFixer::runMips_unix(AsmInstruction ai)
+bool SyscallFixer::runMips_linux(AsmInstruction ai)
 {
 	auto* mipsAsm = ai.getCapstoneInsn();
 	if (mipsAsm == nullptr || mipsAsm->id != MIPS_INS_SYSCALL)
@@ -353,8 +353,6 @@ bool SyscallFixer::runMips_unix(AsmInstruction ai)
 		return false;
 	}
 
-	std::vector<std::string> mipsNames = {"a0", "a1", "a2", "a3"};
-
 	unsigned cntr = 0;
 	std::vector<Value*> args;
 	for (Argument& a : lf->args())
@@ -387,6 +385,7 @@ bool SyscallFixer::runMips_unix(AsmInstruction ai)
 			LOG << "\t===> " << llvmObjToString(s) << std::endl;
 		}
 	}
+
 	return true;
 }
 

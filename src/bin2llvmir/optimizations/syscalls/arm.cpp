@@ -22,7 +22,7 @@ using namespace llvm;
  * https://w3challs.com/syscalls/?arch=arm_strong
  * https://w3challs.com/syscalls/?arch=arm_thumb
  */
-std::map<uint64_t, std::string> armSyscalls =
+std::map<uint64_t, std::string> syscalls_arm_linux_32 =
 {
 	{0, "restart_syscall"},
 	{1, "exit"},
@@ -408,22 +408,22 @@ namespace bin2llvmir {
 
 bool SyscallFixer::runArm()
 {
-	if (_config->getConfig().fileFormat.isElf())
+	if (_config->getConfig().fileFormat.isElf32())
 	{
-		return runArm_unix();
+		return runArm_linux_32();
 	}
 
 	return false;
 }
 
-bool SyscallFixer::runArm_unix()
+bool SyscallFixer::runArm_linux_32()
 {
 	bool changed = false;
 	for (Function& F : *_module)
 	{
 		for (auto ai = AsmInstruction(&F); ai.isValid(); ai = ai.getNext())
 		{
-			changed |= runArm_unix(ai);
+			changed |= runArm_linux_32(ai);
 		}
 	}
 	return changed;
@@ -438,9 +438,10 @@ bool SyscallFixer::runArm_unix()
  *
  * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489c/Cihidabi.html
  */
-bool SyscallFixer::runArm_unix(AsmInstruction ai)
+bool SyscallFixer::runArm_linux_32(AsmInstruction ai)
 {
-	if (ai.getCapstoneInsn()->id != ARM_INS_SVC)
+	auto* armAsm = ai.getCapstoneInsn();
+	if (armAsm == nullptr || armAsm->id != ARM_INS_SVC)
 	{
 		return false;
 	}
@@ -448,12 +449,6 @@ bool SyscallFixer::runArm_unix(AsmInstruction ai)
 
 	// Find syscall ID.
 	//
-	auto* armAsm = ai.getCapstoneInsn();
-	if (armAsm == nullptr)
-	{
-		LOG << "\tno ARM asm instruction" << std::endl;
-		return false;
-	}
 	auto& detail = armAsm->detail->arm;
 	if (detail.op_count != 1
 			|| detail.operands[0].type != ARM_OP_IMM)
@@ -468,8 +463,8 @@ bool SyscallFixer::runArm_unix(AsmInstruction ai)
 
 	// Find syscall name.
 	//
-	auto fit = armSyscalls.find(code);
-	if (fit == armSyscalls.end())
+	auto fit = syscalls_arm_linux_32.find(code);
+	if (fit == syscalls_arm_linux_32.end())
 	{
 		LOG << "\tno syscall entry for code" << std::endl;
 		return false;
