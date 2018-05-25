@@ -502,16 +502,17 @@ bool SyscallFixer::runX86_linux_32(AsmInstruction ai)
 	LOG << "\tcode instruction: " << llvmObjToString(code) << std::endl;
 	LOG << "\tcode : " << std::dec << ci->getZExtValue() << std::endl;
 
+// =============================================================================
+
 	// Find syscall name.
 	//
-	std::string callName;
 	auto fit = x86Syscalls.find(ci->getZExtValue());
 	if (fit == x86Syscalls.end())
 	{
 		LOG << "\tno syscall entry for code" << std::endl;
 		return false;
 	}
-	callName = fit->second;
+	std::string callName = fit->second;
 	LOG << "\tfound in syscall map: " << callName << std::endl;
 
 	// Find syscall function.

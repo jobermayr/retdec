@@ -461,6 +461,8 @@ bool SyscallFixer::runArm_linux_32(AsmInstruction ai)
 	LOG << "\tcode = " << std::dec << code << " (" << std::hex << code << ")"
 			<< std::endl;
 
+// =============================================================================
+
 	// Find syscall name.
 	//
 	auto fit = syscalls_arm_linux_32.find(code);

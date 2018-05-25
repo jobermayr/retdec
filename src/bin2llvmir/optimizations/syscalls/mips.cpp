@@ -303,16 +303,17 @@ bool SyscallFixer::runMips_linux(AsmInstruction ai)
 	LOG << "\tcode instruction: " << llvmObjToString(code) << std::endl;
 	LOG << "\tcode: " << std::dec << ci->getZExtValue() << std::endl;
 
+// =============================================================================
+
 	// Find syscall name.
 	//
-	std::string callName;
 	auto fit = mipsSyscalls.find(ci->getZExtValue());
 	if (fit == mipsSyscalls.end())
 	{
 		LOG << "\tno syscall entry for code" << std::endl;
 		return false;
 	}
-	callName = fit->second;
+	std::string callName = fit->second;
 	LOG << "\tfound in syscall map: " << callName << std::endl;
 
 	// Find syscall function.
