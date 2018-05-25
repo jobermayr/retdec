@@ -14,6 +14,8 @@
 #include "retdec/bin2llvmir/providers/config.h"
 #include "retdec/bin2llvmir/providers/fileimage.h"
 #include "retdec/bin2llvmir/providers/lti.h"
+#include "retdec/bin2llvmir/utils/debug.h"
+const bool debug_enabled = false;
 
 namespace retdec {
 namespace bin2llvmir {
@@ -35,6 +37,10 @@ class SyscallFixer : public llvm::ModulePass
 
 	private:
 		bool run();
+		bool transform(
+				AsmInstruction ai,
+				uint64_t code,
+				const std::map<uint64_t, std::string>& codeMap);
 
 		bool runArm();
 		bool runArm_linux_32();

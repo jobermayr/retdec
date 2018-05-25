@@ -10,9 +10,6 @@
 
 #include "retdec/bin2llvmir/optimizations/syscalls/syscalls.h"
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
-#include "retdec/bin2llvmir/utils/ir_modifier.h"
-#include "retdec/bin2llvmir/utils/debug.h"
-const bool debug_enabled = false;
 
 using namespace llvm;
 
@@ -26,7 +23,7 @@ using namespace llvm;
  * https://w3challs.com/syscalls/?arch=mips_n32
  * https://w3challs.com/syscalls/?arch=mips_n64
  */
-std::map<uint64_t, std::string> mipsSyscalls =
+std::map<uint64_t, std::string> syscalls_mips_linux =
 {
 	{4001, "exit"},
 	{4002, "fork"},
@@ -281,7 +278,7 @@ bool SyscallFixer::runMips_linux(AsmInstruction ai)
 	// Find syscall ID.
 	//
 	auto* syscallIdReg = _abi->getSyscallIdRegister();
-	StoreInst* code = nullptr;
+	StoreInst* store = nullptr;
 	Instruction* it = ai.getLlvmToAsmInstruction()->getPrevNode();
 	for (; it != nullptr; it = it->getPrevNode())
 	{
@@ -289,105 +286,21 @@ bool SyscallFixer::runMips_linux(AsmInstruction ai)
 		{
 			if (s->getPointerOperand() == syscallIdReg)
 			{
-				code = s;
+				store = s;
 				break;
 			}
 		}
 	}
-	if (code == nullptr || !isa<ConstantInt>(code->getValueOperand()))
+	if (store == nullptr || !isa<ConstantInt>(store->getValueOperand()))
 	{
 		LOG << "\tsyscall code not found" << std::endl;
 		return false;
 	}
-	auto* ci = cast<ConstantInt>(code->getValueOperand());
-	LOG << "\tcode instruction: " << llvmObjToString(code) << std::endl;
-	LOG << "\tcode: " << std::dec << ci->getZExtValue() << std::endl;
+	uint64_t code = cast<ConstantInt>(store->getValueOperand())->getZExtValue();
+	LOG << "\tcode instruction: " << llvmObjToString(store) << std::endl;
+	LOG << "\tcode: " << std::dec << code << std::endl;
 
-// =============================================================================
-
-	// Find syscall name.
-	//
-	auto fit = mipsSyscalls.find(ci->getZExtValue());
-	if (fit == mipsSyscalls.end())
-	{
-		LOG << "\tno syscall entry for code" << std::endl;
-		return false;
-	}
-	std::string callName = fit->second;
-	LOG << "\tfound in syscall map: " << callName << std::endl;
-
-	// Find syscall function.
-	//
-	auto* lf = _module->getFunction(callName);
-	if (lf == nullptr)
-	{
-		lf = _lti->getLlvmFunction(callName);
-	}
-	if (lf == nullptr)
-	{
-		LOG << "\tno function for name" << std::endl;
-		return false;
-	}
-	for (Argument& a : lf->args())
-	{
-		if (!a.getType()->isFirstClassType())
-		{
-			LOG << "\tnone first class type argument" << std::endl;
-			return false;
-		}
-	}
-
-	if (ai.eraseInstructions())
-	{
-		LOG << "\tasm instruction cannot be erased" << std::endl;
-	}
-
-	if (auto* cf = _config->getConfigFunction(lf))
-	{
-		cf->setIsSyscall();
-	}
-
-	Instruction* next = ai.getLlvmToAsmInstruction()->getNextNode();
-	if (next == nullptr)
-	{
-		LOG << "\tno next instruction (should not be possible)" << std::endl;
-		return false;
-	}
-
-	unsigned cntr = 0;
-	std::vector<Value*> args;
-	for (Argument& a : lf->args())
-	{
-		if (auto* reg = _abi->getSyscallArgumentRegister(cntr++))
-		{
-			auto* l = new LoadInst(reg, "", next);
-			args.push_back(IrModifier::convertValueToType(l, a.getType(), next));
-		}
-		else
-		{
-			// If it gets here, function has only first class type arguments.
-			// Otherwise, this would fail to get undef value.
-			args.push_back(UndefValue::get(a.getType()));
-		}
-	}
-
-	auto* call = CallInst::Create(lf, args, "", next);
-	LOG << "\t===> " << llvmObjToString(call) << std::endl;
-
-	if (!lf->getReturnType()->isVoidTy())
-	{
-		if (auto* reg = _abi->getSyscallReturnRegister())
-		{
-			auto* conv = IrModifier::convertValueToType(
-					call,
-					reg->getType()->getElementType(),
-					next);
-			auto* s = new StoreInst(conv, reg, next);
-			LOG << "\t===> " << llvmObjToString(s) << std::endl;
-		}
-	}
-
-	return true;
+	return transform(ai, code, syscalls_mips_linux);
 }
 
 } // namespace bin2llvmir

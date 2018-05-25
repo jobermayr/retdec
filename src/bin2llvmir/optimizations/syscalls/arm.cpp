@@ -10,15 +10,11 @@
 
 #include "retdec/bin2llvmir/optimizations/syscalls/syscalls.h"
 #include "retdec/bin2llvmir/providers/asm_instruction.h"
-#include "retdec/bin2llvmir/utils/ir_modifier.h"
-#include "retdec/bin2llvmir/utils/debug.h"
-const bool debug_enabled = false;
 
 using namespace llvm;
 
 /**
  * http://lxr.free-electrons.com/source/arch/arm/include/asm/unistd.h?v=3.1;a%3Darm
- *
  * https://w3challs.com/syscalls/?arch=arm_strong
  * https://w3challs.com/syscalls/?arch=arm_thumb
  */
@@ -433,10 +429,6 @@ bool SyscallFixer::runArm_linux_32()
  * Sample 8A5C:
  * 160d8:       ea00043b        b       0x171cc
  * 160dc:       ef900026        svc     0x00900026
- * 160e0:       ea000439        b       0x171cc
- * 160e4:       ef90000a        svc     0x0090000a
- *
- * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489c/Cihidabi.html
  */
 bool SyscallFixer::runArm_linux_32(AsmInstruction ai)
 {
@@ -461,91 +453,7 @@ bool SyscallFixer::runArm_linux_32(AsmInstruction ai)
 	LOG << "\tcode = " << std::dec << code << " (" << std::hex << code << ")"
 			<< std::endl;
 
-// =============================================================================
-
-	// Find syscall name.
-	//
-	auto fit = syscalls_arm_linux_32.find(code);
-	if (fit == syscalls_arm_linux_32.end())
-	{
-		LOG << "\tno syscall entry for code" << std::endl;
-		return false;
-	}
-	std::string callName = fit->second;
-	LOG << "\tfound in syscall map: " << callName << std::endl;
-
-	// Find syscall function.
-	//
-	Function* lf = _module->getFunction(callName);
-	if (lf == nullptr)
-	{
-		lf = _lti->getLlvmFunction(callName);
-	}
-	if (lf == nullptr)
-	{
-		LOG << "\tno function for name" << std::endl;
-		return false;
-	}
-	for (Argument& a : lf->args())
-	{
-		if (!a.getType()->isFirstClassType())
-		{
-			LOG << "\tnone first class type argument" << std::endl;
-			return false;
-		}
-	}
-
-	if (ai.eraseInstructions())
-	{
-		LOG << "\tasm instruction cannot be erased" << std::endl;
-	}
-
-	if (auto* cf = _config->getConfigFunction(lf))
-	{
-		cf->setIsSyscall();
-	}
-
-	Instruction* next = ai.getLlvmToAsmInstruction()->getNextNode();
-	if (next == nullptr)
-	{
-		LOG << "\tno next instruction (should not be possible)" << std::endl;
-		return false;
-	}
-
-	unsigned cntr = 0;
-	std::vector<Value*> args;
-	for (Argument& a : lf->args())
-	{
-		if (auto* reg = _abi->getSyscallArgumentRegister(cntr++))
-		{
-			auto* l = new LoadInst(reg, "", next);
-			args.push_back(IrModifier::convertValueToType(l, a.getType(), next));
-		}
-		else
-		{
-			// If it gets here, function has only first class type arguments.
-			// Otherwise, this would fail to get undef value.
-			args.push_back(UndefValue::get(a.getType()));
-		}
-	}
-
-	auto* call = CallInst::Create(lf, args, "", next);
-	LOG << "\t===> " << llvmObjToString(call) << std::endl;
-
-	if (!lf->getReturnType()->isVoidTy())
-	{
-		if (auto* reg = _abi->getSyscallReturnRegister())
-		{
-			auto* conv = IrModifier::convertValueToType(
-					call,
-					reg->getType()->getElementType(),
-					next);
-			auto* s = new StoreInst(conv, reg, next);
-			LOG << "\t===> " << llvmObjToString(s) << std::endl;
-		}
-	}
-
-	return true;
+	return transform(ai, code, syscalls_arm_linux_32);
 }
 
 } // namespace bin2llvmir
