@@ -16,12 +16,17 @@
 #include "retdec/bin2llvmir/providers/names.h"
 #include "retdec/bin2llvmir/utils/debug.h"
 #include "retdec/utils/address.h"
-#include "retdec/utils/string.h"
 
 using namespace retdec::utils;
 
 namespace retdec {
 namespace bin2llvmir {
+
+//
+//==============================================================================
+// Miscellaneous functions.
+//==============================================================================
+//
 
 /**
  * We need special function for @c Module printing because
@@ -39,10 +44,12 @@ std::string llvmObjToString(const llvm::Module* t)
 		ss << "nullptr";
 	return ss.str();
 }
-std::string llvmObjToString(const llvm::Module& t)
-{
-	return llvmObjToString(&t);
-}
+
+//
+//==============================================================================
+// Module to LLMV IR file serialization.
+//==============================================================================
+//
 
 void dumpModuleToFile(
 		const llvm::Module* m,

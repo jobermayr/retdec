@@ -20,6 +20,9 @@
 namespace retdec {
 namespace bin2llvmir {
 
+/**
+ * Set \c debug_enabled to \c true to enable this LOG macro.
+ */
 #define LOG \
 	if (!debug_enabled) {} \
 	else std::cout << std::showbase
@@ -42,7 +45,6 @@ std::string llvmObjToString(const T* t)
 	return ss.str();
 }
 std::string llvmObjToString(const llvm::Module* t);
-std::string llvmObjToString(const llvm::Module& t);
 
 void dumpModuleToFile(
 		const llvm::Module* m,
