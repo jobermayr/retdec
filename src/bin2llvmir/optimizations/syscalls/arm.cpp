@@ -17,10 +17,11 @@ const bool debug_enabled = false;
 using namespace llvm;
 using namespace retdec::utils;
 
-#define debug_enabled false
-
 /**
  * http://lxr.free-electrons.com/source/arch/arm/include/asm/unistd.h?v=3.1;a%3Darm
+ *
+ * https://w3challs.com/syscalls/?arch=arm_strong
+ * https://w3challs.com/syscalls/?arch=arm_thumb
  */
 std::map<uint64_t, std::string> armSyscalls =
 {
@@ -406,35 +407,6 @@ std::map<uint64_t, std::string> armSyscalls =
 namespace retdec {
 namespace bin2llvmir {
 
-bool getSyscallCode(FileImage* image, bool isThumb, Address addr, uint64_t code)
-{
-	bool res = false;
-	if (image->getImage()->isLittleEndian())
-	{
-		if (isThumb)
-		{
-			res = image->getImage()->get1Byte(addr, code);
-		}
-		else
-		{
-			res = image->getImage()->get2Byte(addr, code);
-		}
-	}
-	else
-	{
-		if (isThumb)
-		{
-			res = image->getImage()->get1Byte(addr + 1, code);
-		}
-		else
-		{
-			res = image->getImage()->get2Byte(addr + 2, code);
-		}
-	}
-
-	return !res;
-}
-
 bool SyscallFixer::runArm()
 {
 	if (_config->getConfig().fileFormat.isElf())
@@ -475,13 +447,23 @@ bool SyscallFixer::runArm_unix(AsmInstruction ai)
 	}
 	LOG << "ARM syscall @ " << ai.getAddress() << std::endl;
 
-	uint64_t code = 0;
-	if (getSyscallCode(_image, ai.isThumb(), ai.getAddress(), code))
+	auto* armAsm = ai.getCapstoneInsn();
+	if (armAsm == nullptr)
 	{
-		LOG << "\tgetSyscallCode() failed" << std::endl;
+		LOG << "\tno ARM asm instruction" << std::endl;
 		return false;
 	}
-	LOG << "\tcode = " << std::dec << code << std::endl;
+	auto& detail = armAsm->detail->arm;
+	if (detail.op_count != 1
+			|| detail.operands[0].type != ARM_OP_IMM)
+	{
+		LOG << "\tbad ARM asm instruction format" << std::endl;
+		return false;
+	}
+	// ARM has 0x90xxxx
+	uint64_t code = detail.operands[0].imm & 0xffff;
+	LOG << "\tcode = " << std::dec << code << " (" << std::hex << code << ")"
+			<< std::endl;
 
 	auto fit = armSyscalls.find(code);
 	if (fit == armSyscalls.end())
