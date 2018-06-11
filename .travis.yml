@@ -56,25 +56,27 @@ script:
   - mkdir build && cd build
   # We use "-O0" to speed up the build.
   # "-O0" causes segfaults in LLVM if we do not use "-DNDEBUG" as well.
-  - cmake -DCMAKE_CXX_FLAGS_RELEASE="-O0 -DNDEBUG" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$(pwd)/install" -DRETDEC_COMPILE_YARA=OFF ..
-  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then cmake -DRETDEC_TESTS=ON -DRETDEC_DEV_TOOLS=ON .. ; fi
+  - cmake -DCMAKE_CXX_FLAGS_RELEASE="-O0 -g0 -DNDEBUG" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$(pwd)/install" -DRETDEC_TESTS=OFF -DRETDEC_DEV_TOOLS=ON -DRETDEC_COMPILE_YARA=OFF ..
+  - echo "Building with $NPROC jobs"
   - time make install -j $NPROC
   # Check that install is movable and that it does not need the build directory.
   - mv install ../retdec-install
   - cd ..
   - rm -rf build
   # Run unit tests.
-  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then python3 retdec-install/bin/retdec-tests-runner.py ; fi
+  #- if [ "$TRAVIS_OS_NAME" = "osx" ]; then python3 retdec-install/bin/retdec-tests-runner.py ; fi
   # Run the decompilation script.
-  - python3 retdec-install/bin/retdec-decompiler.py --help
+  #- python3 retdec-install/bin/retdec-decompiler.py --help
   # Run a simple decompilation.
-  - echo -e '#include <stdio.h>\n#include <stdlib.h>\nint main()\n{\n  printf("hello world\\n");\n  return 0;\n}\n' > hello-orig.c
-  - cat hello-orig.c
-  - gcc -m32 -o hello hello-orig.c
-  - ./hello
-  - python3 retdec-install/bin/retdec-decompiler.py hello
-  - cat hello.c
-  - grep "int main(int argc, char \*\* argv)" hello.c
+  #- echo -e '#include <stdio.h>\n#include <stdlib.h>\nint main()\n{\n  printf("hello world\\n");\n  return 0;\n}\n' > hello-orig.c
+  #- cat hello-orig.c
+  #- $CC -m32 -o hello hello-orig.c
+  #- ./hello
+  #- python3 retdec-install/bin/retdec-decompiler.py hello
+  #- cat hello.c
+  #- grep "int main(int argc, char \*\* argv)" hello.c
+  # Create built tarball on Linux
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then rm -rf retdec-install/share retdec-install/bin/*-tests-*; echo "size of retdec-install:"; du -s retdec-install; tar cfJ retdec-linux.tar.xz retdec-install; du -s retdec-linux*; fi
 
 branches:
   only:
@@ -86,3 +88,24 @@ branches:
 notifications:
   email:
     on_success: never
+
+before_deploy:
+  # Set up git user name and tag this commit
+  - git config --local user.name "none"
+  - git config --local user.email "no@no.no"
+  - git tag -d $(git tag -l | grep prerelease) || true
+  - git tag prerelease-$(date --utc --date "Jan 1, 1970 00:00:00 +0000 + $(git log HEAD^ -n 1 --pretty=format:%ct) seconds" +%Y%m%d.%H%M)
+
+deploy:
+  provider: releases
+  api_key:
+    secure: $GH_API_KEY
+  file_glob: true
+  file: retdec-linux.tar.xz
+  skip_cleanup: true
+  overwrite: true
+  prerelease: true
+  name: prerelease
+  on:
+    branch: master
+    condition: $TRAVIS_OS_NAME = linux
