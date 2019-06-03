@@ -177,8 +177,9 @@ endif()
 # Add libraries.
 ExternalProject_Get_Property(llvm-project binary_dir)
 
-add_library(llvm INTERFACE)
-add_dependencies(llvm llvm-project)
+file(WRITE empty.cpp "")
+add_library(llvm-retdec SHARED empty.cpp)
+add_dependencies(llvm-retdec llvm-project)
 
 set(LLVM_LIB_LIST
 	LLVMBitWriter
@@ -209,21 +210,23 @@ if(MSVC)
 endif()
 
 foreach(LLVM_LIB ${LLVM_LIB_LIST})
-	target_link_libraries(llvm INTERFACE debug     ${binary_dir}/${DEBUG_DIR}lib/${CMAKE_STATIC_LIBRARY_PREFIX}${LLVM_LIB}${CMAKE_STATIC_LIBRARY_SUFFIX})
-	target_link_libraries(llvm INTERFACE optimized ${binary_dir}/${RELEASE_DIR}lib/${CMAKE_STATIC_LIBRARY_PREFIX}${LLVM_LIB}${CMAKE_STATIC_LIBRARY_SUFFIX})
+	target_link_libraries(llvm-retdec PUBLIC debug     ${binary_dir}/${DEBUG_DIR}lib/${CMAKE_STATIC_LIBRARY_PREFIX}${LLVM_LIB}${CMAKE_STATIC_LIBRARY_SUFFIX})
+	target_link_libraries(llvm-retdec PUBLIC optimized ${binary_dir}/${RELEASE_DIR}lib/${CMAKE_STATIC_LIBRARY_PREFIX}${LLVM_LIB}${CMAKE_STATIC_LIBRARY_SUFFIX})
 endforeach(LLVM_LIB)
 
 if(CMAKE_THREAD_LIBS_INIT)
-	target_link_libraries(llvm INTERFACE debug     ${CMAKE_THREAD_LIBS_INIT})
-	target_link_libraries(llvm INTERFACE optimized ${CMAKE_THREAD_LIBS_INIT})
+	target_link_libraries(llvm-retdec PUBLIC debug     ${CMAKE_THREAD_LIBS_INIT})
+	target_link_libraries(llvm-retdec PUBLIC optimized ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
 if(UNIX)
-	target_link_libraries(llvm INTERFACE debug     ${ZLIB_LIBRARIES} dl)
-	target_link_libraries(llvm INTERFACE optimized ${ZLIB_LIBRARIES} dl)
+	target_link_libraries(llvm-retdec PUBLIC debug     ${ZLIB_LIBRARIES} dl)
+	target_link_libraries(llvm-retdec PUBLIC optimized ${ZLIB_LIBRARIES} dl)
 endif()
 
 # Set include directories.
 ExternalProject_Get_Property(llvm-project source_dir)
-target_include_directories(llvm SYSTEM INTERFACE ${source_dir}/include)
-target_include_directories(llvm SYSTEM INTERFACE ${binary_dir}/include)
+target_include_directories(llvm-retdec SYSTEM PUBLIC ${source_dir}/include)
+target_include_directories(llvm-retdec SYSTEM PUBLIC ${binary_dir}/include)
+
+install(TARGETS llvm-retdec DESTINATION lib)

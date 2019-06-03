@@ -28,5 +28,5 @@ set(DEMANGLER_LLVM_SOURCES
 )
 
 add_library(retdec-demangler STATIC ${DEMANGLER_LLVM_SOURCES})
-target_link_libraries(retdec-demangler retdec-ctypesparser llvm)
+target_link_libraries(retdec-demangler retdec-ctypesparser llvm-retdec)
 target_include_directories(retdec-demangler PUBLIC ${PROJECT_SOURCE_DIR}/include/)
